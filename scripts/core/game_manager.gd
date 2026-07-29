@@ -37,6 +37,7 @@ var automation: Node
 var events: Node
 var objectives: Node
 var upgrades: Node
+var audio: Node
 var save: Node
 var ui: Node
 
@@ -69,6 +70,7 @@ func _create_managers() -> void:
 	events = _add("res://scripts/events/event_manager.gd", "EventManager")
 	objectives = _add("res://scripts/core/objective_manager.gd", "ObjectiveManager")
 	upgrades = _add("res://scripts/core/upgrade_manager.gd", "UpgradeManager")
+	audio = _add("res://scripts/core/audio_manager.gd", "AudioManager")
 	save = _add("res://scripts/save/save_manager.gd", "SaveManager")
 	ui = _add("res://scripts/ui/ui_manager.gd", "UIManager")
 

@@ -251,9 +251,16 @@ func apply_dict(data: Dictionary) -> void:
 	_update_visual_state()
 
 # --- Modelo 3D --------------------------------------------------------------
-# Modelo compuesto generado por código (chasis, carcasa PBR, tuberías, panel,
-# detalle por tipo y efectos). Preparado para sustituirse por el asset final.
+# Modelos bespoke por tipo (horno, prensa, celda robótica) con partes animadas.
+# Preparado para sustituirse por el asset final del pipeline gráfico.
 var _sparks: GPUParticles3D
+var _beacon_light: OmniLight3D
+var _glow_light: OmniLight3D
+var _glow_mat: StandardMaterial3D
+var _anim_primary: Node3D
+var _anim_secondary: Node3D
+var _anim_kind: String = ""
+var _ram_base_y: float = 2.6
 
 func _build_visual() -> void:
 	var cell := GameState.CELL_SIZE
@@ -261,83 +268,45 @@ func _build_visual() -> void:
 	var d := grid_size.y * cell
 	var color := _category_color()
 
-	var mat_housing := _pbr(color, 0.42, 0.7)
-	var mat_dark := _pbr(Color(0.13, 0.14, 0.16), 0.5, 0.85)
-	var mat_concrete := _pbr(Color(0.24, 0.24, 0.26), 0.95, 0.0)
+	var mats := {
+		"housing": _pbr(color, 0.4, 0.65),
+		"steel": _pbr(Color(0.55, 0.57, 0.6), 0.35, 0.9),
+		"dark": _pbr(Color(0.13, 0.14, 0.16), 0.5, 0.85),
+		"concrete": _pbr(Color(0.24, 0.24, 0.26), 0.95, 0.0),
+		"rubber": _pbr(Color(0.08, 0.08, 0.09), 0.85, 0.0),
+	}
 
-	# Losa de cimentación.
-	_add_box(Vector3(w * 0.98, 0.3, d * 0.98), Vector3(0, 0.15, 0), mat_concrete)
+	# Losa de cimentación común con bordes.
+	_add_box(Vector3(w * 0.99, 0.3, d * 0.99), Vector3(0, 0.15, 0), mats["concrete"])
+	_add_box(Vector3(w * 0.99, 0.08, d * 0.99), Vector3(0, 0.32, 0), mats["dark"])
 
-	# Postes del chasis en las 4 esquinas.
-	var hx := w * 0.44
-	var hz := d * 0.44
-	for sx in [-1, 1]:
-		for sz in [-1, 1]:
-			_add_box(Vector3(0.22, 2.1, 0.22), Vector3(sx * hx, 1.15, sz * hz), mat_dark)
+	match machine_id:
+		"smelter": _build_smelter(w, d, mats)
+		"press": _build_press(w, d, mats)
+		"assembler": _build_assembler(w, d, mats)
+		_: _build_generic(w, d, mats)
 
-	# Carcasa principal (metálica) y remate biselado.
-	_add_box(Vector3(w * 0.82, 1.7, d * 0.82), Vector3(0, 1.15, 0), mat_housing)
-	_add_box(Vector3(w * 0.6, 0.35, d * 0.6), Vector3(0, 2.15, 0), mat_housing.duplicate())
-
-	# Franja de peligro (base frontal).
-	var mat_hazard := _pbr(Color(0.85, 0.7, 0.1), 0.5, 0.2)
-	mat_hazard.emission_enabled = true
-	mat_hazard.emission = Color(0.7, 0.55, 0.05)
-	mat_hazard.emission_energy_multiplier = 0.5
-	_add_box(Vector3(w * 0.82, 0.18, 0.06), Vector3(0, 0.55, d * 0.41 + 0.02), mat_hazard)
-
-	# Panel de control frontal con pantalla emisiva.
-	_add_box(Vector3(0.7, 0.9, 0.12), Vector3(-w * 0.2, 1.2, d * 0.41 + 0.03), mat_dark)
-	var mat_screen := _pbr(Color(0.15, 0.5, 0.65), 0.2, 0.0)
-	mat_screen.emission_enabled = true
-	mat_screen.emission = Color(0.2, 0.75, 0.95)
-	mat_screen.emission_energy_multiplier = 1.6
-	_add_box(Vector3(0.5, 0.4, 0.04), Vector3(-w * 0.2, 1.35, d * 0.41 + 0.1), mat_screen)
-
-	# Tuberías laterales.
-	for i in range(2):
-		_add_pipe(w * 0.5, Vector3(w * 0.41 + 0.02, 0.9 + i * 0.55, 0.0), Vector3(0, 0, 90), mat_dark)
-	_add_valve(Vector3(w * 0.41 + 0.15, 0.9, d * 0.25), color)
-
-	# Detalle superior según el tipo de máquina.
-	_rotor = Node3D.new()
-	_rotor.position = Vector3(w * 0.15, 2.35, 0)
-	add_child(_rotor)
-	match String(def.get("category", "")):
-		"processing":
-			# Chimenea con vent incandescente + humo.
-			_add_cylinder(0.32, 0.4, 1.6, Vector3(w * 0.22, 2.9, -d * 0.15), mat_dark)
-			var mat_glow := _pbr(Color(0.9, 0.35, 0.1), 0.4, 0.0)
-			mat_glow.emission_enabled = true
-			mat_glow.emission = Color(1.0, 0.4, 0.1)
-			mat_glow.emission_energy_multiplier = 2.5
-			_add_box(Vector3(w * 0.5, 0.12, d * 0.5), Vector3(0, 2.02, 0), mat_glow)
-			_add_gear(_rotor, 0.5, mat_dark)
-		"manufacturing":
-			# Engranaje/pistón que gira al producir.
-			_add_gear(_rotor, 0.55, mat_dark)
-			_add_cylinder(0.14, 0.14, 1.1, Vector3(-w * 0.28, 2.6, 0), mat_dark)
-		"power":
-			_add_fan(_rotor, 0.6, mat_dark)
-		_:
-			_add_gear(_rotor, 0.5, mat_dark)
-
-	# Baliza de estado sobre un pequeño mástil.
-	_add_cylinder(0.05, 0.05, 0.5, Vector3(hx * 0.85, 2.55, hz * 0.85), mat_dark)
+	# Baliza de estado sobre mástil (común).
+	var hx := w * 0.42
+	var hz := d * 0.42
+	_add_cylinder(0.05, 0.06, 0.6, Vector3(hx, 2.7, hz), mats["dark"])
 	_status_light = MeshInstance3D.new()
 	var lm := SphereMesh.new()
 	lm.radius = 0.2
 	lm.height = 0.4
 	_status_light.mesh = lm
-	_status_light.position = Vector3(hx * 0.85, 2.9, hz * 0.85)
+	_status_light.position = Vector3(hx, 3.1, hz)
 	add_child(_status_light)
+	# Foco de la baliza para que ilumine su entorno.
+	_beacon_light = OmniLight3D.new()
+	_beacon_light.position = Vector3(hx, 3.1, hz)
+	_beacon_light.omni_range = 6.0
+	_beacon_light.light_energy = 1.5
+	_beacon_light.shadow_enabled = false
+	add_child(_beacon_light)
 
-	# Efectos: vapor y chispas (apagados salvo en marcha).
-	_running_particles = _make_steam()
-	_running_particles.position = Vector3(w * 0.22, 3.7, -d * 0.15) if String(def.get("category","")) == "processing" else Vector3(0, 2.5, 0)
-	add_child(_running_particles)
 	_sparks = _make_sparks(color)
-	_sparks.position = Vector3(0, 1.2, d * 0.42)
+	_sparks.position = Vector3(0, 1.1, d * 0.42)
 	add_child(_sparks)
 
 	# Colisión para selección (capa 2).
@@ -347,14 +316,182 @@ func _build_visual() -> void:
 	pick.input_ray_pickable = true
 	var cs := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(w, 2.8, d)
+	box.size = Vector3(w, 3.2, d)
 	cs.shape = box
-	cs.position = Vector3(0, 1.4, 0)
+	cs.position = Vector3(0, 1.6, 0)
 	pick.add_child(cs)
 	pick.set_meta("machine", self)
 	add_child(pick)
 
 	_update_visual_state()
+
+# --- Detalles comunes -------------------------------------------------------
+func _add_control_panel(pos: Vector3, mats: Dictionary) -> void:
+	_add_box(Vector3(0.7, 0.95, 0.14), pos, mats["dark"])
+	var screen := _pbr(Color(0.15, 0.5, 0.65), 0.2, 0.0)
+	screen.emission_enabled = true
+	screen.emission = Color(0.25, 0.8, 1.0)
+	screen.emission_energy_multiplier = 1.8
+	_add_box(Vector3(0.48, 0.4, 0.04), pos + Vector3(0, 0.18, 0.09), screen)
+	# Botonera.
+	for i in range(3):
+		var btn := _pbr(Color(0.9, 0.3, 0.2) if i == 0 else Color(0.3, 0.8, 0.4), 0.4, 0.0)
+		btn.emission_enabled = true
+		btn.emission = btn.albedo_color
+		btn.emission_energy_multiplier = 0.8
+		_add_cylinder(0.05, 0.05, 0.05, pos + Vector3(-0.18 + i * 0.18, -0.2, 0.08), btn).rotation_degrees = Vector3(90, 0, 0)
+
+func _add_ladder(base: Vector3, height: float, mat: Material) -> void:
+	for side in [-1, 1]:
+		_add_cylinder(0.03, 0.03, height, base + Vector3(side * 0.18, height * 0.5, 0), mat)
+	var rungs := int(height / 0.35)
+	for i in range(rungs):
+		var r := _add_cylinder(0.025, 0.025, 0.36, base + Vector3(0, 0.3 + i * 0.35, 0), mat)
+		r.rotation_degrees = Vector3(0, 0, 90)
+
+func _add_bolts(size_x: float, pos: Vector3, mat: Material) -> void:
+	for i in range(4):
+		var sx := -1.0 if i % 2 == 0 else 1.0
+		var sy := -1.0 if i < 2 else 1.0
+		_add_cylinder(0.05, 0.05, 0.08, pos + Vector3(sx * size_x * 0.5, sy * 0.25, 0.02), mat).rotation_degrees = Vector3(90, 0, 0)
+
+# --- HORNO DE FUNDICIÓN -----------------------------------------------------
+func _build_smelter(w: float, d: float, mats: Dictionary) -> void:
+	var steel: Material = mats["steel"]
+	var dark: Material = mats["dark"]
+	# Cuerpo del horno: cilindro ancho abombado con anillos de refuerzo.
+	_add_cylinder(w * 0.34, w * 0.4, 2.2, Vector3(0, 1.4, -d * 0.05), steel)
+	for i in range(3):
+		var ring := _add_cylinder(w * 0.42, w * 0.42, 0.12, Vector3(0, 0.7 + i * 0.7, -d * 0.05), dark)
+	# Cúpula superior.
+	var dome := _add_sphere(w * 0.34, Vector3(0, 2.5, -d * 0.05), steel)
+	dome.scale = Vector3(1, 0.6, 1)
+	# Boca de colada incandescente al frente + foco.
+	_glow_mat = _pbr(Color(1.0, 0.45, 0.1), 0.4, 0.0)
+	_glow_mat.emission_enabled = true
+	_glow_mat.emission = Color(1.0, 0.4, 0.08)
+	_glow_mat.emission_energy_multiplier = 2.0
+	_add_box(Vector3(0.7, 0.5, 0.3), Vector3(0, 0.85, d * 0.32), _glow_mat)
+	_add_cylinder(0.12, 0.18, 0.6, Vector3(0, 0.6, d * 0.42), dark).rotation_degrees = Vector3(60, 0, 0)
+	_glow_light = OmniLight3D.new()
+	_glow_light.position = Vector3(0, 0.9, d * 0.45)
+	_glow_light.light_color = Color(1.0, 0.5, 0.15)
+	_glow_light.omni_range = 5.0
+	_glow_light.light_energy = 2.0
+	_glow_light.shadow_enabled = false
+	add_child(_glow_light)
+	# Chimenea alta con sombrerete.
+	_add_cylinder(0.28, 0.34, 2.6, Vector3(w * 0.26, 3.0, -d * 0.28), dark)
+	_add_cylinder(0.42, 0.42, 0.12, Vector3(w * 0.26, 4.35, -d * 0.28), dark)
+	# Escalera de acceso.
+	_add_ladder(Vector3(-w * 0.36, 0.3, d * 0.1), 2.4, dark)
+	# Tuberías de alimentación.
+	_add_pipe(w * 0.7, Vector3(0, 1.9, -d * 0.4 - 0.1), Vector3(90, 0, 0), dark)
+	_add_valve(Vector3(w * 0.3, 1.9, -d * 0.4), Color(0.7, 0.3, 0.2))
+	_add_control_panel(Vector3(-w * 0.28, 1.1, d * 0.36), mats)
+	# Ventilador de tiro (gira).
+	_anim_primary = Node3D.new()
+	_anim_primary.position = Vector3(w * 0.26, 4.4, -d * 0.28)
+	add_child(_anim_primary)
+	_add_fan(_anim_primary, 0.3, dark)
+	_anim_kind = "smelter"
+	# Humo por la chimenea.
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(w * 0.26, 4.5, -d * 0.28)
+	add_child(_running_particles)
+
+# --- PRENSA DE BASTIDOR -----------------------------------------------------
+func _build_press(w: float, d: float, mats: Dictionary) -> void:
+	var steel: Material = mats["steel"]
+	var dark: Material = mats["dark"]
+	var housing: Material = mats["housing"]
+	# Base / bancada.
+	_add_box(Vector3(w * 0.8, 0.8, d * 0.7), Vector3(0, 0.7, 0), housing)
+	_add_bolts(w * 0.8, Vector3(0, 0.9, d * 0.36), dark)
+	# Dos columnas robustas.
+	for sx in [-1, 1]:
+		_add_box(Vector3(0.4, 3.0, 0.4), Vector3(sx * w * 0.3, 2.4, 0), steel)
+	# Corona superior (crown).
+	_add_box(Vector3(w * 0.8, 0.7, d * 0.55), Vector3(0, 4.0, 0), housing)
+	# Cilindro hidráulico sobre la corona.
+	_add_cylinder(0.35, 0.35, 1.0, Vector3(0, 4.7, 0), dark)
+	# Ariete móvil (baja al producir).
+	_anim_primary = Node3D.new()
+	add_child(_anim_primary)
+	_ram_base_y = 2.6
+	_anim_primary.position = Vector3(0, _ram_base_y, 0)
+	_add_box(Vector3(w * 0.5, 0.9, d * 0.45), Vector3(0, 0, 0), steel)
+	_add_cylinder(0.22, 0.22, 1.2, Vector3(0, 0.9, 0), mats["dark"])   # vástago
+	# Matriz inferior.
+	_add_box(Vector3(w * 0.5, 0.35, d * 0.45), Vector3(0, 1.35, 0), dark)
+	# Barandillas de seguridad frontales.
+	_add_railing(Vector3(0, 0, d * 0.36), w * 0.7, mats["dark"])
+	_add_control_panel(Vector3(w * 0.44, 1.1, d * 0.2), mats)
+	_anim_kind = "press"
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(0, 1.6, 0)
+	add_child(_running_particles)
+
+# --- CELDA DE ENSAMBLAJE CON BRAZO ROBÓTICO ---------------------------------
+func _build_assembler(w: float, d: float, mats: Dictionary) -> void:
+	var steel: Material = mats["steel"]
+	var dark: Material = mats["dark"]
+	var housing: Material = mats["housing"]
+	# Bancada baja.
+	_add_box(Vector3(w * 0.9, 0.9, d * 0.85), Vector3(0, 0.75, 0), housing)
+	# Vallado de la celda con ventanas de vidrio.
+	var glass := _pbr(Color(0.4, 0.6, 0.7, 0.25), 0.1, 0.0)
+	glass.emission_enabled = true
+	glass.emission = Color(0.2, 0.4, 0.5)
+	glass.emission_energy_multiplier = 0.3
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for corner in [Vector3(-w * 0.42, 0, -d * 0.4), Vector3(w * 0.42, 0, -d * 0.4)]:
+		_add_cylinder(0.06, 0.06, 2.2, Vector3(corner.x, 2.3, corner.z), dark)
+	_add_box(Vector3(w * 0.85, 1.4, 0.05), Vector3(0, 2.0, -d * 0.4), glass)
+	for sx in [-1, 1]:
+		_add_box(Vector3(0.05, 1.4, d * 0.75), Vector3(sx * w * 0.42, 2.0, 0), glass)
+	# Base del robot.
+	_add_cylinder(0.45, 0.55, 0.5, Vector3(0, 1.45, 0), dark)
+	# Brazo robótico multiarticulado (anim).
+	_anim_primary = Node3D.new()          # rota sobre la base
+	_anim_primary.position = Vector3(0, 1.7, 0)
+	add_child(_anim_primary)
+	var shoulder := _add_child_box(_anim_primary, Vector3(0.4, 0.4, 0.4), Vector3(0, 0.1, 0), housing)
+	# Brazo superior.
+	_add_child_box(_anim_primary, Vector3(0.28, 1.3, 0.28), Vector3(0, 0.75, 0.1), steel)
+	# Codo articulado (anim secundaria).
+	_anim_secondary = Node3D.new()
+	_anim_secondary.position = Vector3(0, 1.35, 0.1)
+	_anim_primary.add_child(_anim_secondary)
+	_add_child_box(_anim_secondary, Vector3(0.24, 1.0, 0.24), Vector3(0, 0.45, 0.25), steel)
+	# Muñeca + pinza.
+	_add_child_box(_anim_secondary, Vector3(0.3, 0.2, 0.3), Vector3(0, 0.9, 0.4), dark)
+	for gx in [-1, 1]:
+		_add_child_box(_anim_secondary, Vector3(0.06, 0.3, 0.1), Vector3(gx * 0.12, 1.05, 0.45), dark)
+	# Luz de trabajo cenital.
+	var worklight := _pbr(Color(1, 1, 0.9), 0.3, 0.0)
+	worklight.emission_enabled = true
+	worklight.emission = Color(1, 1, 0.85)
+	worklight.emission_energy_multiplier = 1.5
+	_add_box(Vector3(1.2, 0.1, 0.4), Vector3(0, 2.7, 0), worklight)
+	_add_control_panel(Vector3(-w * 0.3, 1.15, d * 0.4), mats)
+	_anim_kind = "arm"
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(0, 2.0, 0.3)
+	add_child(_running_particles)
+
+func _build_generic(w: float, d: float, mats: Dictionary) -> void:
+	_add_box(Vector3(w * 0.82, 1.7, d * 0.82), Vector3(0, 1.2, 0), mats["housing"])
+	_add_box(Vector3(w * 0.6, 0.35, d * 0.6), Vector3(0, 2.2, 0), mats["steel"])
+	_anim_primary = Node3D.new()
+	_anim_primary.position = Vector3(0, 2.4, 0)
+	add_child(_anim_primary)
+	_add_fan(_anim_primary, 0.5, mats["dark"])
+	_anim_kind = "fan"
+	_add_control_panel(Vector3(0, 1.2, d * 0.42), mats)
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(0, 2.6, 0)
+	add_child(_running_particles)
 
 # --- Helpers de construcción de malla ---------------------------------------
 func _add_box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
@@ -382,6 +519,37 @@ func _add_cylinder(top_r: float, bot_r: float, h: float, pos: Vector3, mat: Mate
 func _add_pipe(length: float, pos: Vector3, rot_deg: Vector3, mat: Material) -> void:
 	var mi := _add_cylinder(0.09, 0.09, length, pos, mat)
 	mi.rotation_degrees = rot_deg
+
+func _add_sphere(radius: float, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = radius
+	sm.height = radius * 2.0
+	mi.mesh = sm
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+	return mi
+
+func _add_child_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.position = pos
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+func _add_railing(center: Vector3, length: float, mat: Material) -> void:
+	# Pasamanos con postes.
+	var top := _add_cylinder(0.03, 0.03, length, center + Vector3(0, 1.0, 0), mat)
+	top.rotation_degrees = Vector3(0, 0, 90)
+	var posts := int(length / 0.8)
+	for i in range(posts + 1):
+		var t := float(i) / float(posts)
+		var x := lerpf(-length * 0.5, length * 0.5, t)
+		_add_cylinder(0.03, 0.03, 1.0, center + Vector3(x, 0.5, 0), mat)
 
 func _add_valve(pos: Vector3, color: Color) -> void:
 	var mat := _pbr(color.lightened(0.1), 0.4, 0.6)
@@ -488,8 +656,31 @@ func _make_sparks(color: Color) -> GPUParticles3D:
 	return p
 
 func _process(delta: float) -> void:
-	if _rotor and state == State.RUNNING:
-		_rotor.rotate_y(delta * 4.0)
+	var running := state == State.RUNNING
+	var t := Time.get_ticks_msec() / 1000.0
+	match _anim_kind:
+		"smelter":
+			if _anim_primary and running:
+				_anim_primary.rotate_y(delta * 3.0)
+			# Pulso de la boca incandescente y su foco.
+			if _glow_mat:
+				var e: float = (2.2 + 0.9 * sin(t * 4.0)) if running else 0.5
+				_glow_mat.emission_energy_multiplier = e
+			if _glow_light:
+				_glow_light.light_energy = (2.5 + 0.8 * sin(t * 4.0)) if running else 0.6
+		"press":
+			if _anim_primary:
+				# Ariete: golpe descendente rápido + retorno.
+				var stroke: float = (0.55 * (0.5 - 0.5 * cos(t * 7.0))) if running else 0.0
+				_anim_primary.position.y = _ram_base_y - stroke
+		"arm":
+			if _anim_primary and running:
+				_anim_primary.rotate_y(delta * 1.4)
+			if _anim_secondary:
+				_anim_secondary.rotation.x = (0.5 * sin(t * 3.0)) if running else 0.15
+		"fan":
+			if _anim_primary and running:
+				_anim_primary.rotate_y(delta * 6.0)
 
 func _category_color() -> Color:
 	match String(def.get("category", "")):
@@ -519,6 +710,9 @@ func _update_visual_state() -> void:
 	m.emission_enabled = true
 	m.emission = c
 	m.emission_energy_multiplier = 2.0
+	if _beacon_light:
+		_beacon_light.light_color = c
+		_beacon_light.light_energy = 1.8 if state == State.RUNNING else 0.8
 	if _running_particles:
 		_running_particles.emitting = (state == State.RUNNING)
 	if _sparks:
