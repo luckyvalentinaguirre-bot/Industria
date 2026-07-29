@@ -30,8 +30,8 @@ extends Node3D
 @export var rotation_smooth: float = 10.0
 
 @export_group("Zoom")
-@export var zoom_min: float = 8.0
-@export var zoom_max: float = 60.0
+@export var zoom_min: float = 6.0    # más cerca: apreciar detalle de las máquinas
+@export var zoom_max: float = 64.0   # más lejos: ver toda la fábrica ampliada
 @export var zoom_step: float = 3.5
 @export var zoom_smooth: float = 10.0
 
@@ -52,6 +52,9 @@ func _ready() -> void:
 	_target_position = global_position
 	_target_yaw = rotation.y
 	_target_zoom = _spring.spring_length
+	# El brazo colisiona con el suelo (capa 1) para no atravesar el terreno (§21).
+	_spring.collision_mask = 1
+	_spring.margin = 0.4
 	# Enfocar rápidamente la máquina/edificio seleccionado.
 	EventBus.machine_selected.connect(_on_selected)
 
