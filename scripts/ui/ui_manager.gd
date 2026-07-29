@@ -28,6 +28,7 @@ var finance_ui: PanelContainer
 var automation_ui: PanelContainer
 var contracts_panel: PanelContainer
 var workers_panel: PanelContainer
+var objectives_panel: PanelContainer
 var _right_panels: Array = []
 
 var _toasts: VBoxContainer
@@ -51,6 +52,8 @@ func _build_ui() -> void:
 	_build_toasts()
 	_connect_signals()
 	_refresh_hud()
+	if not GameManager.save.has_save():
+		_show_intro()
 
 # --- Barra superior ---------------------------------------------------------
 func _build_topbar() -> void:
@@ -103,7 +106,8 @@ func _build_right_panels() -> void:
 	automation_ui = AutomationUIScript.new()
 	contracts_panel = _make_contracts_panel()
 	workers_panel = _make_workers_panel()
-	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel]:
+	objectives_panel = _make_scroll_panel()
+	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel]:
 		p.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		p.offset_right = -8
 		p.offset_top = 64
@@ -130,6 +134,7 @@ func _build_bottom_bar() -> void:
 	h.add_theme_constant_override("separation", 8)
 	bar.add_child(h)
 
+	_add_bottom_btn(h, "🎯 Objetivos", _on_objectives)
 	_add_bottom_btn(h, "💰 Finanzas", _on_finance)
 	_add_bottom_btn(h, "📄 Contratos", _on_contracts)
 	_add_bottom_btn(h, "👷 Personal", _on_workers)
@@ -150,6 +155,7 @@ func _on_finance() -> void: _toggle_right(finance_ui)
 func _on_contracts() -> void: _toggle_right(contracts_panel); _refresh_contracts()
 func _on_workers() -> void: _toggle_right(workers_panel); _refresh_workers()
 func _on_automation() -> void: _toggle_right(automation_ui)
+func _on_objectives() -> void: _toggle_right(objectives_panel); _refresh_objectives()
 
 # --- Toasts -----------------------------------------------------------------
 func _build_toasts() -> void:
@@ -193,6 +199,8 @@ func _connect_signals() -> void:
 	EventBus.contract_failed.connect(func(_c): _refresh_contracts())
 	EventBus.worker_hired.connect(func(_w): _refresh_workers())
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
+	EventBus.objectives_updated.connect(_refresh_objectives)
+	EventBus.game_won.connect(_on_game_won)
 
 func _refresh_hud() -> void:
 	if _money_lbl == null:
@@ -302,3 +310,87 @@ func _find_box(panel: PanelContainer) -> VBoxContainer:
 		if child is ScrollContainer and child.get_child_count() > 0:
 			return child.get_child(0)
 	return null
+
+# --- Panel genérico con scroll ----------------------------------------------
+func _make_scroll_panel() -> PanelContainer:
+	var p := UITheme.make_panel()
+	p.custom_minimum_size = Vector2(340, 0)
+	p.visible = false
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(320, 520)
+	p.add_child(scroll)
+	var box := VBoxContainer.new()
+	box.name = "Box"
+	box.add_theme_constant_override("separation", 6)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	return p
+
+# --- Panel de objetivos -----------------------------------------------------
+func _refresh_objectives() -> void:
+	if objectives_panel == null:
+		return
+	var box := _find_box(objectives_panel)
+	if box == null:
+		return
+	for c in box.get_children():
+		c.queue_free()
+	box.add_child(UITheme.make_title("Objetivos"))
+	box.add_child(UITheme.make_label("Salva la empresa: pon a producir la fábrica, cúmplela y salda la deuda.", 12, UITheme.TEXT))
+	box.add_child(UITheme.hsep())
+	for o in GameManager.objectives.objectives:
+		var mark := "✅" if o["done"] else "⬜"
+		var color := UITheme.ACCENT2 if o["done"] else UITheme.TEXT
+		box.add_child(UITheme.make_label("%s  %s" % [mark, o["title"]], 13, color))
+	var done: int = GameManager.objectives.completed_count()
+	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("Progreso: %d / %d" % [done, GameManager.objectives.objectives.size()], 13, UITheme.ACCENT))
+
+# --- Victoria ---------------------------------------------------------------
+func _on_game_won() -> void:
+	var banner := UITheme.make_panel(UITheme.BG)
+	banner.set_anchors_preset(Control.PRESET_CENTER)
+	banner.offset_left = -260
+	banner.offset_right = 260
+	banner.offset_top = -110
+	banner.offset_bottom = 110
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	banner.add_child(v)
+	v.add_child(UITheme.make_label("¡INDUSTRIA SALVADA!", 28, UITheme.ACCENT2))
+	v.add_child(UITheme.make_label("Saldaste la deuda y la empresa es rentable.", 15))
+	v.add_child(UITheme.make_label("Puedes seguir jugando y expandiendo la fábrica.", 13, UITheme.TEXT))
+	var close := UITheme.make_button("Continuar")
+	close.pressed.connect(banner.queue_free)
+	v.add_child(close)
+	root.add_child(banner)
+
+# --- Ayuda inicial ----------------------------------------------------------
+func _show_intro() -> void:
+	var panel := UITheme.make_panel(UITheme.BG)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -300
+	panel.offset_right = 300
+	panel.offset_top = -180
+	panel.offset_bottom = 180
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	panel.add_child(v)
+	v.add_child(UITheme.make_title("Bienvenido a Industria"))
+	var text := "Heredas una fábrica endeudada y deteriorada. Tu meta: ponerla a producir, cumplir contratos y saldar la deuda.\n\n" \
+		+ "Primeros pasos:\n" \
+		+ "1. Selecciona la fundición averiada y repárala.\n" \
+		+ "2. Compra mineral de hierro en Finanzas → Comprar.\n" \
+		+ "3. Conecta el almacén a la fundición con una Cinta.\n" \
+		+ "4. Deja que produzca lingotes y véndelos o cumple un contrato.\n\n" \
+		+ "Cámara: WASD/bordes mover · Q/E rotar · rueda zoom · G cuadrícula.\n" \
+		+ "Construcción: menú izquierdo · R rota · Esc cancela.\n" \
+		+ "Velocidad: ⏸ ▶ ▶▶ ▶▶▶ arriba a la derecha."
+	var lbl := UITheme.make_label(text, 13)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.custom_minimum_size = Vector2(560, 0)
+	v.add_child(lbl)
+	var close := UITheme.make_button("¡Empezar!")
+	close.pressed.connect(panel.queue_free)
+	v.add_child(close)
+	root.add_child(panel)

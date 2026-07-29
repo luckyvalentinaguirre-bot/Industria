@@ -19,6 +19,7 @@ func _ready() -> void:
 	_test_economy_sell()
 	_test_power_overload()
 	_test_contract_flow()
+	_test_objectives()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -99,6 +100,20 @@ func _test_contract_flow() -> void:
 	GameManager.contracts._on_minute(0, 0, 0)  # dispara entrega
 	_check("Contratos: el contrato se completó al haber stock", c.completed)
 	_check("Contratos: el cliente pagó el contrato", GameState.money > money_before)
+
+func _test_objectives() -> void:
+	# Ventas y contratos previos deben haber marcado objetivos; forzamos deuda 0.
+	_check("Objetivos: 'realiza tu primera venta' cumplido", _obj_done("sell"))
+	_check("Objetivos: 'cumple tu primer contrato' cumplido", _obj_done("contract"))
+	GameState.debt = 0.0
+	EventBus.debt_changed.emit(0.0)
+	_check("Objetivos: saldar la deuda dispara la victoria", GameManager.objectives.won)
+
+func _obj_done(id: String) -> bool:
+	for o in GameManager.objectives.objectives:
+		if o["id"] == id:
+			return o["done"]
+	return false
 
 func _test_save_load() -> void:
 	var ok_save: bool = GameManager.save.save_game()

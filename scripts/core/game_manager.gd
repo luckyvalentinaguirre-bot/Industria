@@ -35,6 +35,7 @@ var priority: Node
 var rules: Node
 var automation: Node
 var events: Node
+var objectives: Node
 var save: Node
 var ui: Node
 
@@ -65,6 +66,7 @@ func _create_managers() -> void:
 	rules = _add("res://scripts/automation/rule_manager.gd", "RuleManager")
 	automation = _add("res://scripts/automation/automation_manager.gd", "AutomationManager")
 	events = _add("res://scripts/events/event_manager.gd", "EventManager")
+	objectives = _add("res://scripts/core/objective_manager.gd", "ObjectiveManager")
 	save = _add("res://scripts/save/save_manager.gd", "SaveManager")
 	ui = _add("res://scripts/ui/ui_manager.gd", "UIManager")
 

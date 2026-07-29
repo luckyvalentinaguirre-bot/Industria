@@ -16,8 +16,13 @@ Recibes una fábrica deteriorada y endeudada, y debes ponerla a producir, cumpli
 | **6 — Mantenimiento** | Durabilidad, desgaste, averías, reparación, mecánicos y talleres | ✅ |
 | **7 — Automatización** | Prioridades, deslastre por energía, reglas SI→ENTONCES | ✅ |
 | **8 — UI y guardado** | HUD, paneles (máquina, finanzas, contratos, personal, automatización), guardado | ✅ |
+| **Pulido** | Objetivos/meta, condición de victoria, ayuda inicial | ✅ |
 
-Verificado con un test de integración headless (`tests/smoke_test.tscn`, 11/11 PASS): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos y guardado/carga.
+Verificado con un test de integración headless (`tests/smoke_test.tscn`, **14/14 PASS**): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos, objetivos/victoria y guardado/carga.
+
+## Meta del juego
+
+Una lista de **objetivos** guía la partida (panel 🎯 Objetivos): reparar la máquina, fabricar el primer producto, primera venta, cumplir un contrato, automatizar, cerrar un día con ganancias, reducir la deuda a la mitad y **saldarla por completo** (victoria). Al iniciar se muestra una ayuda con los primeros pasos.
 
 ## Cómo ejecutar
 
@@ -67,6 +72,7 @@ Se respeta la estructura de la especificación: `assets/`, `audio/`, `data/` (JS
 **Adiciones dentro de carpetas existentes (no alteran la organización):**
 
 - `scripts/core/format_util.gd` — formato de dinero/cantidades.
+- `scripts/core/objective_manager.gd` — objetivos y condición de victoria.
 - `scripts/world/build_grid.gd`, `camera_rig.gd`, `build_controller.gd`, `power_manager.gd` — mundo/infraestructura.
 - `scripts/logistics/conveyor.gd` — cinta transportadora.
 - `scripts/ui/ui_theme.gd` — helpers de estilo de UI.

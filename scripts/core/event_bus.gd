@@ -85,6 +85,11 @@ signal rule_triggered(rule: Dictionary)
 signal game_saved()
 signal game_loaded()
 
+# --- Objetivos / progresión -------------------------------------------------
+signal objective_completed(id: String, title: String)
+signal objectives_updated()
+signal game_won()
+
 # --- UI / notificaciones ----------------------------------------------------
 ## level: "info" | "success" | "warning" | "error"
 signal notify(message: String, level: String)
