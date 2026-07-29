@@ -19,6 +19,7 @@ var save_version: int = 1
 # --- Economía (se usa a partir de la ETAPA 5) -------------------------------
 var money: float = 15000.0
 var debt: float = 120000.0
+var reputation: int = 50
 
 # --- Tiempo (gestionado por TimeManager) ------------------------------------
 var day: int = 1
@@ -37,6 +38,7 @@ func to_dict() -> Dictionary:
 		"company_name": company_name,
 		"money": money,
 		"debt": debt,
+		"reputation": reputation,
 		"day": day,
 		"hour": hour,
 		"minute": minute,
@@ -49,6 +51,7 @@ func from_dict(data: Dictionary) -> void:
 	company_name = String(data.get("company_name", company_name))
 	money = float(data.get("money", money))
 	debt = float(data.get("debt", debt))
+	reputation = int(data.get("reputation", reputation))
 	day = int(data.get("day", day))
 	hour = int(data.get("hour", hour))
 	minute = int(data.get("minute", minute))

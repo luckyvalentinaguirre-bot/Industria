@@ -11,22 +11,60 @@ extends Node3D
 ## depender aún de assets 3D definitivos (que llegarán por el pipeline gráfico),
 ## pero todo queda preparado para reemplazar los placeholders por modelos reales.
 
+const BuildControllerScript := preload("res://scripts/world/build_controller.gd")
+
 @onready var _environment: WorldEnvironment = $WorldEnvironment
 @onready var _sun: DirectionalLight3D = $Sun
 @onready var _fill_light: DirectionalLight3D = $FillLight
 @onready var _ground: MeshInstance3D = $Ground
 @onready var _build_grid: Node3D = $BuildGrid
 
+var _containers: Dictionary = {}
+var build_controller: Node3D
+
 func _ready() -> void:
 	_setup_environment()
 	_setup_lighting()
 	_setup_ground()
+	_setup_containers()
+	_setup_build_controller()
 	# La cuadrícula se autoconstruye en su propio _ready().
-	# Notificamos que el mundo está listo (arranca la partida vía GameManager).
+	# Registrar el mundo en GameManager antes de arrancar la partida.
+	GameManager.register_world(self, _build_grid, _containers)
 	call_deferred("_emit_world_ready")
 
+func _setup_containers() -> void:
+	for key in ["machines", "buildings", "conveyors", "workers", "items"]:
+		var node := Node3D.new()
+		node.name = key.capitalize() + "Root"
+		add_child(node)
+		_containers[key] = node
+
+func _setup_build_controller() -> void:
+	build_controller = BuildControllerScript.new()
+	build_controller.name = "BuildController"
+	add_child(build_controller)
+
 func _emit_world_ready() -> void:
+	# Escenario inicial: una fábrica deteriorada (spec §26).
+	if not GameManager.save.has_save():
+		_setup_initial_scenario()
 	EventBus.world_ready.emit()
+
+## Fábrica deteriorada de partida: un almacén y una fundición vieja averiada.
+func _setup_initial_scenario() -> void:
+	# Almacén central para almacenar materia prima y productos.
+	var store: Building = GameManager.buildings.create_building("small_storage", Vector2i(16, 22))
+	GameManager.grid.occupy_area(store.grid_origin, store.grid_size, store.uid)
+
+	# Una fundición vieja (deteriorada) que el jugador deberá reparar.
+	var smelter: Machine = GameManager.machines.create_machine("smelter", Vector2i(20, 20))
+	GameManager.grid.occupy_area(smelter.grid_origin, smelter.grid_size, smelter.uid)
+	smelter.set_condition(35.0)
+
+	# Algo de materia prima inicial para empezar a producir.
+	GameManager.storage.deposit("iron_ore", 60)
+	GameManager.storage.deposit("fuel", 40)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_grid"):

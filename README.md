@@ -1,62 +1,80 @@
 # Industria
 
-Juego de **gestión empresarial + construcción de fábricas + producción + automatización progresiva**, completamente en 3D. Motor: **Godot 4.3**. Esta es la **VERSIÓN 1 / MVP**, en desarrollo incremental por etapas.
+Juego de **gestión empresarial + construcción de fábricas + producción + automatización progresiva**, completamente en 3D. Motor: **Godot 4.3**. Esta es la **VERSIÓN 1 / MVP**.
 
-## Estado de desarrollo
+Recibes una fábrica deteriorada y endeudada, y debes ponerla a producir, cumplir contratos, reducir gastos, automatizar y volverla rentable.
+
+## Estado de desarrollo — V1 completa
 
 | Etapa | Contenido | Estado |
 |-------|-----------|--------|
-| **1 — Base 3D** | Proyecto, mundo 3D, iluminación PBR, terreno, cámara estratégica (pan/rotación/zoom), grid de construcción | ✅ Completada |
-| 2 — Construcción | Colocación, selección, rotación, eliminación, costos, primera máquina | ⏳ Pendiente |
-| 3 — Producción | Recursos, inventario, recetas, máquina funcional, producción real | ⏳ Pendiente |
-| 4 — Logística | Cintas, movimiento de materiales, almacén, E/S de máquinas | ⏳ Pendiente |
-| 5 — Economía | Dinero, gastos, venta, contratos, deuda | ⏳ Pendiente |
-| 6 — Mantenimiento | Durabilidad, reparación, averías, mecánico | ⏳ Pendiente |
-| 7 — Automatización | Prioridades, sensores, reglas, producción automática | ⏳ Pendiente |
-| 8 — UI y guardado | HUD, paneles, menú de construcción, panel de máquina, finanzas, save | ⏳ Pendiente |
+| **1 — Base 3D** | Proyecto, mundo 3D, iluminación PBR, terreno, cámara estratégica, grid | ✅ |
+| **2 — Construcción** | Colocación con vista previa, selección, rotación, eliminación, costos, primera máquina | ✅ |
+| **3 — Producción** | Recursos, inventario, recetas, máquinas funcionales, producción real | ✅ |
+| **4 — Logística** | Cintas con ítems visibles, almacén, entrada/salida de máquinas | ✅ |
+| **5 — Economía** | Dinero, gastos, ventas, proveedores, contratos, deuda e intereses | ✅ |
+| **6 — Mantenimiento** | Durabilidad, desgaste, averías, reparación, mecánicos y talleres | ✅ |
+| **7 — Automatización** | Prioridades, deslastre por energía, reglas SI→ENTONCES | ✅ |
+| **8 — UI y guardado** | HUD, paneles (máquina, finanzas, contratos, personal, automatización), guardado | ✅ |
+
+Verificado con un test de integración headless (`tests/smoke_test.tscn`, 11/11 PASS): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos y guardado/carga.
 
 ## Cómo ejecutar
 
-1. Abrir el proyecto con **Godot 4.3** (`project.godot`).
-2. Ejecutar (F5). Escena principal: `scenes/main/main.tscn`.
+1. Abrir el proyecto con **Godot 4.3** (`project.godot`) y ejecutar (F5), o
+2. Headless / test: `godot --headless res://tests/smoke_test.tscn`
 
-## Controles de cámara (Etapa 1)
+## El bucle de juego
+
+Reparar la fundición vieja → comprar materia prima a un proveedor → almacenarla →
+construir cintas que la lleven a las máquinas → procesar y fabricar productos →
+devolverlos al almacén → vender o cumplir contratos → ganar dinero → pagar
+salarios, energía, mantenimiento y deuda → mejorar la línea → **automatizar** con
+reglas y dejar la fábrica funcionando sola.
+
+## Controles
 
 | Acción | Control |
 |--------|---------|
-| Desplazar (pan) | `W A S D` o bordes de pantalla |
-| Pan por arrastre | Mantener **botón central** del ratón |
-| Rotar | `Q` / `E` |
+| Mover cámara | `W A S D` / bordes de pantalla / arrastrar botón central |
+| Rotar cámara | `Q` / `E` |
 | Zoom | Rueda del ratón |
 | Mostrar/ocultar cuadrícula | `G` |
+| Colocar construcción | Elegir en el menú *Construcción*, clic para colocar |
+| Rotar pieza a colocar | `R` |
+| Cancelar modo construcción | `Esc` |
+| Conectar cinta | Herramienta *Cinta* → clic en origen, clic en destino |
+| Inspeccionar máquina | *Seleccionar* → clic sobre la máquina |
+| Velocidad / pausa | Botones ⏸ ▶ ▶▶ ▶▶▶ (barra superior) |
+
+## Interfaz
+
+- **HUD superior:** dinero, deuda, reputación, reloj (día/hora), energía (consumo/capacidad) y velocidad.
+- **Menú de construcción (izquierda):** Producción, Logística, Energía, Mantenimiento + herramientas.
+- **Panel de máquina:** estado, receta, prioridad, activación, condición, reparación, buffers de entrada/salida y consumo.
+- **Barra inferior:** Finanzas, Contratos, Personal, Automatización, Guardar, Cargar.
 
 ## Arquitectura
 
-Sistemas desacoplados que se comunican por señales a través del **EventBus** (`scripts/core/event_bus.gd`), evitando dependencias circulares.
+Sistemas desacoplados que se comunican por señales a través del **EventBus**, evitando dependencias circulares. **GameManager** (autoload) instancia e interconecta todos los managers; **GameState** guarda los datos; **TimeManager** emite los ticks de simulación.
 
-Autoloads (orden en `project.godot`):
-
-- `EventBus` — bus de señales global.
-- `GameState` — datos persistentes de la partida (sin lógica).
-- `TimeManager` — reloj de simulación (días/horas/minutos, ticks).
-- `GameManager` — orquestador del ciclo de vida de la partida.
+Managers por sistema: economía (`economy_manager`, `finance_manager`, `bank_manager`, `market_manager`), producción (`recipe_manager`, `production_manager`, `quality_manager`), máquinas (`machine_manager`, `maintenance_manager`), logística (`storage_manager`, `transport_manager`, `logistics_manager`), construcción (`building_manager`), contratos, trabajadores (`worker_manager`, `skill_manager`), automatización (`rule_manager`, `priority_manager`, `automation_manager`), energía (`power_manager`), eventos, guardado y UI.
 
 ### Estructura de carpetas
 
-Se respeta la estructura definida en la especificación. `assets/` (recursos 3D/2D), `audio/`, `data/` (JSON configurable), `scenes/` (`.tscn`), `scripts/` (lógica por sistema), `tests/`.
+Se respeta la estructura de la especificación: `assets/`, `audio/`, `data/` (JSON configurable), `scenes/`, `scripts/` (lógica por sistema), `tests/`.
 
-**Notas de estructura (adiciones dentro de carpetas existentes, sin alterar la organización):**
+**Adiciones dentro de carpetas existentes (no alteran la organización):**
 
-- `scripts/world/build_grid.gd` — cuadrícula lógica + visual de construcción.
-- `scripts/world/camera_rig.gd` — cámara estratégica.
+- `scripts/core/format_util.gd` — formato de dinero/cantidades.
+- `scripts/world/build_grid.gd`, `camera_rig.gd`, `build_controller.gd`, `power_manager.gd` — mundo/infraestructura.
+- `scripts/logistics/conveyor.gd` — cinta transportadora.
+- `scripts/ui/ui_theme.gd` — helpers de estilo de UI.
 
-Ambos pertenecen al mundo/terreno y viven en `scripts/world/`.
-
-### Datos V1 (`data/`)
-
-Ya contienen el conjunto **controlado** de la V1: materias primas y materiales (`resources`), componentes y productos (`products`), recetas (`recipes`), máquinas (`machines`), economía y proveedores (`economy/prices`), contratos, trabajadores y edificios. Estos JSON alimentarán las etapas 2–5.
+Los datos configurables de la V1 (recursos, productos, recetas, máquinas, edificios, economía/proveedores, contratos, trabajadores) viven en `data/` como JSON.
 
 ## Notas técnicas
 
-- Renderizado **Forward+**, materiales PBR, SSAO, glow, tonemap ACES, sombras direccionales — con ajustes pensados para **gama media**.
-- El terreno, la cuadrícula y los materiales se generan por código como **placeholders 3D**, preparados para sustituirse por los modelos definitivos del pipeline gráfico sin tocar la lógica.
+- Renderizado **Forward+**, materiales PBR, SSAO, glow, tonemap ACES, sombras direccionales; ajustes para **gama media**.
+- Objetos 3D generados por código como **placeholders**, preparados para sustituirse por los modelos definitivos del pipeline gráfico sin tocar la lógica.
+- Optimización: cintas con paquetes de ítems reutilizados y limitados; simulación por ticks del EventBus en lugar de cálculos dispersos por frame.

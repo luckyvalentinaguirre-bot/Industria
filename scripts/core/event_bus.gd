@@ -31,3 +31,60 @@ signal world_ready()
 signal camera_focus_changed(cell: Vector2i)
 ## Emitida cuando se muestra/oculta la cuadrícula de construcción.
 signal grid_visibility_changed(visible: bool)
+
+# --- Economía ---------------------------------------------------------------
+signal money_changed(money: float)
+signal debt_changed(debt: float)
+signal transaction(category: String, amount: float, is_income: bool)
+signal insufficient_funds(amount: float)
+signal reputation_changed(reputation: int)
+
+# --- Mercado / proveedores --------------------------------------------------
+signal purchase_ordered(item_id: String, qty: int, cost: float, eta_day: int)
+signal delivery_arrived(item_id: String, qty: int)
+
+# --- Construcción -----------------------------------------------------------
+signal build_mode_changed(active: bool, kind: String)
+signal building_placed(building: Node)
+signal building_removed(building: Node)
+
+# --- Máquinas ---------------------------------------------------------------
+signal machine_placed(machine: Node)
+signal machine_removed(machine: Node)
+signal machine_state_changed(machine: Node)
+signal machine_selected(machine: Node)
+signal recipe_changed(machine: Node)
+
+# --- Producción -------------------------------------------------------------
+signal item_produced(item_id: String, qty: int)
+
+# --- Mantenimiento ----------------------------------------------------------
+signal machine_breakdown(machine: Node)
+signal machine_repaired(machine: Node)
+
+# --- Energía ----------------------------------------------------------------
+signal power_changed(consumption: float, capacity: float)
+signal power_overload(is_overload: bool)
+
+# --- Contratos --------------------------------------------------------------
+signal contract_offered(contract: Resource)
+signal contract_accepted(contract: Resource)
+signal contract_completed(contract: Resource)
+signal contract_failed(contract: Resource)
+
+# --- Trabajadores -----------------------------------------------------------
+signal worker_hired(worker: Node)
+signal worker_fired(worker: Node)
+
+# --- Automatización ---------------------------------------------------------
+signal rule_added(rule: Dictionary)
+signal rule_removed(rule_id: int)
+signal rule_triggered(rule: Dictionary)
+
+# --- Guardado ---------------------------------------------------------------
+signal game_saved()
+signal game_loaded()
+
+# --- UI / notificaciones ----------------------------------------------------
+## level: "info" | "success" | "warning" | "error"
+signal notify(message: String, level: String)
