@@ -91,20 +91,74 @@ func _build_belt() -> void:
 	global_position = mid
 	var dir := (_to - _from)
 	dir.y = 0
+
+	# Estructura metálica de la cinta.
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color(0.22, 0.23, 0.25)
+	frame_mat.roughness = 0.5
+	frame_mat.metallic = 0.85
+	var frame := MeshInstance3D.new()
+	var fbm := BoxMesh.new()
+	fbm.size = Vector3(0.8, 0.16, _length)
+	frame.mesh = fbm
+	frame.material_override = frame_mat
+	add_child(frame)
+
+	# Superficie de banda con textura desplazándose (shader).
 	var belt := MeshInstance3D.new()
 	var bm := BoxMesh.new()
-	bm.size = Vector3(0.7, 0.18, _length)
+	bm.size = Vector3(0.66, 0.06, _length)
 	belt.mesh = bm
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.16, 0.16, 0.18)
-	mat.roughness = 0.7
-	mat.metallic = 0.3
-	belt.material_override = mat
-	belt.position = Vector3.ZERO
+	belt.position = Vector3(0, 0.11, 0)
+	belt.material_override = _make_belt_material()
 	add_child(belt)
+
+	# Rieles laterales.
+	for sx in [-1, 1]:
+		var rail := MeshInstance3D.new()
+		var rbm := BoxMesh.new()
+		rbm.size = Vector3(0.07, 0.16, _length)
+		rail.mesh = rbm
+		rail.material_override = frame_mat
+		rail.position = Vector3(sx * 0.37, 0.14, 0)
+		add_child(rail)
+
+	# Patas de soporte a lo largo del trazado.
+	var legs := maxi(2, int(_length / 3.0))
+	for i in range(legs + 1):
+		var t := float(i) / float(legs)
+		var z := lerpf(-_length * 0.5, _length * 0.5, t)
+		var leg := MeshInstance3D.new()
+		var lbm := BoxMesh.new()
+		lbm.size = Vector3(0.12, BELT_HEIGHT, 0.12)
+		leg.mesh = lbm
+		leg.material_override = frame_mat
+		leg.position = Vector3(0, -BELT_HEIGHT * 0.5, z)
+		add_child(leg)
+
 	# Orienta la banda hacia el destino (su eje Z local queda alineado con el trazado).
 	if dir.length() > 0.01:
 		look_at(_to, Vector3.UP)
+
+func _make_belt_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode cull_disabled;
+uniform float scroll_speed = 1.2;
+void fragment() {
+	float v = UV.y * 24.0 + TIME * scroll_speed;
+	float stripe = step(0.5, fract(v));
+	vec3 a = vec3(0.10, 0.10, 0.12);
+	vec3 b = vec3(0.17, 0.17, 0.20);
+	ALBEDO = mix(a, b, stripe);
+	ROUGHNESS = 0.8;
+	METALLIC = 0.1;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = shader
+	return m
 
 func _spawn_pkg(item_id: String) -> void:
 	var mesh := MeshInstance3D.new()

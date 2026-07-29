@@ -51,26 +51,72 @@ func _pick_target() -> void:
 	_has_target = true
 
 func _build_visual() -> void:
-	var body := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.35
-	cap.height = 1.7
-	body.mesh = cap
-	body.position = Vector3(0, 0.85, 0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = _specialty_color()
-	mat.roughness = 0.7
+	mat.roughness = 0.75
+
+	# Piernas.
+	var legmat := StandardMaterial3D.new()
+	legmat.albedo_color = Color(0.2, 0.22, 0.26)
+	legmat.roughness = 0.8
+	for sx in [-1, 1]:
+		var leg := MeshInstance3D.new()
+		var lc := CapsuleMesh.new()
+		lc.radius = 0.13
+		lc.height = 0.9
+		leg.mesh = lc
+		leg.position = Vector3(sx * 0.14, 0.45, 0)
+		leg.material_override = legmat
+		add_child(leg)
+
+	# Torso.
+	var body := MeshInstance3D.new()
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.32
+	cap.height = 1.0
+	body.mesh = cap
+	body.position = Vector3(0, 1.15, 0)
 	body.material_override = mat
 	add_child(body)
+
+	# Chaleco de alta visibilidad.
+	var vest := MeshInstance3D.new()
+	var vc := CylinderMesh.new()
+	vc.top_radius = 0.35
+	vc.bottom_radius = 0.35
+	vc.height = 0.5
+	vest.mesh = vc
+	vest.position = Vector3(0, 1.2, 0)
+	var vmat := StandardMaterial3D.new()
+	vmat.albedo_color = Color(0.95, 0.55, 0.1)
+	vmat.emission_enabled = true
+	vmat.emission = Color(0.9, 0.5, 0.1)
+	vmat.emission_energy_multiplier = 0.4
+	vest.material_override = vmat
+	add_child(vest)
+
+	# Cabeza.
+	var head := MeshInstance3D.new()
+	var hs := SphereMesh.new()
+	hs.radius = 0.2
+	hs.height = 0.4
+	head.mesh = hs
+	head.position = Vector3(0, 1.75, 0)
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color(0.8, 0.62, 0.5)
+	head.material_override = skin
+	add_child(head)
+
 	# Casco.
 	var helmet := MeshInstance3D.new()
 	var hm := SphereMesh.new()
-	hm.radius = 0.28
-	hm.height = 0.4
+	hm.radius = 0.24
+	hm.height = 0.28
 	helmet.mesh = hm
-	helmet.position = Vector3(0, 1.7, 0)
+	helmet.position = Vector3(0, 1.86, 0)
 	var hmat := StandardMaterial3D.new()
 	hmat.albedo_color = Color(0.95, 0.8, 0.2)
+	hmat.roughness = 0.4
 	helmet.material_override = hmat
 	add_child(helmet)
 

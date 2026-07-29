@@ -110,29 +110,20 @@ func _build_visual() -> void:
 	var color := _category_color()
 	var height := _category_height()
 
-	var body := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(w * 0.92, height, d * 0.92)
-	body.mesh = bm
-	body.position = Vector3(0, height * 0.5, 0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.75
-	mat.metallic = 0.25
-	body.material_override = mat
-	add_child(body)
+	var mat := _mat(color, 0.7, 0.3)
+	var mat_dark := _mat(Color(0.14, 0.15, 0.17), 0.5, 0.8)
+	var mat_concrete := _mat(Color(0.24, 0.24, 0.26), 0.95, 0.0)
 
-	# Detalle según tipo.
-	if category == "energy":
-		var stack := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.35
-		cm.bottom_radius = 0.45
-		cm.height = 2.5
-		stack.mesh = cm
-		stack.position = Vector3(w * 0.28, height + 1.25, d * 0.28)
-		stack.material_override = mat
-		add_child(stack)
+	# Losa base común.
+	_box(Vector3(w * 0.98, 0.25, d * 0.98), Vector3(0, 0.12, 0), mat_concrete)
+
+	match category:
+		"storage": _build_storage(w, d, height, mat, mat_dark)
+		"energy": _build_energy(w, d, height, mat, mat_dark)
+		"maintenance": _build_workshop(w, d, height, mat, mat_dark)
+		"logistics": _build_relay(w, d, mat, mat_dark)
+		_:
+			_box(Vector3(w * 0.9, height, d * 0.9), Vector3(0, height * 0.5, 0), mat)
 
 	# Colisión para selección (capa 2).
 	var pick := StaticBody3D.new()
@@ -147,6 +138,85 @@ func _build_visual() -> void:
 	pick.add_child(cs)
 	pick.set_meta("building", self)
 	add_child(pick)
+
+# --- Siluetas por categoría -------------------------------------------------
+func _build_storage(w: float, d: float, height: float, mat: Material, mat_dark: Material) -> void:
+	# Nave con silos cilíndricos encima.
+	_box(Vector3(w * 0.92, height, d * 0.92), Vector3(0, height * 0.5, 0), mat)
+	# Franja superior oscura.
+	_box(Vector3(w * 0.94, 0.3, d * 0.94), Vector3(0, height, 0), mat_dark)
+	var r: float = min(w, d) * 0.2
+	for sx in [-1, 1]:
+		var silo := _cyl(r, r, height * 0.7, Vector3(sx * w * 0.24, height + height * 0.35, 0), mat)
+		# Tapa cónica.
+		_cyl(0.02, r, height * 0.18, Vector3(sx * w * 0.24, height + height * 0.7 + height * 0.09, 0), mat_dark)
+	# Puerta.
+	_box(Vector3(w * 0.3, height * 0.6, 0.1), Vector3(0, height * 0.3, d * 0.46 + 0.02), mat_dark)
+
+func _build_energy(w: float, d: float, height: float, mat: Material, mat_dark: Material) -> void:
+	_box(Vector3(w * 0.9, height, d * 0.9), Vector3(0, height * 0.5, 0), mat)
+	# Dos chimeneas de escape.
+	for sx in [-1, 1]:
+		_cyl(0.28, 0.36, height * 0.9, Vector3(sx * w * 0.28, height + height * 0.4, -d * 0.28), mat_dark)
+	# Ventiladores de refrigeración al frente.
+	for sx in [-1, 1]:
+		var ring := _cyl(0.5, 0.5, 0.12, Vector3(sx * w * 0.22, height * 0.55, d * 0.46), mat_dark)
+		ring.rotation_degrees = Vector3(90, 0, 0)
+	# Rejilla emisiva (indicador de energía).
+	var glow := _mat(Color(0.9, 0.8, 0.2), 0.4, 0.0)
+	glow.emission_enabled = true
+	glow.emission = Color(1.0, 0.85, 0.2)
+	glow.emission_energy_multiplier = 1.2
+	_box(Vector3(w * 0.5, 0.12, 0.06), Vector3(0, height * 0.2, d * 0.46 + 0.02), glow)
+
+func _build_workshop(w: float, d: float, height: float, mat: Material, mat_dark: Material) -> void:
+	_box(Vector3(w * 0.9, height, d * 0.9), Vector3(0, height * 0.5, 0), mat)
+	# Tejado a dos aguas (prisma girado).
+	var roof := _box(Vector3(w * 0.95, 0.5, d * 0.95), Vector3(0, height + 0.2, 0), mat_dark)
+	roof.rotation_degrees = Vector3(0, 0, 12)
+	# Puerta de garaje.
+	var doormat := _mat(Color(0.3, 0.32, 0.35), 0.6, 0.3)
+	_box(Vector3(w * 0.5, height * 0.7, 0.1), Vector3(0, height * 0.35, d * 0.46 + 0.02), doormat)
+
+func _build_relay(w: float, d: float, mat: Material, mat_dark: Material) -> void:
+	# Pequeño concentrador con "collar" luminoso indicando su función.
+	_box(Vector3(w * 0.7, 0.7, d * 0.7), Vector3(0, 0.5, 0), mat_dark)
+	var top := _mat(Color(0.35, 0.65, 0.8) if not is_filter else Color(0.7, 0.45, 0.75), 0.4, 0.2)
+	top.emission_enabled = true
+	top.emission = top.albedo_color
+	top.emission_energy_multiplier = 1.0
+	_box(Vector3(w * 0.85, 0.18, d * 0.85), Vector3(0, 0.95, 0), top)
+	_cyl(0.18, 0.18, 0.5, Vector3(0, 1.2, 0), mat_dark)
+
+# --- Helpers de malla -------------------------------------------------------
+func _mat(color: Color, rough: float, metal: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = rough
+	m.metallic = metal
+	return m
+
+func _box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+	return mi
+
+func _cyl(top_r: float, bot_r: float, h: float, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = top_r
+	cm.bottom_radius = bot_r
+	cm.height = h
+	mi.mesh = cm
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+	return mi
 
 func _category_color() -> Color:
 	match category:

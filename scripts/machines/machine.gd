@@ -250,85 +250,238 @@ func apply_dict(data: Dictionary) -> void:
 		output_buffer.from_dict(data["output"])
 	_update_visual_state()
 
-# --- Modelo 3D placeholder --------------------------------------------------
+# --- Modelo 3D --------------------------------------------------------------
+# Modelo compuesto generado por código (chasis, carcasa PBR, tuberías, panel,
+# detalle por tipo y efectos). Preparado para sustituirse por el asset final.
+var _sparks: GPUParticles3D
+
 func _build_visual() -> void:
 	var cell := GameState.CELL_SIZE
 	var w := grid_size.x * cell
 	var d := grid_size.y * cell
 	var color := _category_color()
 
-	# Base / carcasa.
-	var body := MeshInstance3D.new()
-	var body_mesh := BoxMesh.new()
-	body_mesh.size = Vector3(w * 0.9, 2.2, d * 0.9)
-	body.mesh = body_mesh
-	body.position = Vector3(0, 1.1, 0)
-	body.material_override = _pbr(color, 0.6, 0.35)
-	add_child(body)
+	var mat_housing := _pbr(color, 0.42, 0.7)
+	var mat_dark := _pbr(Color(0.13, 0.14, 0.16), 0.5, 0.85)
+	var mat_concrete := _pbr(Color(0.24, 0.24, 0.26), 0.95, 0.0)
 
-	# Detalle superior (rotor que gira al producir).
+	# Losa de cimentación.
+	_add_box(Vector3(w * 0.98, 0.3, d * 0.98), Vector3(0, 0.15, 0), mat_concrete)
+
+	# Postes del chasis en las 4 esquinas.
+	var hx := w * 0.44
+	var hz := d * 0.44
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			_add_box(Vector3(0.22, 2.1, 0.22), Vector3(sx * hx, 1.15, sz * hz), mat_dark)
+
+	# Carcasa principal (metálica) y remate biselado.
+	_add_box(Vector3(w * 0.82, 1.7, d * 0.82), Vector3(0, 1.15, 0), mat_housing)
+	_add_box(Vector3(w * 0.6, 0.35, d * 0.6), Vector3(0, 2.15, 0), mat_housing.duplicate())
+
+	# Franja de peligro (base frontal).
+	var mat_hazard := _pbr(Color(0.85, 0.7, 0.1), 0.5, 0.2)
+	mat_hazard.emission_enabled = true
+	mat_hazard.emission = Color(0.7, 0.55, 0.05)
+	mat_hazard.emission_energy_multiplier = 0.5
+	_add_box(Vector3(w * 0.82, 0.18, 0.06), Vector3(0, 0.55, d * 0.41 + 0.02), mat_hazard)
+
+	# Panel de control frontal con pantalla emisiva.
+	_add_box(Vector3(0.7, 0.9, 0.12), Vector3(-w * 0.2, 1.2, d * 0.41 + 0.03), mat_dark)
+	var mat_screen := _pbr(Color(0.15, 0.5, 0.65), 0.2, 0.0)
+	mat_screen.emission_enabled = true
+	mat_screen.emission = Color(0.2, 0.75, 0.95)
+	mat_screen.emission_energy_multiplier = 1.6
+	_add_box(Vector3(0.5, 0.4, 0.04), Vector3(-w * 0.2, 1.35, d * 0.41 + 0.1), mat_screen)
+
+	# Tuberías laterales.
+	for i in range(2):
+		_add_pipe(w * 0.5, Vector3(w * 0.41 + 0.02, 0.9 + i * 0.55, 0.0), Vector3(0, 0, 90), mat_dark)
+	_add_valve(Vector3(w * 0.41 + 0.15, 0.9, d * 0.25), color)
+
+	# Detalle superior según el tipo de máquina.
 	_rotor = Node3D.new()
-	_rotor.position = Vector3(0, 2.4, 0)
+	_rotor.position = Vector3(w * 0.15, 2.35, 0)
 	add_child(_rotor)
-	var top := MeshInstance3D.new()
-	var top_mesh := CylinderMesh.new()
-	top_mesh.top_radius = w * 0.18
-	top_mesh.bottom_radius = w * 0.22
-	top_mesh.height = 0.6
-	top.mesh = top_mesh
-	top.material_override = _pbr(color.darkened(0.2), 0.8, 0.2)
-	_rotor.add_child(top)
+	match String(def.get("category", "")):
+		"processing":
+			# Chimenea con vent incandescente + humo.
+			_add_cylinder(0.32, 0.4, 1.6, Vector3(w * 0.22, 2.9, -d * 0.15), mat_dark)
+			var mat_glow := _pbr(Color(0.9, 0.35, 0.1), 0.4, 0.0)
+			mat_glow.emission_enabled = true
+			mat_glow.emission = Color(1.0, 0.4, 0.1)
+			mat_glow.emission_energy_multiplier = 2.5
+			_add_box(Vector3(w * 0.5, 0.12, d * 0.5), Vector3(0, 2.02, 0), mat_glow)
+			_add_gear(_rotor, 0.5, mat_dark)
+		"manufacturing":
+			# Engranaje/pistón que gira al producir.
+			_add_gear(_rotor, 0.55, mat_dark)
+			_add_cylinder(0.14, 0.14, 1.1, Vector3(-w * 0.28, 2.6, 0), mat_dark)
+		"power":
+			_add_fan(_rotor, 0.6, mat_dark)
+		_:
+			_add_gear(_rotor, 0.5, mat_dark)
 
-	# Luz de estado.
+	# Baliza de estado sobre un pequeño mástil.
+	_add_cylinder(0.05, 0.05, 0.5, Vector3(hx * 0.85, 2.55, hz * 0.85), mat_dark)
 	_status_light = MeshInstance3D.new()
 	var lm := SphereMesh.new()
-	lm.radius = 0.22
-	lm.height = 0.44
+	lm.radius = 0.2
+	lm.height = 0.4
 	_status_light.mesh = lm
-	_status_light.position = Vector3(w * 0.35, 2.4, d * 0.35)
+	_status_light.position = Vector3(hx * 0.85, 2.9, hz * 0.85)
 	add_child(_status_light)
 
-	# Partículas de trabajo (vapor/humo tenue), apagadas por defecto.
-	_running_particles = _make_particles()
-	_running_particles.position = Vector3(-w * 0.3, 2.6, 0)
+	# Efectos: vapor y chispas (apagados salvo en marcha).
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(w * 0.22, 3.7, -d * 0.15) if String(def.get("category","")) == "processing" else Vector3(0, 2.5, 0)
 	add_child(_running_particles)
+	_sparks = _make_sparks(color)
+	_sparks.position = Vector3(0, 1.2, d * 0.42)
+	add_child(_sparks)
 
-	# Cuerpo de colisión para selección por ray (capa 2).
+	# Colisión para selección (capa 2).
 	var pick := StaticBody3D.new()
 	pick.collision_layer = 2
 	pick.collision_mask = 0
 	pick.input_ray_pickable = true
 	var cs := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(w, 2.6, d)
+	box.size = Vector3(w, 2.8, d)
 	cs.shape = box
-	cs.position = Vector3(0, 1.3, 0)
+	cs.position = Vector3(0, 1.4, 0)
 	pick.add_child(cs)
 	pick.set_meta("machine", self)
 	add_child(pick)
 
 	_update_visual_state()
 
-func _make_particles() -> GPUParticles3D:
+# --- Helpers de construcción de malla ---------------------------------------
+func _add_box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+	return mi
+
+func _add_cylinder(top_r: float, bot_r: float, h: float, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = top_r
+	cm.bottom_radius = bot_r
+	cm.height = h
+	mi.mesh = cm
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+	return mi
+
+func _add_pipe(length: float, pos: Vector3, rot_deg: Vector3, mat: Material) -> void:
+	var mi := _add_cylinder(0.09, 0.09, length, pos, mat)
+	mi.rotation_degrees = rot_deg
+
+func _add_valve(pos: Vector3, color: Color) -> void:
+	var mat := _pbr(color.lightened(0.1), 0.4, 0.6)
+	var mi := MeshInstance3D.new()
+	var t := TorusMesh.new()
+	t.inner_radius = 0.12
+	t.outer_radius = 0.22
+	mi.mesh = t
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+
+func _add_gear(parent: Node3D, radius: float, mat: Material) -> void:
+	var hub := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = radius
+	cm.bottom_radius = radius
+	cm.height = 0.3
+	hub.mesh = cm
+	hub.material_override = mat
+	parent.add_child(hub)
+	for i in range(8):
+		var tooth := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.18, 0.3, 0.22)
+		tooth.mesh = bm
+		tooth.material_override = mat
+		var ang := TAU * i / 8.0
+		tooth.position = Vector3(cos(ang) * radius, 0, sin(ang) * radius)
+		tooth.rotation.y = -ang
+		parent.add_child(tooth)
+
+func _add_fan(parent: Node3D, radius: float, mat: Material) -> void:
+	var hub := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.12
+	cm.bottom_radius = 0.12
+	cm.height = 0.2
+	hub.mesh = cm
+	hub.material_override = mat
+	parent.add_child(hub)
+	for i in range(4):
+		var blade := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(radius, 0.05, 0.2)
+		blade.mesh = bm
+		blade.material_override = mat
+		var ang := TAU * i / 4.0
+		blade.position = Vector3(cos(ang) * radius * 0.5, 0, sin(ang) * radius * 0.5)
+		blade.rotation.y = -ang
+		parent.add_child(blade)
+
+func _make_steam() -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = 12
-	p.lifetime = 1.6
+	p.amount = 14
+	p.lifetime = 2.0
 	p.emitting = false
 	var mat := ParticleProcessMaterial.new()
 	mat.direction = Vector3(0, 1, 0)
-	mat.spread = 12.0
-	mat.initial_velocity_min = 0.6
-	mat.initial_velocity_max = 1.2
-	mat.gravity = Vector3(0, 0.4, 0)
-	mat.scale_min = 0.4
-	mat.scale_max = 0.9
+	mat.spread = 14.0
+	mat.initial_velocity_min = 0.7
+	mat.initial_velocity_max = 1.3
+	mat.gravity = Vector3(0, 0.5, 0)
+	mat.scale_min = 0.5
+	mat.scale_max = 1.4
 	p.process_material = mat
 	var dot := SphereMesh.new()
-	dot.radius = 0.18
-	dot.height = 0.36
+	dot.radius = 0.2
+	dot.height = 0.4
 	var dm := StandardMaterial3D.new()
-	dm.albedo_color = Color(0.85, 0.85, 0.9, 0.35)
+	dm.albedo_color = Color(0.9, 0.9, 0.95, 0.28)
 	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	dot.material = dm
+	p.draw_pass_1 = dot
+	return p
+
+func _make_sparks(color: Color) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 10
+	p.lifetime = 0.6
+	p.emitting = false
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0, 1, 0.4)
+	mat.spread = 40.0
+	mat.initial_velocity_min = 1.5
+	mat.initial_velocity_max = 3.0
+	mat.gravity = Vector3(0, -6.0, 0)
+	mat.scale_min = 0.05
+	mat.scale_max = 0.12
+	p.process_material = mat
+	var dot := SphereMesh.new()
+	dot.radius = 0.06
+	dot.height = 0.12
+	var dm := StandardMaterial3D.new()
+	dm.albedo_color = Color(1.0, 0.8, 0.3)
+	dm.emission_enabled = true
+	dm.emission = Color(1.0, 0.7, 0.2)
+	dm.emission_energy_multiplier = 3.0
 	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	dot.material = dm
 	p.draw_pass_1 = dot
@@ -340,10 +493,10 @@ func _process(delta: float) -> void:
 
 func _category_color() -> Color:
 	match String(def.get("category", "")):
-		"processing": return Color(0.75, 0.45, 0.25)
-		"manufacturing": return Color(0.35, 0.55, 0.75)
-		"power": return Color(0.8, 0.7, 0.25)
-		_: return Color(0.55, 0.57, 0.6)
+		"processing": return Color(0.72, 0.42, 0.24)
+		"manufacturing": return Color(0.34, 0.52, 0.72)
+		"power": return Color(0.78, 0.68, 0.22)
+		_: return Color(0.52, 0.55, 0.6)
 
 func _update_visual_state() -> void:
 	if not _status_light:
@@ -368,6 +521,10 @@ func _update_visual_state() -> void:
 	m.emission_energy_multiplier = 2.0
 	if _running_particles:
 		_running_particles.emitting = (state == State.RUNNING)
+	if _sparks:
+		# Chispas sólo en máquinas de manufactura/procesado en marcha.
+		var cat := String(def.get("category", ""))
+		_sparks.emitting = (state == State.RUNNING) and (cat == "manufacturing" or cat == "processing")
 
 func _pbr(color: Color, rough: float, metal: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

@@ -106,31 +106,41 @@ func _setup_environment() -> void:
 
 	# Realce visual optimizado para gama media.
 	env.ssao_enabled = true
-	env.ssao_radius = 1.5
-	env.ssao_intensity = 1.5
+	env.ssao_radius = 2.0
+	env.ssao_intensity = 2.2
+	env.ssao_detail = 1.0
+	env.ssil_enabled = true
+	env.ssil_intensity = 0.5
 	env.glow_enabled = true
-	env.glow_intensity = 0.4
-	env.glow_bloom = 0.05
+	env.glow_intensity = 0.5
+	env.glow_bloom = 0.08
+	env.glow_hdr_threshold = 1.0
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_white = 6.0
+	env.adjustment_enabled = true
+	env.adjustment_brightness = 1.02
+	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 1.08
 
 	_environment.environment = env
 
 # --- Iluminación ------------------------------------------------------------
 
 func _setup_lighting() -> void:
-	# Sol principal con sombras.
+	# Sol principal con sombras suaves y contacto.
 	_sun.rotation_degrees = Vector3(-52, -46, 0)
-	_sun.light_energy = 1.35
-	_sun.light_color = Color(1.0, 0.96, 0.88)
+	_sun.light_energy = 1.5
+	_sun.light_color = Color(1.0, 0.95, 0.85)
 	_sun.shadow_enabled = true
 	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	_sun.directional_shadow_max_distance = 160.0
+	_sun.directional_shadow_max_distance = 180.0
+	_sun.shadow_blur = 1.2
+	_sun.light_bake_mode = Light3D.BAKE_DISABLED
 
 	# Luz de relleno fría, sin sombras, para suavizar contrastes.
 	_fill_light.rotation_degrees = Vector3(-35, 140, 0)
-	_fill_light.light_energy = 0.35
-	_fill_light.light_color = Color(0.7, 0.78, 0.95)
+	_fill_light.light_energy = 0.4
+	_fill_light.light_color = Color(0.68, 0.76, 0.95)
 	_fill_light.shadow_enabled = false
 
 # --- Terreno ----------------------------------------------------------------
@@ -159,13 +169,54 @@ func _setup_ground() -> void:
 	body.add_child(col)
 	_ground.add_child(body)
 
-func _make_ground_material() -> StandardMaterial3D:
-	# Placeholder PBR de hormigón industrial. Se sustituirá por textura real.
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.30, 0.31, 0.33)
-	mat.roughness = 0.92
-	mat.metallic = 0.0
-	mat.metallic_specular = 0.15
-	# UV escalado para insinuar losas de la nave.
-	mat.uv1_scale = Vector3(GameState.grid_size.x * 0.5, GameState.grid_size.y * 0.5, 1.0)
+func _make_ground_material() -> ShaderMaterial:
+	# Hormigón industrial procedural: manchas, juntas de losa y desgaste.
+	# Placeholder de alta calidad, sustituible por textura PBR real.
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+
+uniform float slab = 8.0;      // metros por losa
+uniform vec3 base_color : source_color = vec3(0.30, 0.31, 0.33);
+
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = hash(i);
+	float b = hash(i + vec2(1.0, 0.0));
+	float c = hash(i + vec2(0.0, 1.0));
+	float d = hash(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+varying vec3 world_pos;
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+void fragment() {
+	vec2 wp = world_pos.xz;
+	// Manchas de hormigón (varias frecuencias).
+	float n = noise(wp * 0.15) * 0.6 + noise(wp * 0.6) * 0.3 + noise(wp * 2.5) * 0.1;
+	vec3 col = base_color * (0.82 + n * 0.4);
+	// Juntas oscuras entre losas.
+	vec2 g = abs(fract(wp / slab) - 0.5);
+	float joint = smoothstep(0.46, 0.5, max(g.x, g.y));
+	col = mix(col, base_color * 0.55, joint * 0.7);
+	// Óxido/suciedad tenue.
+	float rust = smoothstep(0.6, 0.9, noise(wp * 0.4 + 10.0));
+	col = mix(col, vec3(0.32, 0.24, 0.19), rust * 0.15);
+	ALBEDO = col;
+	ROUGHNESS = 0.9 - n * 0.15;
+	METALLIC = 0.0;
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("slab", 8.0)
+	mat.set_shader_parameter("base_color", Color(0.30, 0.31, 0.33))
 	return mat

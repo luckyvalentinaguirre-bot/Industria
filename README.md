@@ -96,8 +96,14 @@ Se respeta la estructura de la especificación: `assets/`, `audio/`, `data/` (JS
 
 Los datos configurables de la V1 (recursos, productos, recetas, máquinas, edificios, economía/proveedores, contratos, trabajadores) viven en `data/` como JSON.
 
-## Notas técnicas
+## Presentación visual
 
-- Renderizado **Forward+**, materiales PBR, SSAO, glow, tonemap ACES, sombras direccionales; ajustes para **gama media**.
-- Objetos 3D generados por código como **placeholders**, preparados para sustituirse por los modelos definitivos del pipeline gráfico sin tocar la lógica.
+Modelos compuestos generados por código (sustituibles por los assets finales sin tocar la lógica):
+
+- **Máquinas:** chasis con postes, carcasa metálica PBR, tuberías y válvulas, panel de control con pantalla emisiva, franja de peligro, baliza de estado y detalle por tipo (chimenea con vapor incandescente en fundición, engranaje/pistón en manufactura, ventiladores en energía). Chispas y vapor al estar en marcha.
+- **Edificios:** siluetas distintas por categoría — almacén con silos, generador con chimeneas y ventiladores, taller con tejado a dos aguas, nodos de logística con collar luminoso.
+- **Cintas:** estructura metálica con rieles, patas de soporte y superficie de banda con textura desplazándose (shader).
+- **Trabajadores:** cuerpo definido con piernas, chaleco de alta visibilidad y casco.
+- **Terreno:** hormigón procedural (manchas, juntas de losa, desgaste) por shader.
+- **Iluminación:** Forward+, sol con sombras suaves, SSAO + SSIL, glow, tonemap ACES y ajuste de color; optimizado para **gama media**.
 - Optimización: cintas con paquetes de ítems reutilizados y limitados; simulación por ticks del EventBus en lugar de cálculos dispersos por frame.
