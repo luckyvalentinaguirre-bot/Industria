@@ -1,0 +1,31 @@
+{
+  "_comment": "Industria V1 - parametros economicos globales y proveedores.",
+  "starting_money": 15000,
+  "starting_debt": 120000,
+  "debt_daily_interest": 0.0008,
+  "energy_price_per_kwh": 0.18,
+  "sell_margin": 1.0,
+  "suppliers": {
+    "metalurgica_norte": {
+      "name": "Metalurgica del Norte",
+      "price_mult": 1.0,
+      "quality": 1.0,
+      "delivery_days": 2,
+      "sells": ["iron_ore", "copper_ore", "scrap"]
+    },
+    "insumos_express": {
+      "name": "Insumos Express",
+      "price_mult": 1.25,
+      "quality": 1.05,
+      "delivery_days": 1,
+      "sells": ["iron_ore", "copper_ore", "scrap", "oil", "chemicals"]
+    },
+    "petroquimica_sur": {
+      "name": "Petroquimica Sur",
+      "price_mult": 0.9,
+      "quality": 0.95,
+      "delivery_days": 3,
+      "sells": ["oil", "chemicals"]
+    }
+  }
+}

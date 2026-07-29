@@ -1,0 +1,13 @@
+{
+  "_comment": "Industria V1 - tipos de trabajadores. salary = por dia.",
+  "types": {
+    "operator": { "name": "Operador",  "salary": 90,  "specialty": "production",  "base_productivity": 1.0 },
+    "mechanic": { "name": "Mecanico",  "salary": 120, "specialty": "maintenance", "base_productivity": 1.0 },
+    "engineer": { "name": "Ingeniero", "salary": 180, "specialty": "quality",     "base_productivity": 1.0 },
+    "manager":  { "name": "Gerente",   "salary": 220, "specialty": "logistics",   "base_productivity": 1.0 }
+  },
+  "starting_staff": {
+    "operator": 2,
+    "mechanic": 1
+  }
+}

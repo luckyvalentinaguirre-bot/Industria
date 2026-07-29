@@ -1,0 +1,68 @@
+{
+  "_comment": "Industria V1 - recetas. inputs/outputs en {id: cantidad}. time = segundos de juego por ciclo.",
+  "recipes": {
+    "smelt_iron": {
+      "name": "Fundir hierro",
+      "machine": "smelter",
+      "time": 6.0,
+      "inputs": { "iron_ore": 2 },
+      "outputs": { "iron_ingot": 1 }
+    },
+    "smelt_copper": {
+      "name": "Fundir cobre",
+      "machine": "smelter",
+      "time": 6.0,
+      "inputs": { "copper_ore": 2 },
+      "outputs": { "copper_ingot": 1 }
+    },
+    "recycle_scrap": {
+      "name": "Reciclar chatarra",
+      "machine": "smelter",
+      "time": 5.0,
+      "inputs": { "scrap": 3 },
+      "outputs": { "recycled_metal": 1 }
+    },
+    "press_plate": {
+      "name": "Prensar placa metalica",
+      "machine": "press",
+      "time": 5.0,
+      "inputs": { "iron_ingot": 1 },
+      "outputs": { "metal_plate": 1 }
+    },
+    "make_copper_part": {
+      "name": "Fabricar componente de cobre",
+      "machine": "press",
+      "time": 6.0,
+      "inputs": { "copper_ingot": 1 },
+      "outputs": { "copper_part": 1 }
+    },
+    "make_industrial_part": {
+      "name": "Fabricar pieza industrial",
+      "machine": "assembler",
+      "time": 8.0,
+      "inputs": { "metal_plate": 1, "recycled_metal": 1 },
+      "outputs": { "industrial_part": 1 }
+    },
+    "assemble_metal_piece": {
+      "name": "Ensamblar pieza metalica",
+      "machine": "assembler",
+      "time": 8.0,
+      "inputs": { "metal_plate": 2 },
+      "outputs": { "metal_piece": 1 }
+    },
+    "assemble_industrial_comp": {
+      "name": "Ensamblar componente industrial",
+      "machine": "assembler",
+      "time": 10.0,
+      "inputs": { "industrial_part": 1, "copper_part": 1 },
+      "outputs": { "industrial_comp": 1 }
+    },
+    "assemble_motor": {
+      "name": "Ensamblar motor simple",
+      "machine": "assembler",
+      "time": 14.0,
+      "inputs": { "industrial_comp": 1, "copper_part": 2, "fuel": 1 },
+      "outputs": { "simple_motor": 1 }
+    }
+  }
+}

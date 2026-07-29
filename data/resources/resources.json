@@ -1,0 +1,17 @@
+{
+  "_comment": "Industria V1 - materias primas y materiales. Datos configurables, sin logica.",
+  "raw": {
+    "iron_ore":    { "name": "Mineral de hierro",   "category": "minerals", "unit": "kg", "base_price": 4.0 },
+    "copper_ore":  { "name": "Mineral de cobre",    "category": "minerals", "unit": "kg", "base_price": 6.0 },
+    "scrap":       { "name": "Chatarra",            "category": "metals",   "unit": "kg", "base_price": 2.0 },
+    "oil":         { "name": "Petroleo",            "category": "energy",   "unit": "L",  "base_price": 5.0 },
+    "chemicals":   { "name": "Productos quimicos",  "category": "chemicals","unit": "L",  "base_price": 9.0 }
+  },
+  "processed": {
+    "iron_ingot":     { "name": "Lingote de hierro",         "category": "metals",    "unit": "u", "base_price": 12.0 },
+    "copper_ingot":   { "name": "Lingote de cobre",          "category": "metals",    "unit": "u", "base_price": 18.0 },
+    "recycled_metal": { "name": "Metal reciclado",           "category": "metals",    "unit": "u", "base_price": 8.0 },
+    "fuel":           { "name": "Combustible",               "category": "energy",    "unit": "L", "base_price": 14.0 },
+    "processed_chem": { "name": "Material quimico procesado", "category": "chemicals", "unit": "u", "base_price": 22.0 }
+  }
+}

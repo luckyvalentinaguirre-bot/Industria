@@ -1,0 +1,32 @@
+{
+  "_comment": "Industria V1 - definicion de maquinas. size en celdas de grid. power en kW.",
+  "machines": {
+    "smelter": {
+      "name": "Fundicion",
+      "category": "processing",
+      "size": [2, 2],
+      "cost": 3500,
+      "power": 40,
+      "base_speed": 1.0,
+      "recipes": ["smelt_iron", "smelt_copper", "recycle_scrap"]
+    },
+    "press": {
+      "name": "Prensa",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 4200,
+      "power": 30,
+      "base_speed": 1.0,
+      "recipes": ["press_plate", "make_copper_part"]
+    },
+    "assembler": {
+      "name": "Ensambladora",
+      "category": "manufacturing",
+      "size": [3, 2],
+      "cost": 6800,
+      "power": 55,
+      "base_speed": 1.0,
+      "recipes": ["make_industrial_part", "assemble_metal_piece", "assemble_industrial_comp", "assemble_motor"]
+    }
+  }
+}

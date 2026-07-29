@@ -1,0 +1,57 @@
+extends Node
+## GameState — estado global persistente de la partida (autoload).
+##
+## Contiene únicamente DATOS, no lógica compleja. Los managers leen y escriben
+## aquí; el SaveManager (ETAPA 8) serializará este estado.
+##
+## En la ETAPA 1 sólo se definen los campos base; se irán rellenando conforme
+## avancen las etapas (economía, inventario, máquinas, etc.).
+
+## Dimensiones de la fábrica inicial en celdas de grid (ancho x profundidad).
+const START_GRID_SIZE := Vector2i(40, 40)
+## Tamaño de una celda del grid en metros de mundo.
+const CELL_SIZE := 2.0
+
+# --- Identidad de la partida ------------------------------------------------
+var company_name: String = "Industria S.A."
+var save_version: int = 1
+
+# --- Economía (se usa a partir de la ETAPA 5) -------------------------------
+var money: float = 15000.0
+var debt: float = 120000.0
+
+# --- Tiempo (gestionado por TimeManager) ------------------------------------
+var day: int = 1
+var hour: int = 8
+var minute: int = 0
+
+# --- Mundo ------------------------------------------------------------------
+var grid_size: Vector2i = START_GRID_SIZE
+var grid_visible: bool = true
+
+## Devuelve el estado del juego como diccionario serializable.
+## Cada etapa irá añadiendo sus claves. Base para SaveManager.
+func to_dict() -> Dictionary:
+	return {
+		"save_version": save_version,
+		"company_name": company_name,
+		"money": money,
+		"debt": debt,
+		"day": day,
+		"hour": hour,
+		"minute": minute,
+		"grid_size": [grid_size.x, grid_size.y],
+	}
+
+## Restaura el estado desde un diccionario (SaveManager, ETAPA 8).
+func from_dict(data: Dictionary) -> void:
+	save_version = int(data.get("save_version", save_version))
+	company_name = String(data.get("company_name", company_name))
+	money = float(data.get("money", money))
+	debt = float(data.get("debt", debt))
+	day = int(data.get("day", day))
+	hour = int(data.get("hour", hour))
+	minute = int(data.get("minute", minute))
+	var gs: Variant = data.get("grid_size", null)
+	if gs is Array and gs.size() == 2:
+		grid_size = Vector2i(int(gs[0]), int(gs[1]))

@@ -1,0 +1,35 @@
+{
+  "_comment": "Industria V1 - plantillas de contratos que ofrecen los clientes (ETAPA 5).",
+  "contracts": [
+    {
+      "id": "constructora_piezas",
+      "client": "Constructora Andes",
+      "product": "industrial_part",
+      "amount": 500,
+      "payment": 35000,
+      "deadline_days": 8,
+      "penalty": 7000,
+      "reputation": 5
+    },
+    {
+      "id": "taller_placas",
+      "client": "Taller Mecanico Rivas",
+      "product": "metal_plate",
+      "amount": 200,
+      "payment": 8000,
+      "deadline_days": 5,
+      "penalty": 1500,
+      "reputation": 3
+    },
+    {
+      "id": "fabrica_motores",
+      "client": "Ensambladora Delta",
+      "product": "simple_motor",
+      "amount": 40,
+      "payment": 14000,
+      "deadline_days": 10,
+      "penalty": 3000,
+      "reputation": 8
+    }
+  ]
+}

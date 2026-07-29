@@ -1,0 +1,41 @@
+{
+  "_comment": "Industria V1 - edificios/estructuras colocables (energia, almacen, mantenimiento).",
+  "buildings": {
+    "generator": {
+      "name": "Generador diesel",
+      "category": "energy",
+      "size": [3, 2],
+      "cost": 8000,
+      "power_output": 150,
+      "fuel_per_min": 2.0
+    },
+    "substation": {
+      "name": "Subestacion",
+      "category": "energy",
+      "size": [2, 2],
+      "cost": 4000,
+      "power_capacity": 300
+    },
+    "small_storage": {
+      "name": "Almacen pequeno",
+      "category": "storage",
+      "size": [2, 2],
+      "cost": 2500,
+      "capacity": 500
+    },
+    "large_storage": {
+      "name": "Almacen grande",
+      "category": "storage",
+      "size": [4, 4],
+      "cost": 7000,
+      "capacity": 2000
+    },
+    "workshop": {
+      "name": "Taller de mantenimiento",
+      "category": "maintenance",
+      "size": [3, 2],
+      "cost": 5000,
+      "repair_rate": 1.0
+    }
+  }
+}

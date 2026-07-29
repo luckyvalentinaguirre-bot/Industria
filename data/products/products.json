@@ -1,0 +1,13 @@
+{
+  "_comment": "Industria V1 - componentes intermedios y productos finales.",
+  "components": {
+    "metal_plate":     { "name": "Placa metalica",        "category": "components", "unit": "u", "base_price": 30.0 },
+    "copper_part":     { "name": "Componente de cobre",   "category": "components", "unit": "u", "base_price": 40.0 },
+    "industrial_part": { "name": "Pieza industrial",      "category": "components", "unit": "u", "base_price": 55.0 }
+  },
+  "finished": {
+    "metal_piece":       { "name": "Pieza metalica",        "category": "finished", "unit": "u", "base_price": 70.0 },
+    "industrial_comp":   { "name": "Componente industrial", "category": "finished", "unit": "u", "base_price": 120.0 },
+    "simple_motor":      { "name": "Motor simple",          "category": "finished", "unit": "u", "base_price": 260.0 }
+  }
+}
