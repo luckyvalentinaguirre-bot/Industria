@@ -35,6 +35,8 @@ var workers_panel: PanelContainer
 var objectives_panel: PanelContainer
 var upgrades_panel: PanelContainer
 var storage_panel: PanelContainer
+var build_panel: Control          # catálogo de construcción (FactoryUI), cerrado por defecto
+var menu_panel: PanelContainer    # menú principal desplegable
 var _right_panels: Array = []
 
 var _toasts: VBoxContainer
@@ -158,13 +160,14 @@ func _factory_value() -> float:
 			invested += float(b.def.get("cost", 0))
 	return GameState.money + invested
 
-# --- Menú de construcción (izquierda) ---------------------------------------
+# --- Catálogo de construcción (cerrado por defecto) -------------------------
 func _build_left_menu() -> void:
-	var factory := FactoryUIScript.new()
-	factory.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	factory.offset_left = 8
-	factory.offset_top = 64
-	root.add_child(factory)
+	build_panel = FactoryUIScript.new()
+	build_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	build_panel.offset_left = 8
+	build_panel.offset_top = 64
+	build_panel.visible = false
+	root.add_child(build_panel)
 
 # --- Paneles laterales (derecha) --------------------------------------------
 func _build_right_panels() -> void:
@@ -191,36 +194,69 @@ func _toggle_right(panel: Control) -> void:
 			p.visible = false
 	panel.visible = show
 
-# --- Barra inferior ---------------------------------------------------------
+# --- Barra inferior: sólo el botón de Menú ----------------------------------
 func _build_bottom_bar() -> void:
 	var bar := UITheme.make_panel(UITheme.BG)
-	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	bar.offset_left = 8
-	bar.offset_right = -8
 	bar.offset_bottom = -8
 	root.add_child(bar)
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	bar.add_child(h)
+	var menu_btn := UITheme.make_button("☰  Menú")
+	menu_btn.custom_minimum_size = Vector2(120, 38)
+	menu_btn.pressed.connect(_toggle_menu)
+	bar.add_child(menu_btn)
+	_build_menu_panel()
+	# El catálogo de construcción se cierra al salir del modo construcción.
+	EventBus.build_mode_changed.connect(func(active, _k):
+		if not active and build_panel:
+			build_panel.visible = false)
 
-	_add_bottom_btn(h, "🎯 Objetivos", _on_objectives)
-	_add_bottom_btn(h, "📦 Almacén", _on_storage)
-	_add_bottom_btn(h, "🔬 Mejoras", _on_upgrades)
-	_add_bottom_btn(h, "💰 Finanzas", _on_finance)
-	_add_bottom_btn(h, "📄 Contratos", _on_contracts)
-	_add_bottom_btn(h, "👷 Personal", _on_workers)
-	_add_bottom_btn(h, "⚙ Automatización", _on_automation)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(spacer)
-	_add_bottom_btn(h, "💾 Guardar", func(): GameManager.save.save_game())
-	_add_bottom_btn(h, "📂 Cargar", func(): GameManager.save.load_game())
+func _build_menu_panel() -> void:
+	menu_panel = UITheme.make_panel(UITheme.BG)
+	menu_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	menu_panel.offset_left = 8
+	menu_panel.offset_bottom = -54
+	menu_panel.custom_minimum_size = Vector2(240, 0)
+	menu_panel.visible = false
+	root.add_child(menu_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	menu_panel.add_child(v)
+	v.add_child(UITheme.make_title("Menú"))
+	_menu_item(v, "🏗  Construcción", _on_construction)
+	_menu_item(v, "🏭  Producción", _on_storage)      # inventario/materiales de producción
+	_menu_item(v, "🚚  Logística", _on_automation)     # reglas/prioridades de flujo
+	_menu_item(v, "⚡  Energía", _on_energy)
+	_menu_item(v, "💰  Economía", _on_finance)
+	_menu_item(v, "📋  Contratos", _on_contracts)
+	_menu_item(v, "🔬  Investigación", _on_upgrades)
+	_menu_item(v, "👷  Personal", _on_workers)
+	_menu_item(v, "📊  Estadísticas", _on_objectives)
+	_menu_item(v, "⚙  Configuración", _on_config)
 
-func _add_bottom_btn(h: HBoxContainer, text: String, cb: Callable) -> void:
+func _menu_item(v: VBoxContainer, text: String, cb: Callable) -> void:
 	var b := UITheme.make_button(text)
-	b.custom_minimum_size = Vector2(0, 34)
-	b.pressed.connect(cb)
-	h.add_child(b)
+	b.custom_minimum_size = Vector2(0, 32)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.pressed.connect(func():
+		menu_panel.visible = false
+		cb.call())
+	v.add_child(b)
+
+func _toggle_menu() -> void:
+	if menu_panel:
+		menu_panel.visible = not menu_panel.visible
+
+func _on_construction() -> void:
+	if build_panel:
+		build_panel.visible = not build_panel.visible
+
+func _on_energy() -> void:
+	EventBus.notify.emit("Energía: usá el HUD (⚡) y coloca Generador/Subestación desde Construcción.", "info")
+
+func _on_config() -> void:
+	EventBus.notify.emit("Configuración: 💾 Guardar / 📂 Cargar disponibles.", "info")
+	GameManager.save.save_game()
 
 func _on_finance() -> void: _toggle_right(finance_ui)
 func _on_contracts() -> void: _toggle_right(contracts_panel); _refresh_contracts()
