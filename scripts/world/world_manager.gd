@@ -69,18 +69,53 @@ func _emit_world_ready() -> void:
 
 ## Fábrica deteriorada de partida: un almacén y una fundición vieja averiada.
 func _setup_initial_scenario() -> void:
-	# Almacén central para almacenar materia prima y productos.
-	var store: Building = GameManager.buildings.create_building("small_storage", Vector2i(16, 22))
-	GameManager.grid.occupy_area(store.grid_origin, store.grid_size, store.uid)
+	# Fábrica HEREDADA y deteriorada, ya compuesta como una LÍNEA DE PRODUCCIÓN
+	# (spec §2/§16): almacén → fundición → prensa → ensambladora → almacén, con
+	# cintas conectándolas y su propia energía. Se lee como una fábrica desde el
+	# primer segundo; el jugador la revive (repara la fundición) y la mejora.
+	var g := GameManager.grid
 
-	# Una fundición vieja (deteriorada) que el jugador deberá reparar.
-	var smelter: Machine = GameManager.machines.create_machine("smelter", Vector2i(20, 20))
-	GameManager.grid.occupy_area(smelter.grid_origin, smelter.grid_size, smelter.uid)
+	# Eje central de la línea (columna X ~= centro del terreno construible).
+	var raw: Building = _place_building("large_storage", Vector2i(16, 8))     # materia prima (fondo)
+	var smelter: Machine = _place_machine("smelter", Vector2i(19, 15))
+	var press: Machine = _place_machine("press", Vector2i(19, 19))
+	var assembler: Machine = _place_machine("assembler", Vector2i(18, 23))
+	var out_store: Building = _place_building("large_storage", Vector2i(16, 28))  # productos (frente)
+
+	# Energía propia a un lado.
+	var gen: Building = _place_building("generator", Vector2i(26, 13))
+	var sub: Building = _place_building("substation", Vector2i(27, 18))
+
+	# Recetas de la cadena hierro → lingote → placa → pieza metálica.
+	smelter.set_recipe("smelt_iron")
+	press.set_recipe("press_plate")
+	assembler.set_recipe("assemble_metal_piece")
+
+	# La fundición está deteriorada (el jugador la reparará: paso 1 del tutorial).
 	smelter.set_condition(35.0)
 
-	# Algo de materia prima inicial para empezar a producir.
-	GameManager.storage.deposit("iron_ore", 60)
-	GameManager.storage.deposit("fuel", 40)
+	# Cintas gratis que enlazan la línea (transporte visible entre estaciones).
+	var t := GameManager.transport
+	t.create_conveyor(raw, smelter, false)
+	t.create_conveyor(smelter, press, false)
+	t.create_conveyor(press, assembler, false)
+	t.create_conveyor(assembler, out_store, false)
+
+	# Materia prima inicial y combustible para el generador.
+	GameManager.storage.deposit("iron_ore", 120)
+	GameManager.storage.deposit("fuel", 80)
+
+## Coloca una máquina del escenario y ocupa su área en el grid.
+func _place_machine(id: String, origin: Vector2i) -> Machine:
+	var m: Machine = GameManager.machines.create_machine(id, origin)
+	GameManager.grid.occupy_area(m.grid_origin, m.grid_size, m.uid)
+	return m
+
+## Coloca un edificio del escenario y ocupa su área en el grid.
+func _place_building(id: String, origin: Vector2i) -> Building:
+	var b: Building = GameManager.buildings.create_building(id, origin)
+	GameManager.grid.occupy_area(b.grid_origin, b.grid_size, b.uid)
+	return b
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_grid"):
@@ -294,6 +329,8 @@ func _setup_props() -> void:
 
 	# Ambientación industrial diseñada (infraestructura con intención).
 	_setup_ambient(props, ext)
+	# Carretera de acceso + línea eléctrica que alimenta la fábrica.
+	_setup_infrastructure(props, ext)
 
 	# Horizonte industrial de fondo (más allá del muro) para dar profundidad.
 	_setup_skyline(props, ext)
@@ -399,6 +436,67 @@ func _gantry_tower(parent: Node3D, base: Vector3) -> void:
 	# Luz de advertencia roja en la cima.
 	var warn := IndKit.emissive(Color(0.95, 0.15, 0.1), 2.5)
 	IndKit.cyl(node, 0.25, 0.25, 0.4, Vector3(0, h + 0.4, 0), warn)
+
+func _setup_infrastructure(parent: Node3D, ext: float) -> void:
+	# Carretera de asfalto desde el portón oeste hasta el centro (zona de carga).
+	var asphalt := _simple(Color(0.11, 0.11, 0.12), 0.85, 0.0)
+	var road := MeshInstance3D.new()
+	var rbm := BoxMesh.new()
+	rbm.size = Vector3(ext, 0.05, 5.5)
+	road.mesh = rbm
+	road.position = Vector3(-ext * 0.5, 0.03, 6)
+	road.material_override = asphalt
+	road.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(road)
+	# Línea discontinua central de la carretera.
+	var line := _simple(Color(0.8, 0.75, 0.2), 0.7, 0.0)
+	for i in range(int(ext / 3.0)):
+		IndKit.box(parent, Vector3(1.2, 0.03, 0.18), Vector3(-ext + 2 + i * 3.0, 0.06, 6), line)
+
+	# Placa metálica de la zona de carga (superficie distinta) junto al frente.
+	var plate := _simple(Color(0.3, 0.31, 0.34), 0.5, 0.7)
+	IndKit.box(parent, Vector3(10, 0.06, 8), Vector3(-6, 0.05, 12), plate)
+
+	# Línea eléctrica: torres de celosía con cables que cruzan hacia la fábrica.
+	var prev_top := Vector3.ZERO
+	var have_prev := false
+	for i in range(4):
+		var z := lerpf(-ext + 6, ext - 6, float(i) / 3.0)
+		var base := Vector3(-ext + 9, 0, z)
+		var top := _pylon(parent, base)
+		if have_prev:
+			# Cables entre torres (dos conductores).
+			IndKit.cable(parent, prev_top + Vector3(0, 0, -0.9), top + Vector3(0, 0, -0.9), IndKit.dark_metal())
+			IndKit.cable(parent, prev_top + Vector3(0, 0, 0.9), top + Vector3(0, 0, 0.9), IndKit.dark_metal())
+		prev_top = top
+		have_prev = true
+	# Bajante de servicio desde la torre central hacia la subestación de la fábrica.
+	IndKit.cable(parent, Vector3(-ext + 9, 8.5, 0), Vector3(-8, 3.0, 0), IndKit.dark_metal())
+
+func _pylon(parent: Node3D, base: Vector3) -> Vector3:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var dark := IndKit.dark_metal()
+	var h := 10.0
+	# Cuatro patas convergentes.
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			var leg := IndKit.cyl(node, 0.08, 0.14, h, Vector3(sx * 1.2, h * 0.5, sz * 1.2), dark)
+			leg.rotation_degrees = Vector3(sz * 6.0, 0, -sx * 6.0)
+	# Arriostramientos.
+	for k in range(4):
+		var y := 2.0 + k * 2.2
+		var s: float = lerpf(1.1, 0.5, float(k) / 3.0)
+		IndKit.box(node, Vector3(s * 2.0, 0.08, 0.08), Vector3(0, y, s * 1.0), dark)
+		IndKit.box(node, Vector3(s * 2.0, 0.08, 0.08), Vector3(0, y, -s * 1.0), dark)
+		IndKit.box(node, Vector3(0.08, 0.08, s * 2.0), Vector3(s * 1.0, y, 0), dark)
+		IndKit.box(node, Vector3(0.08, 0.08, s * 2.0), Vector3(-s * 1.0, y, 0), dark)
+	# Cruceta con aisladores.
+	IndKit.box(node, Vector3(0.1, 0.1, 3.2), Vector3(0, h, 0), dark)
+	for sz in [-1, 1]:
+		IndKit.cyl(node, 0.05, 0.05, 0.4, Vector3(0, h - 0.3, sz * 0.9), IndKit.emissive(Color(0.8, 0.78, 0.7), 0.2))
+	return base + Vector3(0, h, 0)
 
 func _setup_skyline(parent: Node3D, ext: float) -> void:
 	var mat_far := _simple(Color(0.22, 0.24, 0.3), 0.9, 0.1)

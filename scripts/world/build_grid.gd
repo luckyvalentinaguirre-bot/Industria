@@ -19,7 +19,7 @@ const CELL_SIZE := 2.0  # metros por celda (coincide con GameState.CELL_SIZE)
 @export var line_color: Color = Color(0.35, 0.75, 0.85, 0.35)
 @export var major_line_color: Color = Color(0.45, 0.9, 1.0, 0.55)
 
-const IDLE_INTENSITY := 0.28
+const IDLE_INTENSITY := 0.0    # oculto salvo al construir: la fábrica es protagonista
 const BUILD_INTENSITY := 1.0
 
 var _occupied: Dictionary = {}          # Vector2i -> bool
@@ -36,6 +36,8 @@ func _ready() -> void:
 	grid_size = GameState.grid_size
 	_build_visual()
 	_build_border()
+	if _border:
+		_border.visible = false   # el marco del terreno sólo se ve al construir
 	EventBus.grid_visibility_changed.connect(_on_grid_visibility_changed)
 	EventBus.build_mode_changed.connect(_on_build_mode)
 	set_process(true)
@@ -54,6 +56,8 @@ func _on_build_mode(active: bool, _kind: String) -> void:
 func set_build_active(active: bool) -> void:
 	_build_active = active
 	_target_intensity = BUILD_INTENSITY if active else IDLE_INTENSITY
+	if _border:
+		_border.visible = active
 	if active:
 		_refresh_occupancy_overlay()
 	elif _occ_overlay:
