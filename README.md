@@ -105,5 +105,6 @@ Modelos compuestos generados por código (sustituibles por los assets finales si
 - **Cintas:** estructura metálica con rieles, patas de soporte y superficie de banda con textura desplazándose (shader).
 - **Trabajadores:** cuerpo definido con piernas, chaleco de alta visibilidad y casco.
 - **Terreno:** hormigón procedural (manchas, juntas de losa, desgaste) por shader.
+- **Entorno/atmósfera:** muro perimetral, farolas con luz real, props (cajas, barriles), sonda de reflejos para el metal y polvo ambiental.
 - **Iluminación:** Forward+, sol con sombras suaves, SSAO + SSIL, glow, tonemap ACES y ajuste de color; optimizado para **gama media**.
 - Optimización: cintas con paquetes de ítems reutilizados y limitados; simulación por ticks del EventBus en lugar de cálculos dispersos por frame.

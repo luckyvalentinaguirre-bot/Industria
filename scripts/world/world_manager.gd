@@ -27,6 +27,7 @@ func _ready() -> void:
 	_setup_lighting()
 	_setup_ground()
 	_setup_containers()
+	_setup_props()
 	_setup_build_controller()
 	# La cuadrícula se autoconstruye en su propio _ready().
 	# Registrar el mundo en GameManager antes de arrancar la partida.
@@ -168,6 +169,142 @@ func _setup_ground() -> void:
 	col.position = Vector3(0, -0.1, 0)
 	body.add_child(col)
 	_ground.add_child(body)
+
+# --- Decoración de entorno / atmósfera --------------------------------------
+func _setup_props() -> void:
+	var props := Node3D.new()
+	props.name = "Props"
+	add_child(props)
+	var ext: float = GameState.grid_size.x * GameState.CELL_SIZE * 0.5   # 40
+
+	var mat_wall := _simple(Color(0.28, 0.29, 0.31), 0.9, 0.0)
+	var mat_metal := _simple(Color(0.2, 0.21, 0.23), 0.5, 0.8)
+	var mat_crate := _simple(Color(0.45, 0.33, 0.19), 0.8, 0.0)
+	var mat_barrel := _simple(Color(0.2, 0.45, 0.55), 0.5, 0.4)
+	var mat_barrel2 := _simple(Color(0.6, 0.4, 0.15), 0.5, 0.4)
+
+	# Muro perimetral (4 lados) con zócalo y remate metálico.
+	for side in range(4):
+		var horizontal := side < 2
+		var sign := 1.0 if (side % 2 == 0) else -1.0
+		var wall := _pbox(props, Vector3(ext * 2.0 if horizontal else 0.4, 2.6, 0.4 if horizontal else ext * 2.0),
+			Vector3(0 if horizontal else sign * ext, 1.3, sign * ext if horizontal else 0), mat_wall)
+		var cap := _pbox(props, Vector3(ext * 2.0 if horizontal else 0.5, 0.25, 0.5 if horizontal else ext * 2.0),
+			Vector3(0 if horizontal else sign * ext, 2.65, sign * ext if horizontal else 0), mat_metal)
+
+	# Farolas industriales con luz real (sin sombra, para rendimiento).
+	var lamp_positions := [
+		Vector3(-ext + 4, 0, -ext + 4), Vector3(ext - 4, 0, -ext + 4),
+		Vector3(-ext + 4, 0, ext - 4), Vector3(ext - 4, 0, ext - 4),
+		Vector3(0, 0, -ext + 4), Vector3(0, 0, ext - 4),
+	]
+	for p in lamp_positions:
+		_light_pole(props, p, mat_metal)
+
+	# Grupos de props (cajas y barriles) repartidos por el perímetro.
+	var clusters := [
+		Vector3(-ext + 6, 0, -6), Vector3(ext - 6, 0, 8),
+		Vector3(-8, 0, ext - 6), Vector3(10, 0, -ext + 6),
+	]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1337
+	for c in clusters:
+		for i in range(4):
+			var off := Vector3(rng.randf_range(-2.5, 2.5), 0, rng.randf_range(-2.5, 2.5))
+			if rng.randf() < 0.5:
+				var s := rng.randf_range(0.8, 1.3)
+				var crate := _pbox(props, Vector3(s, s, s), c + off + Vector3(0, s * 0.5, 0), mat_crate)
+				crate.rotation.y = rng.randf_range(0, TAU)
+			else:
+				var bm := mat_barrel if rng.randf() < 0.5 else mat_barrel2
+				_pcyl(props, 0.35, 0.35, 1.1, c + off + Vector3(0, 0.55, 0), bm)
+
+	# Sonda de reflejos para dar brillo realista al metal.
+	var probe := ReflectionProbe.new()
+	probe.size = Vector3(ext * 2.2, 30, ext * 2.2)
+	probe.origin_offset = Vector3(0, -10, 0)
+	probe.position = Vector3(0, 12, 0)
+	probe.max_distance = 220.0
+	probe.ambient_mode = ReflectionProbe.AMBIENT_ENVIRONMENT
+	props.add_child(probe)
+
+	# Polvo ambiental muy sutil sobre la fábrica.
+	props.add_child(_make_dust(ext))
+
+func _light_pole(parent: Node3D, base: Vector3, mat: Material) -> void:
+	var pole := _pcyl(parent, 0.12, 0.14, 7.0, base + Vector3(0, 3.5, 0), mat)
+	var arm := _pbox(parent, Vector3(0.12, 0.12, 1.4), base + Vector3(0, 6.8, 0.6), mat)
+	# Lámpara emisiva.
+	var lampmat := StandardMaterial3D.new()
+	lampmat.albedo_color = Color(1.0, 0.95, 0.8)
+	lampmat.emission_enabled = true
+	lampmat.emission = Color(1.0, 0.92, 0.7)
+	lampmat.emission_energy_multiplier = 3.0
+	var head := _pbox(parent, Vector3(0.5, 0.2, 0.5), base + Vector3(0, 6.7, 1.2), lampmat)
+	var light := OmniLight3D.new()
+	light.position = base + Vector3(0, 6.5, 1.2)
+	light.light_energy = 2.5
+	light.omni_range = 22.0
+	light.light_color = Color(1.0, 0.93, 0.78)
+	light.shadow_enabled = false
+	parent.add_child(light)
+
+func _make_dust(ext: float) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 60
+	p.lifetime = 8.0
+	p.position = Vector3(0, 6, 0)
+	p.visibility_aabb = AABB(Vector3(-ext, -2, -ext), Vector3(ext * 2, 20, ext * 2))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(ext, 8, ext)
+	mat.direction = Vector3(0.2, -0.1, 0)
+	mat.gravity = Vector3.ZERO
+	mat.initial_velocity_min = 0.1
+	mat.initial_velocity_max = 0.4
+	mat.scale_min = 0.02
+	mat.scale_max = 0.06
+	p.process_material = mat
+	var dot := SphereMesh.new()
+	dot.radius = 0.5
+	dot.height = 1.0
+	var dm := StandardMaterial3D.new()
+	dm.albedo_color = Color(0.9, 0.9, 0.85, 0.12)
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	dot.material = dm
+	p.draw_pass_1 = dot
+	return p
+
+func _simple(color: Color, rough: float, metal: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = rough
+	m.metallic = metal
+	return m
+
+func _pbox(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.position = pos
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+func _pcyl(parent: Node3D, tr: float, br: float, h: float, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = tr
+	cm.bottom_radius = br
+	cm.height = h
+	mi.mesh = cm
+	mi.position = pos
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
 
 func _make_ground_material() -> ShaderMaterial:
 	# Hormigón industrial procedural: manchas, juntas de losa y desgaste.
