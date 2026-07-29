@@ -211,6 +211,16 @@ func _setup_props() -> void:
 	add_child(props)
 	var ext: float = GameState.grid_size.x * GameState.CELL_SIZE * 0.5   # 40
 
+	# Terreno lejano (asfalto oscuro) para que el horizonte no flote.
+	var far := MeshInstance3D.new()
+	var fp := PlaneMesh.new()
+	fp.size = Vector2(ext * 8.0, ext * 8.0)
+	far.mesh = fp
+	far.position = Vector3(0, -0.06, 0)
+	far.material_override = _simple(Color(0.17, 0.18, 0.2), 0.95, 0.0)
+	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	props.add_child(far)
+
 	var mat_wall := _simple(Color(0.28, 0.29, 0.31), 0.9, 0.0)
 	var mat_metal := _simple(Color(0.2, 0.21, 0.23), 0.5, 0.8)
 	var mat_crate := _simple(Color(0.45, 0.33, 0.19), 0.8, 0.0)
@@ -267,6 +277,62 @@ func _setup_props() -> void:
 
 	# Señalización y líneas de seguridad en el suelo.
 	_setup_floor_markings(props, ext)
+
+	# Horizonte industrial de fondo (más allá del muro) para dar profundidad.
+	_setup_skyline(props, ext)
+
+func _setup_skyline(parent: Node3D, ext: float) -> void:
+	var mat_far := _simple(Color(0.22, 0.24, 0.3), 0.9, 0.1)
+	var mat_stack := _simple(Color(0.28, 0.26, 0.27), 0.9, 0.0)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+	var count := 18
+	for i in range(count):
+		var ang := TAU * i / count + rng.randf_range(-0.12, 0.12)
+		var r := ext * rng.randf_range(1.5, 2.5)
+		var pos := Vector3(cos(ang) * r, 0, sin(ang) * r)
+		var kind := rng.randi() % 3
+		if kind == 0:
+			# Nave/edificio.
+			var h := rng.randf_range(8.0, 16.0)
+			_pbox(parent, Vector3(rng.randf_range(6, 12), h, rng.randf_range(6, 12)), pos + Vector3(0, h * 0.5, 0), mat_far)
+		elif kind == 1:
+			# Chimenea alta con humo.
+			var h2 := rng.randf_range(14.0, 24.0)
+			_pcyl(parent, 0.8, 1.3, h2, pos + Vector3(0, h2 * 0.5, 0), mat_stack)
+			if rng.randf() < 0.6:
+				parent.add_child(_skyline_smoke(pos + Vector3(0, h2, 0)))
+		else:
+			# Torre de refrigeración (dos troncos de cono).
+			var h3 := rng.randf_range(10.0, 16.0)
+			_pcyl(parent, 2.2, 3.2, h3 * 0.6, pos + Vector3(0, h3 * 0.3, 0), mat_far)
+			_pcyl(parent, 3.0, 2.2, h3 * 0.4, pos + Vector3(0, h3 * 0.8, 0), mat_far)
+
+func _skyline_smoke(pos: Vector3) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 8
+	p.lifetime = 6.0
+	p.position = pos
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0.4, 1, 0)
+	mat.spread = 8.0
+	mat.initial_velocity_min = 0.8
+	mat.initial_velocity_max = 1.6
+	mat.gravity = Vector3(0.3, 0.2, 0)
+	mat.scale_min = 1.5
+	mat.scale_max = 4.0
+	p.process_material = mat
+	var dot := SphereMesh.new()
+	dot.radius = 1.0
+	dot.height = 2.0
+	var dm := StandardMaterial3D.new()
+	dm.albedo_color = Color(0.5, 0.5, 0.55, 0.18)
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	dot.material = dm
+	p.draw_pass_1 = dot
+	return p
 
 func _setup_floor_markings(parent: Node3D, ext: float) -> void:
 	var yellow := StandardMaterial3D.new()

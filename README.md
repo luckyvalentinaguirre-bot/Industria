@@ -112,4 +112,6 @@ Modelos compuestos generados por código (sustituibles por los assets finales si
 - **Iluminación:** Forward+, sol con sombras suaves, SSAO + SSIL, glow, tonemap ACES y ajuste de color; optimizado para **gama media**.
 
 Los modelos de máquina son **bespoke por tipo** (horno con boca incandescente y chimenea humeante, prensa con ariete que golpea, celda con brazo robótico articulado) con partes animadas al producir.
+
+Los **edificios** también son detallados por tipo: almacén con nave nervada, tejado, silos y tubería de carga; **generador** con radiador, escapes humeantes y depósito de combustible; **subestación** con transformadores, aisladores cerámicos y barras; **taller** con tejado a dos aguas y grúa pluma. De fondo, un **horizonte industrial** (naves, chimeneas humeantes y torres de refrigeración) da profundidad a la escena.
 - Optimización: cintas con paquetes de ítems reutilizados y limitados; simulación por ticks del EventBus en lugar de cálculos dispersos por frame.
