@@ -63,6 +63,8 @@ func _emit_world_ready() -> void:
 	# Escenario inicial: una fábrica deteriorada (spec §26).
 	if not GameManager.save.has_save():
 		_setup_initial_scenario()
+	# Vida ambiental del patio (carretilla patrullando).
+	GameManager.vehicles.spawn_ambient()
 	EventBus.world_ready.emit()
 
 ## Fábrica deteriorada de partida: un almacén y una fundición vieja averiada.
@@ -290,8 +292,113 @@ func _setup_props() -> void:
 	# Señalización y líneas de seguridad en el suelo.
 	_setup_floor_markings(props, ext)
 
+	# Ambientación industrial diseñada (infraestructura con intención).
+	_setup_ambient(props, ext)
+
 	# Horizonte industrial de fondo (más allá del muro) para dar profundidad.
 	_setup_skyline(props, ext)
+
+# --- Ambientación industrial (Etapa 3): infraestructura con propósito --------
+func _setup_ambient(parent: Node3D, ext: float) -> void:
+	# Parque de tanques de almacenamiento en una esquina.
+	_tank_farm(parent, Vector3(ext - 12, 0, -ext + 12))
+	# Rack de tuberías elevado a lo largo del borde trasero.
+	_pipe_rack(parent, Vector3(0, 0, -ext + 3), ext * 1.4)
+	# Apilado de contenedores marítimos en otra esquina.
+	_container_stack(parent, Vector3(-ext + 12, 0, ext - 12))
+	# Torre/estructura metálica junto al parque de tanques.
+	_gantry_tower(parent, Vector3(ext - 6, 0, -ext + 22))
+	# Bolardos de seguridad amarillos a lo largo del carril de camiones.
+	var bollard := IndKit.emissive(Color(0.85, 0.72, 0.1), 0.4)
+	for i in range(10):
+		var x := lerpf(-ext + 4, -2, float(i) / 9.0)
+		IndKit.cyl(parent, 0.14, 0.18, 1.0, Vector3(x, 0.5, 3.6), bollard)
+
+func _tank_farm(parent: Node3D, base: Vector3) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var steel := IndKit.steel()
+	var dark := IndKit.dark_metal()
+	# Dique de contención de hormigón.
+	IndKit.box(node, Vector3(16, 0.6, 12), Vector3(0, 0.3, 0), IndKit.concrete())
+	var positions := [Vector3(-4.5, 0, -2), Vector3(0.5, 0, 2), Vector3(5, 0, -2.5)]
+	var radii := [2.5, 3.0, 2.2]
+	for i in range(positions.size()):
+		var p: Vector3 = positions[i]
+		var r: float = radii[i]
+		var h := r * 3.0
+		IndKit.cyl(node, r, r, h, p + Vector3(0, h * 0.5 + 0.6, 0), steel)
+		# Aros de refuerzo.
+		for k in range(3):
+			IndKit.cyl(node, r * 1.03, r * 1.03, 0.15, p + Vector3(0, 1.2 + k * (h / 3.0) + 0.6, 0), dark)
+		# Tapa abombada.
+		var dome := IndKit.cyl(node, r * 0.2, r, r * 0.5, p + Vector3(0, h + 0.6 + r * 0.25, 0), steel)
+		# Escalera.
+		IndKit.ladder(node, p + Vector3(r, 0.6, 0), h, dark)
+	# Tuberías que conectan los tanques.
+	IndKit.pipe(node, Vector3(-4.5, 1.5, -2), Vector3(0.5, 1.5, 2), 0.2, dark)
+	IndKit.pipe(node, Vector3(0.5, 1.5, 2), Vector3(5, 1.5, -2.5), 0.2, dark)
+
+func _pipe_rack(parent: Node3D, base: Vector3, length: float) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var dark := IndKit.dark_metal()
+	var steel := IndKit.steel()
+	var supports := int(length / 6.0)
+	for i in range(supports + 1):
+		var x := lerpf(-length * 0.5, length * 0.5, float(i) / float(supports))
+		# Pórtico de soporte.
+		for sx in [-1, 1]:
+			IndKit.cyl(node, 0.15, 0.18, 4.0, Vector3(x + sx * 1.2, 2.0, 0), dark)
+		IndKit.box(node, Vector3(3.2, 0.2, 0.3), Vector3(x, 3.6, 0), dark)
+		IndKit.box(node, Vector3(3.2, 0.2, 0.3), Vector3(x, 2.6, 0), dark)
+	# Tuberías corriendo por el rack.
+	for pz in [-0.7, 0.0, 0.7]:
+		IndKit.cyl(node, 0.22, 0.22, length, Vector3(0, 3.7, pz), steel).rotation_degrees = Vector3(0, 0, 90)
+	IndKit.cyl(node, 0.3, 0.3, length, Vector3(0, 2.7, 0), dark).rotation_degrees = Vector3(0, 0, 90)
+
+func _container_stack(parent: Node3D, base: Vector3) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var colors := [Color(0.6, 0.25, 0.2), Color(0.2, 0.35, 0.55), Color(0.3, 0.5, 0.35), Color(0.6, 0.5, 0.2)]
+	var layout := [
+		[Vector3(0, 1.3, 0), 0], [Vector3(0, 1.3, 2.7), 1], [Vector3(6.4, 1.3, 0), 2],
+		[Vector3(0, 3.9, 0), 3], [Vector3(6.4, 3.9, 0), 0], [Vector3(0, 3.9, 2.7), 2],
+	]
+	for entry in layout:
+		var pos: Vector3 = entry[0]
+		var mat := IndKit.housing(colors[int(entry[1])])
+		IndKit.box(node, Vector3(6.0, 2.5, 2.4), pos, mat)
+		# Nervaduras del contenedor.
+		for r in range(5):
+			var lx := lerpf(-2.7, 2.7, float(r) / 4.0)
+			IndKit.box(node, Vector3(0.1, 2.5, 2.42), pos + Vector3(lx, 0, 0), IndKit.dark_metal())
+
+func _gantry_tower(parent: Node3D, base: Vector3) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var dark := IndKit.dark_metal()
+	var h := 12.0
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			IndKit.cyl(node, 0.15, 0.2, h, Vector3(sx * 1.5, h * 0.5, sz * 1.5), dark)
+	# Arriostramientos horizontales.
+	for k in range(4):
+		var y := 2.5 + k * 2.8
+		IndKit.box(node, Vector3(3.0, 0.12, 0.12), Vector3(0, y, 1.5), dark)
+		IndKit.box(node, Vector3(3.0, 0.12, 0.12), Vector3(0, y, -1.5), dark)
+		IndKit.box(node, Vector3(0.12, 0.12, 3.0), Vector3(1.5, y, 0), dark)
+		IndKit.box(node, Vector3(0.12, 0.12, 3.0), Vector3(-1.5, y, 0), dark)
+	# Plataforma superior con baranda.
+	IndKit.platform(node, Vector2(3.6, 3.6), Vector3(0, h, 0), IndKit.steel())
+	IndKit.railing(node, Vector3(0, h, 1.8), 3.6, dark)
+	# Luz de advertencia roja en la cima.
+	var warn := IndKit.emissive(Color(0.95, 0.15, 0.1), 2.5)
+	IndKit.cyl(node, 0.25, 0.25, 0.4, Vector3(0, h + 0.4, 0), warn)
 
 func _setup_skyline(parent: Node3D, ext: float) -> void:
 	var mat_far := _simple(Color(0.22, 0.24, 0.3), 0.9, 0.1)

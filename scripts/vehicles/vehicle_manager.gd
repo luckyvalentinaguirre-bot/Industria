@@ -24,14 +24,24 @@ func _gate() -> float:
 func _cleanup() -> void:
 	_active = _active.filter(func(v): return is_instance_valid(v))
 
-func _spawn(route: Array, color: Color) -> void:
+func _spawn(route: Array, color: Color, kind: String = "truck", loop: bool = false) -> void:
 	_cleanup()
 	if _container == null or _active.size() >= MAX_VEHICLES:
 		return
 	var v: Vehicle = VehicleScript.new()
 	_container.add_child(v)
-	v.setup(route, color)
+	v.setup(route, color, kind, loop)
 	_active.append(v)
+
+## Vehículos decorativos permanentes que dan vida y escala al patio.
+func spawn_ambient() -> void:
+	if _container == null:
+		return
+	# Carretilla elevadora patrullando el patio.
+	var f: Vehicle = VehicleScript.new()
+	_container.add_child(f)
+	f.setup([Vector3(-10, 0, -8), Vector3(12, 0, -8), Vector3(12, 0, 12), Vector3(-10, 0, 12)],
+		Color(0.9, 0.6, 0.1), "forklift", true)
 
 func _on_delivery(_item: String, _qty: int) -> void:
 	# Entra desde el portón oeste, llega a la zona de carga y se marcha.

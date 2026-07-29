@@ -11,18 +11,30 @@ class_name Vehicle
 var _waypoints: Array = []
 var _idx: int = 0
 var _speed: float = 9.0
+var kind: String = "truck"
+var loop: bool = false
 
-func setup(waypoints: Array, color: Color) -> void:
+func setup(waypoints: Array, color: Color, p_kind: String = "truck", p_loop: bool = false) -> void:
 	_waypoints = waypoints
+	kind = p_kind
+	loop = p_loop
+	if kind == "forklift":
+		_speed = 4.5
 	if _waypoints.size() > 0:
 		global_position = _waypoints[0]
 		_idx = 1
-	_build_visual(color)
+	if kind == "forklift":
+		_build_forklift(color)
+	else:
+		_build_visual(color)
 
 func _process(delta: float) -> void:
 	if _idx >= _waypoints.size():
-		queue_free()
-		return
+		if loop and _waypoints.size() > 1:
+			_idx = 0
+		else:
+			queue_free()
+			return
 	var target: Vector3 = _waypoints[_idx]
 	var to := target - global_position
 	to.y = 0
@@ -70,6 +82,45 @@ func _build_visual(color: Color) -> void:
 	head.emission_energy_multiplier = 2.0
 	for hx in [-0.6, 0.6]:
 		_box(Vector3(0.25, 0.25, 0.05), Vector3(hx, 0.9, 2.85), head)
+
+func _build_forklift(color: Color) -> void:
+	var body := StandardMaterial3D.new()
+	body.albedo_color = color
+	body.roughness = 0.5
+	body.metallic = 0.4
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.1, 0.1, 0.12)
+	dark.roughness = 0.7
+	var fork := StandardMaterial3D.new()
+	fork.albedo_color = Color(0.5, 0.5, 0.55)
+	fork.roughness = 0.4
+	fork.metallic = 0.8
+	# Cuerpo / contrapeso.
+	_box(Vector3(1.3, 1.0, 1.8), Vector3(0, 0.9, -0.6), body)
+	_box(Vector3(1.2, 0.7, 0.8), Vector3(0, 1.5, -1.1), dark)   # bloque motor trasero
+	# Jaula del conductor.
+	for sx in [-1, 1]:
+		for sz in [-0.2, 0.9]:
+			_cyl(0.05, 0.05, 1.4, Vector3(sx * 0.55, 2.0, sz), dark)
+	_box(Vector3(1.3, 0.08, 1.3), Vector3(0, 2.7, 0.35), dark)
+	# Mástil delantero.
+	for sx in [-1, 1]:
+		_box(Vector3(0.12, 2.4, 0.12), Vector3(sx * 0.4, 1.4, 1.0), dark)
+	# Horquillas.
+	for sx in [-1, 1]:
+		_box(Vector3(0.15, 0.08, 1.1), Vector3(sx * 0.3, 0.35, 1.6), fork)
+	# Ruedas.
+	for wz in [0.2, -1.1]:
+		for wx in [-1, 1]:
+			var wheel := _cyl(0.35, 0.35, 0.28, Vector3(wx * 0.65, 0.35, wz), dark)
+			wheel.rotation_degrees = Vector3(0, 0, 90)
+	# Baliza ámbar.
+	var beacon := StandardMaterial3D.new()
+	beacon.albedo_color = Color(0.95, 0.6, 0.1)
+	beacon.emission_enabled = true
+	beacon.emission = Color(0.95, 0.55, 0.1)
+	beacon.emission_energy_multiplier = 2.0
+	_cyl(0.1, 0.1, 0.18, Vector3(0, 2.8, 0.35), beacon)
 
 func _box(size: Vector3, pos: Vector3, mat: Material) -> void:
 	var mi := MeshInstance3D.new()
