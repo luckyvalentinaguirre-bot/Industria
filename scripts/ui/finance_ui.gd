@@ -11,6 +11,7 @@ const SELL_ITEMS := ["metal_plate", "copper_part", "industrial_part",
 var _summary_lbl: Label
 var _debt_spin: SpinBox
 var _accum: float = 0.0
+var _price_lbls: Dictionary = {}   # item_id -> Label (precio + tendencia)
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(340, 0)
@@ -56,51 +57,56 @@ func _build(box: VBoxContainer) -> void:
 	debt_row.add_child(pay_btn)
 	box.add_child(debt_row)
 
-	# Comprar materias primas
+	# Mercado — comprar materias primas (precios dinámicos)
 	box.add_child(UITheme.hsep())
-	box.add_child(UITheme.make_label("Comprar materias primas:", 13, UITheme.ACCENT))
+	box.add_child(UITheme.make_label("📈 MERCADO · Comprar materias primas", 13, UITheme.ACCENT))
 	for item_id in RAW_ITEMS:
 		box.add_child(_buy_row(item_id))
 
 	# Vender productos
 	box.add_child(UITheme.hsep())
-	box.add_child(UITheme.make_label("Vender productos:", 13, UITheme.ACCENT))
+	box.add_child(UITheme.make_label("📈 MERCADO · Vender productos", 13, UITheme.ACCENT))
 	for item_id in SELL_ITEMS:
 		box.add_child(_sell_row(item_id))
 
 	_refresh()
 
-func _buy_row(item_id: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	var name_lbl := UITheme.make_label(ItemDB.display_name(item_id), 12)
-	name_lbl.custom_minimum_size = Vector2(120, 0)
-	row.add_child(name_lbl)
-	var qty := SpinBox.new()
-	qty.min_value = 1; qty.max_value = 1000; qty.value = 20
-	qty.custom_minimum_size = Vector2(70, 0)
-	row.add_child(qty)
-	var btn := UITheme.make_button("Comprar")
-	btn.pressed.connect(func(): GameManager.market.buy(item_id, int(qty.value)))
-	row.add_child(btn)
-	return row
+func _buy_row(item_id: String) -> VBoxContainer:
+	return _market_row(item_id, true)
 
-func _sell_row(item_id: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+func _sell_row(item_id: String) -> VBoxContainer:
+	return _market_row(item_id, false)
+
+func _market_row(item_id: String, is_buy: bool) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	# Fila 1: nombre + precio con tendencia.
+	var top := HBoxContainer.new()
 	var name_lbl := UITheme.make_label(ItemDB.display_name(item_id), 12)
-	name_lbl.custom_minimum_size = Vector2(120, 0)
-	name_lbl.set_meta("item", item_id)
-	name_lbl.name = "sell_" + item_id
-	row.add_child(name_lbl)
+	name_lbl.custom_minimum_size = Vector2(130, 0)
+	top.add_child(name_lbl)
+	var price_lbl := UITheme.make_label("", 12)
+	price_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(price_lbl)
+	_price_lbls[item_id] = price_lbl
+	col.add_child(top)
+	# Fila 2: cantidad + acción.
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 4)
 	var qty := SpinBox.new()
-	qty.min_value = 1; qty.max_value = 10000; qty.value = 10
-	qty.custom_minimum_size = Vector2(70, 0)
-	row.add_child(qty)
-	var btn := UITheme.make_button("Vender")
-	btn.pressed.connect(func(): GameManager.market.sell(item_id, int(qty.value)))
-	row.add_child(btn)
-	return row
+	qty.min_value = 1; qty.max_value = 10000; qty.value = 20 if is_buy else 10
+	qty.custom_minimum_size = Vector2(90, 0)
+	bottom.add_child(qty)
+	var btn := UITheme.make_button("Comprar" if is_buy else "Vender")
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if is_buy:
+		btn.pressed.connect(func(): GameManager.market.buy(item_id, int(qty.value)))
+	else:
+		btn.pressed.connect(func(): GameManager.market.sell(item_id, int(qty.value)))
+	bottom.add_child(btn)
+	col.add_child(bottom)
+	col.add_child(UITheme.hsep())
+	return col
 
 func _refresh() -> void:
 	if _summary_lbl == null:
@@ -117,6 +123,23 @@ func _refresh() -> void:
 		if v > 0.0:
 			s += "  · %s: %s\n" % [cat, Fmt.money(v)]
 	_summary_lbl.text = s
+	_refresh_prices()
+
+func _refresh_prices() -> void:
+	for item_id in _price_lbls.keys():
+		var lbl: Label = _price_lbls[item_id]
+		if not is_instance_valid(lbl):
+			continue
+		var price: float = GameManager.market.current_price(item_id)
+		var trend: float = GameManager.market.trend_pct(item_id)
+		var arrow := "→"
+		var col := UITheme.TEXT
+		if trend > 0.4:
+			arrow = "↑"; col = UITheme.ACCENT2
+		elif trend < -0.4:
+			arrow = "↓"; col = UITheme.DANGER
+		lbl.text = "%s  %s %+.0f%%" % [Fmt.money(price), arrow, trend]
+		lbl.add_theme_color_override("font_color", col)
 
 func _process(delta: float) -> void:
 	if not visible:

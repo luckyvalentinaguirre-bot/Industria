@@ -7,6 +7,7 @@ class_name Contract
 ## reputación; incumplir aplica penalización y baja reputación.
 
 @export var id: String = ""
+@export var type: String = "normal"   # facil | grande | urgente | rentable | especial
 @export var client: String = ""
 @export var product: String = ""
 @export var amount: int = 0
@@ -33,7 +34,7 @@ func days_left() -> int:
 
 func to_dict() -> Dictionary:
 	return {
-		"id": id, "client": client, "product": product, "amount": amount,
+		"id": id, "type": type, "client": client, "product": product, "amount": amount,
 		"payment": payment, "deadline_days": deadline_days, "penalty": penalty,
 		"reputation": reputation, "accepted": accepted, "deadline_day": deadline_day,
 		"delivered": delivered, "completed": completed, "failed": failed,
@@ -42,6 +43,7 @@ func to_dict() -> Dictionary:
 static func from_dict(d: Dictionary) -> Contract:
 	var c := Contract.new()
 	c.id = String(d.get("id", ""))
+	c.type = String(d.get("type", "normal"))
 	c.client = String(d.get("client", ""))
 	c.product = String(d.get("product", ""))
 	c.amount = int(d.get("amount", 0))

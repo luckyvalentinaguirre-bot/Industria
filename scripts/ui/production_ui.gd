@@ -167,7 +167,8 @@ func _refresh() -> void:
 	_out_lbl.text = _buffer_text(machine.output_buffer)
 	_power_lbl.text = "⚡ Energía: %d kW      ⏱ Ciclo: %.1fs" % [int(machine.power_draw), machine.cycle_time()]
 	_cond_bar.value = machine.condition
-	_cond_lbl.text = "Condición %d%%" % int(machine.condition)
+	var eff := int(lerpf(45.0, 100.0, clampf(machine.condition / 100.0, 0.0, 1.0)))
+	_cond_lbl.text = "Condición %d%%  ·  Eficiencia %d%%" % [int(machine.condition), eff]
 	_cond_lbl.add_theme_color_override("font_color", UITheme.DANGER if machine.condition < 30 else (UITheme.WARN if machine.condition < 60 else UITheme.TEXT))
 	_repair_btn.disabled = machine.condition >= 100.0
 	_repair_btn.text = "🔧 Reparar" if machine.condition >= 100.0 else "🔧 Reparar (%s)" % Fmt.money(GameManager.maintenance.repair_cost(machine))

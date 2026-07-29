@@ -7,11 +7,24 @@ extends Node
 
 const SAVE_PATH := "user://industria_save.json"
 const SAVE_VERSION := 1
+const AUTOSAVE_EVERY_DAYS := 2
+
+var _days_since_autosave: int = 0
+
+func _ready() -> void:
+	EventBus.day_passed.connect(_on_day_passed)
+
+func _on_day_passed(_day: int) -> void:
+	# Autoguardado periódico (spec §20).
+	_days_since_autosave += 1
+	if _days_since_autosave >= AUTOSAVE_EVERY_DAYS and GameManager.world != null:
+		_days_since_autosave = 0
+		save_game(true)
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
-func save_game() -> bool:
+func save_game(silent: bool = false) -> bool:
 	var data := {
 		"version": SAVE_VERSION,
 		"state": GameState.to_dict(),
@@ -34,7 +47,7 @@ func save_game() -> bool:
 	f.store_string(JSON.stringify(data, "\t"))
 	f.close()
 	EventBus.game_saved.emit()
-	EventBus.notify.emit("Partida guardada", "success")
+	EventBus.notify.emit("Autoguardado" if silent else "Partida guardada", "info" if silent else "success")
 	return true
 
 func load_game() -> bool:

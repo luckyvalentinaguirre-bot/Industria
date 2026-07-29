@@ -21,6 +21,8 @@ func _ready() -> void:
 	_test_contract_flow()
 	_test_logistics_relay()
 	_test_expansion()
+	_test_market()
+	_test_contract_variety()
 	_test_upgrades()
 	_test_vehicles()
 	_test_objectives()
@@ -130,6 +132,28 @@ func _test_expansion() -> void:
 	_check("Expansión: celda central dentro del terreno inicial", inside)
 	var grew: bool = grid.expand(8)
 	_check("Expansión: ampliar aumenta el terreno construible", grew and GameState.buildable_size == Vector2i(32, 32))
+
+func _test_market() -> void:
+	var m = GameManager.market
+	var base: float = ItemDB.base_price("iron_ore")
+	for i in range(20):
+		m._fluctuate_prices()
+	var p: float = m.current_price("iron_ore")
+	_check("Mercado: el precio dinámico se mantiene dentro de límites", p >= base * 0.5 and p <= base * 2.0)
+	_check("Mercado: la compra usa el precio dinámico (>0)", m.unit_price("iron_ore", "metalurgica_norte") > 0.0)
+	m.apply_demand("iron_ore", 1.8, 3)
+	for i in range(3):
+		m._fluctuate_prices()
+	_check("Mercado: la demanda de un evento sube el precio", m.current_price("iron_ore") > base)
+
+func _test_contract_variety() -> void:
+	var urgente = GameManager.contracts._gen_typed("urgente")
+	_check("Contratos: 'urgente' con plazo corto y penalización alta",
+		urgente.type == "urgente" and urgente.deadline_days <= 3 and urgente.payment > 0.0)
+	var grande = GameManager.contracts._gen_typed("grande")
+	_check("Contratos: 'grande' pide mayor cantidad", grande.amount >= 250)
+	var especial = GameManager.contracts._gen_typed("especial")
+	_check("Contratos: 'especial' pide un producto avanzado", especial.product == "simple_motor")
 
 func _test_upgrades() -> void:
 	var um = GameManager.upgrades

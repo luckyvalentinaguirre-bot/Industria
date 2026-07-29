@@ -96,6 +96,14 @@ Se respeta la estructura de la especificación: `assets/`, `audio/`, `data/` (JS
 
 Los datos configurables de la V1 (recursos, productos, recetas, máquinas, edificios, economía/proveedores, contratos, trabajadores) viven en `data/` como JSON.
 
+## Profundidad de gameplay
+
+- **Almacén real (panel 📦):** capacidad usada/total con barra, lista de materiales y aviso cuando está casi lleno (la producción se bloquea de verdad al llenarse, vía buffers de máquina).
+- **Mercado dinámico:** los precios de materias primas y productos fluctúan a diario (paseo aleatorio con reversión a la media); el panel de Finanzas muestra precio y **tendencia (↑/↓ %)**. Comprar y vender usan el precio actual → decisiones de "¿produzco ahora o espero?".
+- **Contratos variados:** tipos 🟢 Fácil, 📦 Grande, ⏱ Urgente, 💎 Rentable y ⭐ Especial, con cantidades, plazos, pagos y penalizaciones propios; los urgentes disparan un pico de demanda del producto.
+- **Eficiencia por condición:** el panel de máquina muestra Condición y **Eficiencia %** (la condición degrada la velocidad de producción real).
+- **Autoguardado** periódico cada 2 días de juego, además de Guardar/Cargar manual.
+
 ## Pulido de jugabilidad y presentación
 
 - **Grid inteligente:** discreto en reposo, se intensifica al construir; resalta las celdas ocupadas y el terreno construible. Vista previa verde (válido) / roja (inválido) y **resaltado amarillo** de la máquina seleccionada.

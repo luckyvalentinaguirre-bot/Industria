@@ -31,6 +31,7 @@ var contracts_panel: PanelContainer
 var workers_panel: PanelContainer
 var objectives_panel: PanelContainer
 var upgrades_panel: PanelContainer
+var storage_panel: PanelContainer
 var _right_panels: Array = []
 
 var _toasts: VBoxContainer
@@ -135,7 +136,8 @@ func _build_right_panels() -> void:
 	workers_panel = _make_workers_panel()
 	objectives_panel = _make_scroll_panel()
 	upgrades_panel = _make_scroll_panel()
-	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel, upgrades_panel]:
+	storage_panel = _make_scroll_panel()
+	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel, upgrades_panel, storage_panel]:
 		p.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		p.offset_right = -8
 		p.offset_top = 64
@@ -163,6 +165,7 @@ func _build_bottom_bar() -> void:
 	bar.add_child(h)
 
 	_add_bottom_btn(h, "🎯 Objetivos", _on_objectives)
+	_add_bottom_btn(h, "📦 Almacén", _on_storage)
 	_add_bottom_btn(h, "🔬 Mejoras", _on_upgrades)
 	_add_bottom_btn(h, "💰 Finanzas", _on_finance)
 	_add_bottom_btn(h, "📄 Contratos", _on_contracts)
@@ -186,6 +189,7 @@ func _on_workers() -> void: _toggle_right(workers_panel); _refresh_workers()
 func _on_automation() -> void: _toggle_right(automation_ui)
 func _on_objectives() -> void: _toggle_right(objectives_panel); _refresh_objectives()
 func _on_upgrades() -> void: _toggle_right(upgrades_panel); _refresh_upgrades()
+func _on_storage() -> void: _toggle_right(storage_panel); _refresh_storage()
 
 # --- Toasts -----------------------------------------------------------------
 func _build_toasts() -> void:
@@ -231,6 +235,7 @@ func _connect_signals() -> void:
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
 	EventBus.objectives_updated.connect(_refresh_objectives)
 	EventBus.game_won.connect(_on_game_won)
+	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
 
 func _refresh_hud() -> void:
 	if _money_lbl == null:
@@ -299,7 +304,10 @@ func _refresh_contracts() -> void:
 
 func _offer_row(c: Contract) -> VBoxContainer:
 	var v := VBoxContainer.new()
-	var info := "%s\n%d× %s · Paga %s · Plazo %d días" % [c.client, c.amount, ItemDB.display_name(c.product), Fmt.money(c.payment), c.deadline_days]
+	var tag: String = GameManager.contracts.type_label(c)
+	var tcol := UITheme.WARN if c.type == "urgente" else (UITheme.ACCENT2 if c.type == "rentable" else UITheme.ACCENT)
+	v.add_child(UITheme.make_label("%s · %s" % [tag, c.client], 13, tcol))
+	var info := "%d× %s · Paga %s · Plazo %d días · Penal. %s" % [c.amount, ItemDB.display_name(c.product), Fmt.money(c.payment), c.deadline_days, Fmt.money(c.penalty)]
 	v.add_child(UITheme.make_label(info, 12))
 	var row := HBoxContainer.new()
 	var acc := UITheme.make_button("Aceptar")
@@ -434,6 +442,46 @@ func _refresh_upgrades() -> void:
 func _on_buy_upgrade(id: String) -> void:
 	GameManager.upgrades.buy(id)
 	_refresh_upgrades()
+
+# --- Panel de almacén / inventario ------------------------------------------
+func _refresh_storage() -> void:
+	if storage_panel == null or not storage_panel.visible:
+		return
+	var box := _find_box(storage_panel)
+	if box == null:
+		return
+	for c in box.get_children():
+		c.queue_free()
+	box.add_child(UITheme.make_title("📦 Almacén de la empresa"))
+	var sm: Node = GameManager.storage
+	var used: int = sm.total()
+	var cap: int = sm.capacity()
+	box.add_child(UITheme.make_label("Capacidad", 12, UITheme.ACCENT))
+	var bar := ProgressBar.new()
+	bar.max_value = cap
+	bar.value = used
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 18)
+	box.add_child(bar)
+	var ratio := 0.0 if cap <= 0 else float(used) / float(cap)
+	var cap_col := UITheme.DANGER if ratio > 0.9 else (UITheme.WARN if ratio > 0.7 else UITheme.ACCENT2)
+	box.add_child(UITheme.make_label("%d / %d (%d%%)" % [used, cap, int(ratio * 100)], 14, cap_col))
+	if ratio > 0.95:
+		box.add_child(UITheme.make_label("⚠ Almacén casi lleno: la producción puede bloquearse.", 11, UITheme.WARN))
+	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("Materiales almacenados", 12, UITheme.ACCENT))
+	var items: Dictionary = sm.stock.provide_peek()
+	if items.is_empty():
+		box.add_child(UITheme.make_label("(vacío)", 12))
+	else:
+		for id in items.keys():
+			var row := HBoxContainer.new()
+			var n := UITheme.make_label(ItemDB.display_name(id), 12)
+			n.custom_minimum_size = Vector2(180, 0)
+			row.add_child(n)
+			var q := UITheme.make_label(str(int(items[id])), 12, UITheme.ACCENT2)
+			row.add_child(q)
+			box.add_child(row)
 
 # --- Victoria ---------------------------------------------------------------
 func _on_game_won() -> void:
