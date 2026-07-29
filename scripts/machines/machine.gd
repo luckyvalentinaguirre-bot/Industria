@@ -269,12 +269,13 @@ func _build_visual() -> void:
 	var d := grid_size.y * cell
 	var color := _category_color()
 
+	# Materiales del kit industrial compartido (coherencia visual, spec §2/§15).
 	var mats := {
-		"housing": _pbr(color, 0.4, 0.65),
-		"steel": _pbr(Color(0.55, 0.57, 0.6), 0.35, 0.9),
-		"dark": _pbr(Color(0.13, 0.14, 0.16), 0.5, 0.85),
-		"concrete": _pbr(Color(0.24, 0.24, 0.26), 0.95, 0.0),
-		"rubber": _pbr(Color(0.08, 0.08, 0.09), 0.85, 0.0),
+		"housing": IndKit.housing(color),
+		"steel": IndKit.steel(),
+		"dark": IndKit.dark_metal(),
+		"concrete": IndKit.concrete(),
+		"rubber": IndKit.rubber(),
 	}
 
 	# Losa de cimentación común con bordes.
@@ -286,6 +287,8 @@ func _build_visual() -> void:
 		"press": _build_press(w, d, mats)
 		"assembler": _build_assembler(w, d, mats)
 		_: _build_generic(w, d, mats)
+
+	_add_industrial_detail(w, d, mats)
 
 	# Baliza de estado sobre mástil (común).
 	var hx := w * 0.42
@@ -330,6 +333,20 @@ func _build_visual() -> void:
 	add_child(pick)
 
 	_update_visual_state()
+
+# --- Detalle industrial compartido (coherencia entre todas las máquinas) ----
+func _add_industrial_detail(w: float, d: float, mats: Dictionary) -> void:
+	var dark: Material = mats["dark"]
+	# Pernos en el zócalo frontal.
+	IndKit.bolt_row(self, 5, -w * 0.4, w * 0.4, 0.42, d * 0.49, dark)
+	# Franja de peligro en la base (frente).
+	IndKit.hazard_stripe(self, Vector3(w * 0.82, 0.16, 0.05), Vector3(0, 0.58, d * 0.47))
+	# Rejilla de ventilación lateral.
+	IndKit.grille(self, 0.7, 0.8, Vector3(-w * 0.47, 1.2, 0), dark)
+	# Cables desde el panel hacia el cuerpo.
+	IndKit.cable(self, Vector3(-w * 0.2, 1.7, d * 0.4), Vector3(-w * 0.42, 2.1, d * 0.05), dark)
+	# Señal de advertencia en una esquina.
+	IndKit.warning_sign(self, Vector3(-w * 0.44, 0.35, d * 0.32))
 
 # --- Detalles comunes -------------------------------------------------------
 func _add_control_panel(pos: Vector3, mats: Dictionary) -> void:

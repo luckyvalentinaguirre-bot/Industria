@@ -115,6 +115,10 @@ Los datos configurables de la V1 (recursos, productos, recetas, máquinas, edifi
 - **Cámara** que enfoca la máquina seleccionada, con movimiento/zoom/rotación suaves y límites.
 - **Terreno** sobre un plinto de hormigón con canto visible, rodeado del lote exterior y del horizonte industrial.
 
+## Lenguaje visual industrial (IndKit)
+
+Todos los modelos comparten un **kit visual común** (`scripts/machines/industrial_kit.gd`): mismos materiales (acero, metal oscuro, hormigón, amarillo de seguridad, vidrio, cobre) y las mismas piezas de detalle (pernos, rejillas, tuberías, cables, escaleras, barandas, franjas de peligro, señales). Es sólo geometría/materiales, **separado de la lógica de gameplay** (spec §16), de modo que cada modelo provisional puede sustituirse por el asset final sin tocar la simulación. Máquinas, edificios y cintas usan este kit para que la escena se lea como un mismo juego.
+
 ## Presentación visual
 
 Modelos compuestos generados por código (sustituibles por los assets finales sin tocar la lógica):

@@ -110,14 +110,15 @@ func _build_visual() -> void:
 	var color := _category_color()
 	var height := _category_height()
 
-	var mat := _mat(color, 0.7, 0.3)
-	var mat_dark := _mat(Color(0.14, 0.15, 0.17), 0.5, 0.8)
-	var mat_concrete := _mat(Color(0.24, 0.24, 0.26), 0.95, 0.0)
+	# Materiales del kit industrial compartido (coherencia con las máquinas).
+	var mat := IndKit.housing(color)
+	var mat_dark := IndKit.dark_metal()
+	var mat_concrete := IndKit.concrete()
+	var mat_steel := IndKit.steel()
 
-	# Losa base común.
+	# Losa base común con pernos perimetrales.
 	_box(Vector3(w * 0.98, 0.25, d * 0.98), Vector3(0, 0.12, 0), mat_concrete)
-
-	var mat_steel := _mat(Color(0.55, 0.57, 0.6), 0.35, 0.9)
+	IndKit.bolt_row(self, 5, -w * 0.4, w * 0.4, 0.24, d * 0.48, mat_dark)
 	match category:
 		"storage": _build_storage(w, d, height, mat, mat_dark, mat_steel)
 		"energy":
@@ -129,6 +130,10 @@ func _build_visual() -> void:
 		"logistics": _build_relay(w, d, mat, mat_dark)
 		_:
 			_box(Vector3(w * 0.9, height, d * 0.9), Vector3(0, height * 0.5, 0), mat)
+
+	# Detalle coherente: franja de peligro en la base (excepto relés pequeños).
+	if category != "logistics":
+		IndKit.hazard_stripe(self, Vector3(w * 0.8, 0.16, 0.05), Vector3(0, 0.5, d * 0.47))
 
 	# Colisión para selección (capa 2).
 	var pick := StaticBody3D.new()

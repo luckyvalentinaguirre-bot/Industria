@@ -490,16 +490,27 @@ void fragment() {
 	vec2 wp = world_pos.xz;
 	// Manchas de hormigón (varias frecuencias).
 	float n = noise(wp * 0.15) * 0.6 + noise(wp * 0.6) * 0.3 + noise(wp * 2.5) * 0.1;
-	vec3 col = base_color * (0.82 + n * 0.4);
+	// Variación tonal de zonas (grandes losas de distinto tono).
+	float zone = noise(wp * 0.05 + 3.0);
+	vec3 col = base_color * (0.78 + n * 0.42 + zone * 0.12);
+	float rough = 0.9 - n * 0.15;
 	// Juntas oscuras entre losas.
 	vec2 g = abs(fract(wp / slab) - 0.5);
-	float joint = smoothstep(0.46, 0.5, max(g.x, g.y));
-	col = mix(col, base_color * 0.55, joint * 0.7);
+	float joint = smoothstep(0.45, 0.5, max(g.x, g.y));
+	col = mix(col, base_color * 0.5, joint * 0.75);
+	// Manchas de aceite (blotches oscuros y algo brillantes).
+	float oil = smoothstep(0.62, 0.82, noise(wp * 0.25 + 7.0)) * smoothstep(0.5, 0.75, noise(wp * 0.8));
+	col = mix(col, vec3(0.05, 0.05, 0.06), oil * 0.7);
+	rough = mix(rough, 0.35, oil * 0.7);
+	// Grietas sutiles (líneas oscuras finas).
+	float cr = noise(wp * 0.9 + 20.0);
+	float crack = smoothstep(0.48, 0.5, cr) * smoothstep(0.52, 0.5, cr);
+	col = mix(col, base_color * 0.4, clamp(crack * 3.0, 0.0, 0.6));
 	// Óxido/suciedad tenue.
 	float rust = smoothstep(0.6, 0.9, noise(wp * 0.4 + 10.0));
 	col = mix(col, vec3(0.32, 0.24, 0.19), rust * 0.15);
 	ALBEDO = col;
-	ROUGHNESS = 0.9 - n * 0.15;
+	ROUGHNESS = rough;
 	METALLIC = 0.0;
 }
 """

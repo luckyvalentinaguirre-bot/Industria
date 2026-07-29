@@ -92,11 +92,8 @@ func _build_belt() -> void:
 	var dir := (_to - _from)
 	dir.y = 0
 
-	# Estructura metálica de la cinta.
-	var frame_mat := StandardMaterial3D.new()
-	frame_mat.albedo_color = Color(0.22, 0.23, 0.25)
-	frame_mat.roughness = 0.5
-	frame_mat.metallic = 0.85
+	# Estructura metálica de la cinta (mismo acero que máquinas y edificios).
+	var frame_mat := IndKit.steel()
 	var frame := MeshInstance3D.new()
 	var fbm := BoxMesh.new()
 	fbm.size = Vector3(0.8, 0.16, _length)
