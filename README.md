@@ -17,8 +17,18 @@ Recibes una fábrica deteriorada y endeudada, y debes ponerla a producir, cumpli
 | **7 — Automatización** | Prioridades, deslastre por energía, reglas SI→ENTONCES | ✅ |
 | **8 — UI y guardado** | HUD, paneles (máquina, finanzas, contratos, personal, automatización), guardado | ✅ |
 | **Pulido** | Objetivos/meta, condición de victoria, ayuda inicial | ✅ |
+| **V2 (en curso)** | Logística de distribución (divisor/unificador/filtro) y expansión de terreno | ✅ |
 
-Verificado con un test de integración headless (`tests/smoke_test.tscn`, **14/14 PASS**): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos, objetivos/victoria y guardado/carga.
+Verificado con un test de integración headless (`tests/smoke_test.tscn`, **20/20 PASS**): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos, logística de distribución, expansión de terreno, objetivos/victoria y guardado/carga.
+
+### Logística de distribución (spec §9)
+
+- **Divisor / Unificador:** nodos con buffer interno; varias cintas pueden converger (unificar) o salir (dividir) desde un mismo nodo.
+- **Filtro:** relé que se auto-configura con el primer ítem que recibe y sólo deja pasar ese tipo.
+
+### Expansión de terreno (spec §18)
+
+El terreno construible empieza reducido (marco luminoso) y se amplía comprando expansiones desde el menú *Construcción → Expansión*. Más terreno permite más líneas, pero eleva los costos fijos (impuesto de terreno diario).
 
 ## Meta del juego
 

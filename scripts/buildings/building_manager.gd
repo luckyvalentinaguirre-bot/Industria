@@ -77,4 +77,5 @@ func from_dict(data: Dictionary) -> void:
 	for bd in data.get("buildings", []):
 		var origin := Vector2i(int(bd["origin"][0]), int(bd["origin"][1]))
 		var b := create_building(String(bd["building_id"]), origin)
+		b.filter_item = String(bd.get("filter_item", ""))
 		GameManager.grid.occupy_area(origin, b.grid_size, b.uid)

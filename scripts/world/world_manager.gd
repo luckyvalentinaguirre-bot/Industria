@@ -44,6 +44,13 @@ func _setup_build_controller() -> void:
 	build_controller = BuildControllerScript.new()
 	build_controller.name = "BuildController"
 	add_child(build_controller)
+	# El terreno ampliado incrementa los costos fijos (impuesto de terreno).
+	EventBus.day_passed.connect(_on_day_upkeep)
+
+func _on_day_upkeep(_day: int) -> void:
+	var level: int = build_controller.expansion_level() if build_controller else 0
+	if level > 0:
+		GameManager.economy.force_spend(level * 250.0, "misc")
 
 func _emit_world_ready() -> void:
 	# Escenario inicial: una fábrica deteriorada (spec §26).

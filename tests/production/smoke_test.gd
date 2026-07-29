@@ -19,6 +19,8 @@ func _ready() -> void:
 	_test_economy_sell()
 	_test_power_overload()
 	_test_contract_flow()
+	_test_logistics_relay()
+	_test_expansion()
 	_test_objectives()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -100,6 +102,31 @@ func _test_contract_flow() -> void:
 	GameManager.contracts._on_minute(0, 0, 0)  # dispara entrega
 	_check("Contratos: el contrato se completó al haber stock", c.completed)
 	_check("Contratos: el cliente pagó el contrato", GameState.money > money_before)
+
+func _test_logistics_relay() -> void:
+	# Unificador: acepta y entrega desde su buffer interno.
+	var merger: Building = GameManager.buildings.create_building("merger", Vector2i(20, 6))
+	var got: int = merger.port_receive_give("iron_ingot", 5)
+	var out: int = merger.port_provide_take("iron_ingot", 3)
+	_check("Logística: el unificador almacena en su buffer (%d)" % got, got == 5)
+	_check("Logística: el unificador entrega desde su buffer (%d)" % out, out == 3)
+
+	# Filtro: se auto-configura con el primer ítem y rechaza los demás.
+	var filter: Building = GameManager.buildings.create_building("filter", Vector2i(24, 6))
+	filter.port_receive_give("copper_ingot", 2)     # fija el filtro a copper_ingot
+	var rejected: int = filter.port_receive_can("iron_ingot", 5)
+	_check("Logística: el filtro se fija al primer ítem", filter.filter_item == "copper_ingot")
+	_check("Logística: el filtro rechaza otros ítems", rejected == 0)
+
+func _test_expansion() -> void:
+	GameState.buildable_size = Vector2i(24, 24)
+	var grid = GameManager.grid
+	var outside: bool = not grid.is_in_buildable(Vector2i(2, 2))
+	var inside: bool = grid.is_in_buildable(Vector2i(20, 20))
+	_check("Expansión: celda lejana fuera del terreno inicial", outside)
+	_check("Expansión: celda central dentro del terreno inicial", inside)
+	var grew: bool = grid.expand(8)
+	_check("Expansión: ampliar aumenta el terreno construible", grew and GameState.buildable_size == Vector2i(32, 32))
 
 func _test_objectives() -> void:
 	# Ventas y contratos previos deben haber marcado objetivos; forzamos deuda 0.

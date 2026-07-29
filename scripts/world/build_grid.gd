@@ -22,10 +22,12 @@ const CELL_SIZE := 2.0  # metros por celda (coincide con GameState.CELL_SIZE)
 var _occupied: Dictionary = {}          # Vector2i -> bool
 var _mesh_instance: MeshInstance3D
 var _visible_grid: bool = true
+var _border: Node3D
 
 func _ready() -> void:
 	grid_size = GameState.grid_size
 	_build_visual()
+	_build_border()
 	EventBus.grid_visibility_changed.connect(_on_grid_visibility_changed)
 
 # --- Coordenadas ------------------------------------------------------------
@@ -47,6 +49,40 @@ func cell_to_world(cell: Vector2i) -> Vector3:
 ## ¿La celda está dentro de los límites de la fábrica?
 func is_in_bounds(cell: Vector2i) -> bool:
 	return cell.x >= 0 and cell.y >= 0 and cell.x < grid_size.x and cell.y < grid_size.y
+
+# --- Terreno construible / expansión (spec §18) -----------------------------
+
+## Esquina del rectángulo construible (centrado dentro del grid).
+func buildable_origin_cell() -> Vector2i:
+	return Vector2i((grid_size.x - GameState.buildable_size.x) / 2,
+		(grid_size.y - GameState.buildable_size.y) / 2)
+
+func is_in_buildable(cell: Vector2i) -> bool:
+	var bo := buildable_origin_cell()
+	return cell.x >= bo.x and cell.y >= bo.y \
+		and cell.x < bo.x + GameState.buildable_size.x \
+		and cell.y < bo.y + GameState.buildable_size.y
+
+## ¿Está un área rectangular completamente dentro del terreno construible?
+func is_area_buildable(origin: Vector2i, size: Vector2i) -> bool:
+	for x in range(size.x):
+		for y in range(size.y):
+			if not is_in_buildable(origin + Vector2i(x, y)):
+				return false
+	return true
+
+func is_at_max_expansion() -> bool:
+	return GameState.buildable_size.x >= grid_size.x and GameState.buildable_size.y >= grid_size.y
+
+## Amplía el terreno construible. Devuelve true si creció.
+func expand(delta: int = 8) -> bool:
+	if is_at_max_expansion():
+		return false
+	GameState.buildable_size = Vector2i(
+		min(grid_size.x, GameState.buildable_size.x + delta),
+		min(grid_size.y, GameState.buildable_size.y + delta))
+	_build_border()
+	return true
 
 # --- Ocupación (base para ETAPA 2) -----------------------------------------
 
@@ -126,6 +162,42 @@ void fragment() {
 	mat.set_shader_parameter("line_color", line_color)
 	mat.set_shader_parameter("major_color", major_line_color)
 	return mat
+
+func _build_border() -> void:
+	if _border and is_instance_valid(_border):
+		_border.queue_free()
+	_border = Node3D.new()
+	_border.name = "BuildableBorder"
+	add_child(_border)
+	var bo := buildable_origin_cell()
+	var cell := CELL_SIZE
+	var origin := _grid_origin()
+	var w: float = GameState.buildable_size.x * cell
+	var d: float = GameState.buildable_size.y * cell
+	var corner := origin + Vector3(bo.x * cell, 0.0, bo.y * cell)
+	var center := corner + Vector3(w * 0.5, 0.0, d * 0.5)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.8, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.8, 0.9)
+	mat.emission_energy_multiplier = 1.5
+	# Cuatro barras finas formando el marco del terreno construible.
+	var thickness := 0.25
+	var frames := [
+		[Vector3(center.x, 0.15, corner.z), Vector3(w, 0.3, thickness)],
+		[Vector3(center.x, 0.15, corner.z + d), Vector3(w, 0.3, thickness)],
+		[Vector3(corner.x, 0.15, center.z), Vector3(thickness, 0.3, d)],
+		[Vector3(corner.x + w, 0.15, center.z), Vector3(thickness, 0.3, d)],
+	]
+	for f in frames:
+		var bar := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = f[1]
+		bar.mesh = bm
+		bar.material_override = mat
+		bar.position = f[0]
+		bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_border.add_child(bar)
 
 func _on_grid_visibility_changed(is_visible: bool) -> void:
 	_visible_grid = is_visible

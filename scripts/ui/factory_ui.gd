@@ -42,6 +42,7 @@ func _build(box: VBoxContainer) -> void:
 	conv.pressed.connect(_on_conveyor)
 	box.add_child(conv)
 	_building_buttons(box, "storage")
+	_building_buttons(box, "logistics")
 
 	# Energía
 	box.add_child(UITheme.make_label("Energía", 12, UITheme.ACCENT))
@@ -50,6 +51,12 @@ func _build(box: VBoxContainer) -> void:
 	# Mantenimiento
 	box.add_child(UITheme.make_label("Mantenimiento", 12, UITheme.ACCENT))
 	_building_buttons(box, "maintenance")
+
+	# Expansión de terreno
+	box.add_child(UITheme.make_label("Expansión", 12, UITheme.ACCENT))
+	var expand_btn := UITheme.make_button("Ampliar terreno")
+	expand_btn.pressed.connect(_on_expand)
+	box.add_child(expand_btn)
 
 	box.add_child(UITheme.hsep())
 	var del := UITheme.make_button("🗑 Eliminar")
@@ -91,6 +98,11 @@ func _on_delete() -> void:
 	var c := _controller()
 	if c:
 		c.start_delete()
+
+func _on_expand() -> void:
+	var c := _controller()
+	if c:
+		c.buy_expansion()
 
 func _all_buildings() -> Dictionary:
 	var path := "res://data/buildings/buildings.json"

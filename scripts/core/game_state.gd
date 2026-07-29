@@ -29,6 +29,9 @@ var minute: int = 0
 # --- Mundo ------------------------------------------------------------------
 var grid_size: Vector2i = START_GRID_SIZE
 var grid_visible: bool = true
+## Terreno construible actual (subconjunto centrado del grid). Crece con la
+## expansión (spec §18). Empieza pequeño y puede llegar hasta grid_size.
+var buildable_size: Vector2i = Vector2i(24, 24)
 
 ## Devuelve el estado del juego como diccionario serializable.
 ## Cada etapa irá añadiendo sus claves. Base para SaveManager.
@@ -43,6 +46,7 @@ func to_dict() -> Dictionary:
 		"hour": hour,
 		"minute": minute,
 		"grid_size": [grid_size.x, grid_size.y],
+		"buildable_size": [buildable_size.x, buildable_size.y],
 	}
 
 ## Restaura el estado desde un diccionario (SaveManager, ETAPA 8).
@@ -58,3 +62,6 @@ func from_dict(data: Dictionary) -> void:
 	var gs: Variant = data.get("grid_size", null)
 	if gs is Array and gs.size() == 2:
 		grid_size = Vector2i(int(gs[0]), int(gs[1]))
+	var bs: Variant = data.get("buildable_size", null)
+	if bs is Array and bs.size() == 2:
+		buildable_size = Vector2i(int(bs[0]), int(bs[1]))

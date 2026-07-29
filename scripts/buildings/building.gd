@@ -19,6 +19,11 @@ var grid_origin: Vector2i = Vector2i.ZERO
 var grid_size: Vector2i = Vector2i(2, 2)
 var uid: int = 0
 
+# Nodos de logística (divisor/unificador/filtro): buffer interno propio.
+var buffer: Inventory = null
+var is_filter: bool = false
+var filter_item: String = ""
+
 func setup(id: String, origin: Vector2i) -> void:
 	building_id = id
 	def = _load_def(id)
@@ -26,6 +31,9 @@ func setup(id: String, origin: Vector2i) -> void:
 	grid_origin = origin
 	var s: Array = def.get("size", [2, 2])
 	grid_size = Vector2i(int(s[0]), int(s[1]))
+	if category == "logistics":
+		buffer = Inventory.new(int(def.get("buffer", 12)))
+		is_filter = bool(def.get("is_filter", false))
 	set_meta("building_uid", uid)
 	_build_visual()
 
@@ -41,9 +49,15 @@ func _load_def(id: String) -> Dictionary:
 func display_name() -> String:
 	return String(def.get("name", building_id))
 
-# --- Puertos de cinta (sólo almacenes: dan/reciben del stock general) --------
+# --- Puertos de cinta -------------------------------------------------------
+## Almacenes → stock general de la empresa.
+## Logística (divisor/unificador/filtro) → buffer interno propio, permitiendo
+## que varias cintas converjan (unificar) o salgan (dividir) desde un mismo nodo.
 func is_storage() -> bool:
 	return category == "storage"
+
+func is_relay() -> bool:
+	return category == "logistics"
 
 func provider_port_position() -> Vector3:
 	var d := grid_size.y * GameState.CELL_SIZE * 0.5
@@ -56,21 +70,36 @@ func receiver_port_position() -> Vector3:
 func port_provide_peek() -> Dictionary:
 	if is_storage():
 		return GameManager.storage.port_provide_peek()
+	if is_relay():
+		return buffer.provide_peek()
 	return {}
 
 func port_provide_take(item_id: String, n: int) -> int:
 	if is_storage():
 		return GameManager.storage.port_provide_take(item_id, n)
+	if is_relay():
+		return buffer.remove(item_id, n)
 	return 0
 
 func port_receive_can(item_id: String, n: int) -> int:
 	if is_storage():
 		return GameManager.storage.port_receive_can(item_id, n)
+	if is_relay():
+		if is_filter and filter_item != "" and item_id != filter_item:
+			return 0
+		return min(n, buffer.free_space())
 	return 0
 
 func port_receive_give(item_id: String, n: int) -> int:
 	if is_storage():
 		return GameManager.storage.port_receive_give(item_id, n)
+	if is_relay():
+		if is_filter and filter_item != "" and item_id != filter_item:
+			return 0
+		# Un filtro sin item fijado se auto-configura con el primer ítem recibido.
+		if is_filter and filter_item == "":
+			filter_item = item_id
+		return buffer.add(item_id, n)
 	return 0
 
 # --- Modelo 3D placeholder --------------------------------------------------
@@ -124,12 +153,15 @@ func _category_color() -> Color:
 		"energy": return Color(0.8, 0.7, 0.2)
 		"storage": return Color(0.45, 0.5, 0.55)
 		"maintenance": return Color(0.3, 0.6, 0.6)
+		"logistics":
+			return Color(0.7, 0.45, 0.75) if is_filter else Color(0.35, 0.65, 0.8)
 		_: return Color(0.5, 0.5, 0.5)
 
 func _category_height() -> float:
 	match category:
 		"storage": return 4.5
 		"energy": return 3.0
+		"logistics": return 1.0
 		_: return 2.5
 
 # --- Serialización ----------------------------------------------------------
@@ -138,4 +170,5 @@ func to_dict() -> Dictionary:
 		"uid": uid,
 		"building_id": building_id,
 		"origin": [grid_origin.x, grid_origin.y],
+		"filter_item": filter_item,
 	}

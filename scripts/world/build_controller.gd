@@ -158,6 +158,9 @@ func _origin_cell() -> Vector2i:
 func _try_place() -> void:
 	var size := _current_size()
 	var origin := _origin_cell()
+	if not GameManager.grid.is_area_buildable(origin, size):
+		EventBus.notify.emit("Fuera del terreno disponible (amplía tu terreno)", "error")
+		return
 	if not GameManager.grid.is_area_free(origin, size):
 		EventBus.notify.emit("Espacio ocupado o fuera de límites", "error")
 		return
@@ -201,6 +204,23 @@ func _delete_click() -> void:
 		GameManager.buildings.remove_building(obj)
 	EventBus.notify.emit("Construcción eliminada (reembolso 40%)", "info")
 
+# --- Expansión de terreno (spec §18) ----------------------------------------
+func expansion_level() -> int:
+	return int((GameState.buildable_size.x - 24) / 8)
+
+func expansion_cost() -> int:
+	return 18000 * (expansion_level() + 1)
+
+func buy_expansion() -> void:
+	if GameManager.grid.is_at_max_expansion():
+		EventBus.notify.emit("El terreno ya está al máximo", "warning")
+		return
+	var cost := expansion_cost()
+	if not GameManager.economy.spend(cost, "construction"):
+		return
+	GameManager.grid.expand(8)
+	EventBus.notify.emit("Terreno ampliado (%s). Más espacio, más costos." % Fmt.money(cost), "success")
+
 func _reset_to_select() -> void:
 	mode = Mode.SELECT
 	current_id = ""
@@ -232,5 +252,5 @@ func _update_ghost_position() -> void:
 	var base: Vector3 = GameManager.grid.cell_to_world(origin)
 	var center: Vector3 = base + Vector3((size.x - 1) * GameState.CELL_SIZE * 0.5, 1.0, (size.y - 1) * GameState.CELL_SIZE * 0.5)
 	_ghost.global_position = center
-	var ok: bool = GameManager.grid.is_area_free(origin, size) and GameManager.economy.can_afford(_cost())
+	var ok: bool = GameManager.grid.is_area_buildable(origin, size) and GameManager.grid.is_area_free(origin, size) and GameManager.economy.can_afford(_cost())
 	_ghost_mat.albedo_color = Color(0.3, 0.9, 0.4, 0.4) if ok else Color(0.9, 0.3, 0.3, 0.4)
