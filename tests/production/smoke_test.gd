@@ -22,6 +22,7 @@ func _ready() -> void:
 	_test_logistics_relay()
 	_test_expansion()
 	_test_upgrades()
+	_test_vehicles()
 	_test_objectives()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -42,6 +43,7 @@ func _setup_world_refs() -> void:
 	GameManager.buildings.set_container(root)
 	GameManager.workers.set_container(root)
 	GameManager.transport.set_container(root)
+	GameManager.vehicles.set_container(root)
 
 func _tick(seconds: float, step: float = 0.1) -> void:
 	var n := int(seconds / step)
@@ -146,6 +148,12 @@ func _sell_upgrade_effect(um) -> bool:
 	var before: float = um.sell_mult()
 	um.buy("sales_network")
 	return um.sell_mult() > before
+
+func _test_vehicles() -> void:
+	var before: int = GameManager.vehicles._active.size()
+	EventBus.delivery_arrived.emit("iron_ore", 10)
+	GameManager.vehicles._cleanup()
+	_check("Vehículos: llega un camión al recibir una entrega", GameManager.vehicles._active.size() > before)
 
 func _test_objectives() -> void:
 	# Ventas y contratos previos deben haber marcado objetivos; forzamos deuda 0.

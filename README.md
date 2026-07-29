@@ -105,6 +105,11 @@ Modelos compuestos generados por código (sustituibles por los assets finales si
 - **Cintas:** estructura metálica con rieles, patas de soporte y superficie de banda con textura desplazándose (shader).
 - **Trabajadores:** cuerpo definido con piernas, chaleco de alta visibilidad y casco.
 - **Terreno:** hormigón procedural (manchas, juntas de losa, desgaste) por shader.
-- **Entorno/atmósfera:** muro perimetral, farolas con luz real, props (cajas, barriles), sonda de reflejos para el metal y polvo ambiental.
+- **Entorno/atmósfera:** muro perimetral, farolas con luz real, props (cajas, barriles), sonda de reflejos para el metal, polvo ambiental, líneas de seguridad y señalización en el suelo.
+- **Vehículos:** camiones que entran al recibir una entrega y salen al cumplir un contrato, recorriendo el carril señalizado.
+- **Ciclo día/noche:** el sol recorre el cielo según el reloj del juego (color y ambiente cambian); las farolas se encienden al anochecer.
+- **Audio:** ambiente de fábrica en bucle, zumbido de máquinas escalado por las que están en marcha y efectos por evento (placeholders sintetizados en `audio/`).
 - **Iluminación:** Forward+, sol con sombras suaves, SSAO + SSIL, glow, tonemap ACES y ajuste de color; optimizado para **gama media**.
+
+Los modelos de máquina son **bespoke por tipo** (horno con boca incandescente y chimenea humeante, prensa con ariete que golpea, celda con brazo robótico articulado) con partes animadas al producir.
 - Optimización: cintas con paquetes de ítems reutilizados y limitados; simulación por ticks del EventBus en lugar de cálculos dispersos por frame.

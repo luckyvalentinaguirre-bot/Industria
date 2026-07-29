@@ -35,6 +35,7 @@ var priority: Node
 var rules: Node
 var automation: Node
 var events: Node
+var vehicles: Node
 var objectives: Node
 var upgrades: Node
 var audio: Node
@@ -68,6 +69,7 @@ func _create_managers() -> void:
 	rules = _add("res://scripts/automation/rule_manager.gd", "RuleManager")
 	automation = _add("res://scripts/automation/automation_manager.gd", "AutomationManager")
 	events = _add("res://scripts/events/event_manager.gd", "EventManager")
+	vehicles = _add("res://scripts/vehicles/vehicle_manager.gd", "VehicleManager")
 	objectives = _add("res://scripts/core/objective_manager.gd", "ObjectiveManager")
 	upgrades = _add("res://scripts/core/upgrade_manager.gd", "UpgradeManager")
 	audio = _add("res://scripts/core/audio_manager.gd", "AudioManager")
@@ -89,6 +91,7 @@ func register_world(world_node: Node3D, grid_node: Node3D, containers: Dictionar
 	buildings.set_container(containers.get("buildings"))
 	transport.set_container(containers.get("conveyors"))
 	workers.set_container(containers.get("workers"))
+	vehicles.set_container(containers.get("vehicles"))
 
 func _on_world_ready() -> void:
 	start_game()

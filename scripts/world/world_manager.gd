@@ -21,6 +21,9 @@ const BuildControllerScript := preload("res://scripts/world/build_controller.gd"
 
 var _containers: Dictionary = {}
 var build_controller: Node3D
+var _env: Environment
+var _sky_mat: ProceduralSkyMaterial
+var _lamp_lights: Array = []
 
 func _ready() -> void:
 	_setup_environment()
@@ -29,13 +32,16 @@ func _ready() -> void:
 	_setup_containers()
 	_setup_props()
 	_setup_build_controller()
+	# Ciclo día/noche sincronizado con el reloj del juego.
+	EventBus.minute_passed.connect(_update_day_night)
+	_update_day_night(GameState.day, GameState.hour, GameState.minute)
 	# La cuadrícula se autoconstruye en su propio _ready().
 	# Registrar el mundo en GameManager antes de arrancar la partida.
 	GameManager.register_world(self, _build_grid, _containers)
 	call_deferred("_emit_world_ready")
 
 func _setup_containers() -> void:
-	for key in ["machines", "buildings", "conveyors", "workers", "items"]:
+	for key in ["machines", "buildings", "conveyors", "workers", "items", "vehicles"]:
 		var node := Node3D.new()
 		node.name = key.capitalize() + "Root"
 		add_child(node)
@@ -94,6 +100,7 @@ func _setup_environment() -> void:
 	sky_mat.sun_angle_max = 30.0
 	sky.sky_material = sky_mat
 	env.sky = sky
+	_sky_mat = sky_mat
 
 	# Iluminación ambiental basada en el cielo (PBR).
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -124,6 +131,33 @@ func _setup_environment() -> void:
 	env.adjustment_saturation = 1.08
 
 	_environment.environment = env
+	_env = env
+
+# --- Ciclo día / noche ------------------------------------------------------
+func _update_day_night(_day: int, hour: int, minute: int) -> void:
+	if not _env:
+		return
+	var t := float(hour) + float(minute) / 60.0
+	var day_amt := 0.0
+	if t >= 5.5 and t <= 18.5:
+		day_amt = clampf(sin(PI * (t - 5.5) / 13.0), 0.0, 1.0)
+
+	# Sol: elevación y azimut a lo largo del día.
+	_sun.rotation_degrees = Vector3(-8.0 - day_amt * 72.0, -46.0 + (t - 6.0) / 12.0 * 80.0, 0)
+	_sun.light_energy = lerpf(0.04, 1.6, day_amt)
+	_sun.light_color = Color(0.4, 0.45, 0.7).lerp(Color(1.0, 0.95, 0.85), day_amt)
+
+	_env.ambient_light_energy = lerpf(0.12, 1.0, day_amt)
+	_env.fog_light_color = Color(0.09, 0.11, 0.2).lerp(Color(0.55, 0.58, 0.62), day_amt)
+	if _sky_mat:
+		_sky_mat.sky_top_color = Color(0.03, 0.04, 0.10).lerp(Color(0.28, 0.42, 0.62), day_amt)
+		_sky_mat.sky_horizon_color = Color(0.09, 0.10, 0.15).lerp(Color(0.62, 0.68, 0.74), day_amt)
+
+	# Farolas encendidas al anochecer / de noche.
+	var lamps_on: bool = day_amt < 0.28
+	for l in _lamp_lights:
+		if is_instance_valid(l):
+			l.light_energy = 2.6 if lamps_on else 0.0
 
 # --- Iluminación ------------------------------------------------------------
 
@@ -231,6 +265,44 @@ func _setup_props() -> void:
 	# Polvo ambiental muy sutil sobre la fábrica.
 	props.add_child(_make_dust(ext))
 
+	# Señalización y líneas de seguridad en el suelo.
+	_setup_floor_markings(props, ext)
+
+func _setup_floor_markings(parent: Node3D, ext: float) -> void:
+	var yellow := StandardMaterial3D.new()
+	yellow.albedo_color = Color(0.85, 0.72, 0.1)
+	yellow.roughness = 0.7
+	yellow.emission_enabled = true
+	yellow.emission = Color(0.6, 0.5, 0.05)
+	yellow.emission_energy_multiplier = 0.3
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.8, 0.8, 0.82)
+	white.roughness = 0.7
+
+	# Carril de circulación de camiones (dos líneas paralelas hasta el centro).
+	for lz in [5.0, 7.0]:
+		_pbox(parent, Vector3(ext, 0.03, 0.2), Vector3(-ext * 0.5, 0.04, lz), white)
+	# Flechas/franjas de peligro cerca del portón oeste.
+	for i in range(5):
+		var stripe := _pbox(parent, Vector3(0.5, 0.03, 1.6), Vector3(-ext + 2 + i * 0.9, 0.04, 6), yellow)
+		stripe.rotation.y = deg_to_rad(35)
+	# Perímetro de la zona de carga (rectángulo amarillo).
+	var pad := Vector3(-6, 0, 11)
+	_pbox(parent, Vector3(6.2, 0.03, 0.2), pad + Vector3(0, 0.04, -2.5), yellow)
+	_pbox(parent, Vector3(6.2, 0.03, 0.2), pad + Vector3(0, 0.04, 2.5), yellow)
+	_pbox(parent, Vector3(0.2, 0.03, 5.2), pad + Vector3(-3, 0.04, 0), yellow)
+	_pbox(parent, Vector3(0.2, 0.03, 5.2), pad + Vector3(3, 0.04, 0), yellow)
+
+	# Señales de advertencia (poste + placa triangular emisiva).
+	for sign_pos in [Vector3(-2, 0, 4), Vector3(8, 0, 4)]:
+		_pcyl(parent, 0.06, 0.06, 2.2, sign_pos + Vector3(0, 1.1, 0), _simple(Color(0.5, 0.5, 0.55), 0.5, 0.7))
+		var plate := _simple(Color(0.9, 0.75, 0.1), 0.5, 0.0)
+		plate.emission_enabled = true
+		plate.emission = Color(0.8, 0.6, 0.05)
+		plate.emission_energy_multiplier = 0.6
+		var s := _pbox(parent, Vector3(0.7, 0.7, 0.05), sign_pos + Vector3(0, 2.3, 0), plate)
+		s.rotation.z = deg_to_rad(45)
+
 func _light_pole(parent: Node3D, base: Vector3, mat: Material) -> void:
 	var pole := _pcyl(parent, 0.12, 0.14, 7.0, base + Vector3(0, 3.5, 0), mat)
 	var arm := _pbox(parent, Vector3(0.12, 0.12, 1.4), base + Vector3(0, 6.8, 0.6), mat)
@@ -248,6 +320,7 @@ func _light_pole(parent: Node3D, base: Vector3, mat: Material) -> void:
 	light.light_color = Color(1.0, 0.93, 0.78)
 	light.shadow_enabled = false
 	parent.add_child(light)
+	_lamp_lights.append(light)
 
 func _make_dust(ext: float) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
