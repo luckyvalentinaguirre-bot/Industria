@@ -45,13 +45,19 @@ func _receiver_pos(n: Node) -> Vector3:
 	return (n as Node3D).global_position + Vector3(0, BELT_HEIGHT, 0)
 
 # --- Simulación de transporte ----------------------------------------------
+func _effective_speed_mult() -> float:
+	if GameManager.upgrades:
+		return GameManager.upgrades.conveyor_speed_mult()
+	return 1.0
+
 func _on_tick(delta: float) -> void:
 	if not is_instance_valid(source) or not is_instance_valid(sink):
 		return
+	var speed_mult := _effective_speed_mult()
 	# Avanza paquetes.
 	for pkg in _packages:
 		if pkg.t < 1.0:
-			pkg.t = minf(1.0, pkg.t + delta / _travel_time)
+			pkg.t = minf(1.0, pkg.t + delta * speed_mult / _travel_time)
 			_update_pkg_transform(pkg)
 	# Entrega paquetes que llegaron al final.
 	for pkg in _packages.duplicate():
@@ -60,7 +66,7 @@ func _on_tick(delta: float) -> void:
 			if accepted > 0:
 				_free_pkg(pkg)
 	# Toma nuevos ítems del origen según el ritmo.
-	_accum += delta * throughput
+	_accum += delta * throughput * speed_mult
 	while _accum >= 1.0 and _packages.size() < MAX_PACKAGES:
 		_accum -= 1.0
 		if not _try_load():

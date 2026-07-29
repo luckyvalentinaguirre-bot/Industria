@@ -21,6 +21,7 @@ func _ready() -> void:
 	_test_contract_flow()
 	_test_logistics_relay()
 	_test_expansion()
+	_test_upgrades()
 	_test_objectives()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -127,6 +128,24 @@ func _test_expansion() -> void:
 	_check("Expansión: celda central dentro del terreno inicial", inside)
 	var grew: bool = grid.expand(8)
 	_check("Expansión: ampliar aumenta el terreno construible", grew and GameState.buildable_size == Vector2i(32, 32))
+
+func _test_upgrades() -> void:
+	var um = GameManager.upgrades
+	GameState.money = 100000.0
+	var speed_before: float = um.machine_speed_mult()
+	var ok: bool = um.buy("tuned_machines")
+	_check("Mejoras: se compra 'Máquinas ajustadas'", ok and um.is_owned("tuned_machines"))
+	_check("Mejoras: aumenta el multiplicador de velocidad", um.machine_speed_mult() > speed_before)
+	_check("Mejoras: la mejora II queda disponible tras la I", um.is_available("tuned_machines_2"))
+	var locked_avail: bool = um.is_available("tuned_machines_2")
+	# El nivel base requiere nada; uno con requisito no cumplido no está disponible.
+	_check("Mejoras: nivel bloqueado sin requisito no disponible", not um.is_available("efficient_motors_2"))
+	_check("Mejoras: 'red comercial' sube el precio de venta", _sell_upgrade_effect(um))
+
+func _sell_upgrade_effect(um) -> bool:
+	var before: float = um.sell_mult()
+	um.buy("sales_network")
+	return um.sell_mult() > before
 
 func _test_objectives() -> void:
 	# Ventas y contratos previos deben haber marcado objetivos; forzamos deuda 0.

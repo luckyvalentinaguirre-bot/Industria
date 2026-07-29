@@ -132,12 +132,22 @@ func _compute_and_progress(delta: float) -> int:
 	return State.RUNNING
 
 func _effective_speed() -> float:
-	# La condición degrada la velocidad; el operador la mejora (spec §11, §12).
+	# La condición degrada la velocidad; el operador y las mejoras la aumentan.
 	var condition_factor: float = lerpf(0.45, 1.0, clampf(condition / 100.0, 0.0, 1.0))
 	var op := 0.0
 	if GameManager.workers:
 		op = GameManager.workers.operator_bonus()
-	return base_speed * condition_factor * (1.0 + op)
+	var upg := 1.0
+	if GameManager.upgrades:
+		upg = GameManager.upgrades.machine_speed_mult()
+	return base_speed * condition_factor * (1.0 + op) * upg
+
+## Consumo eléctrico efectivo (con mejoras de eficiencia).
+func effective_power_draw() -> float:
+	var mult := 1.0
+	if GameManager.upgrades:
+		mult = GameManager.upgrades.power_draw_mult()
+	return power_draw * mult
 
 func _output_has_room(outputs: Dictionary) -> bool:
 	var needed := 0
@@ -153,8 +163,11 @@ func _produce_cycle(inputs: Dictionary, outputs: Dictionary) -> void:
 		var n := int(outputs[item_id])
 		output_buffer.add(item_id, n)
 		EventBus.item_produced.emit(item_id, n)
-	# Desgaste por uso.
-	set_condition(condition - WEAR_PER_CYCLE)
+	# Desgaste por uso (reducido por la mejora de mantenimiento preventivo).
+	var wear := WEAR_PER_CYCLE
+	if GameManager.upgrades:
+		wear *= GameManager.upgrades.wear_mult()
+	set_condition(condition - wear)
 
 func set_condition(v: float) -> void:
 	condition = clampf(v, 0.0, 100.0)

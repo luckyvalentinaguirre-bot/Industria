@@ -64,7 +64,7 @@ func _recompute() -> void:
 	for m in GameManager.machines.machines:
 		if m.enabled and m.condition > 0.0 and m.recipe_id != "":
 			demand.append(m)
-			total_want += m.power_draw
+			total_want += m.effective_power_draw()
 		else:
 			m.powered = false
 	demand.sort_custom(func(a, b): return a.priority > b.priority)
@@ -72,10 +72,11 @@ func _recompute() -> void:
 	var budget := capacity
 	var used := 0.0
 	for m in demand:
-		if budget >= m.power_draw:
+		var draw: float = m.effective_power_draw()
+		if budget >= draw:
 			m.powered = true
-			budget -= m.power_draw
-			used += m.power_draw
+			budget -= draw
+			used += draw
 		else:
 			m.powered = false
 

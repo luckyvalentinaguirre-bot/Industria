@@ -1,4 +1,54 @@
 {
-  "_comment": "Industria V1 - mejoras (placeholder para etapas posteriores).",
-  "upgrades": {}
+  "_comment": "Industria - mejoras globales de la empresa. effect.type: machine_speed | power_draw | wear | conveyor_speed | sell. value = multiplicador aplicado. requires = id previo necesario.",
+  "upgrades": {
+    "efficient_motors": {
+      "name": "Motores eficientes",
+      "description": "Reduce un 15% el consumo eléctrico de todas las máquinas.",
+      "cost": 6000,
+      "effect": { "type": "power_draw", "value": 0.85 },
+      "requires": ""
+    },
+    "efficient_motors_2": {
+      "name": "Motores eficientes II",
+      "description": "Reduce un 15% adicional el consumo eléctrico.",
+      "cost": 14000,
+      "effect": { "type": "power_draw", "value": 0.85 },
+      "requires": "efficient_motors"
+    },
+    "preventive_maintenance": {
+      "name": "Mantenimiento preventivo",
+      "description": "Las máquinas se desgastan un 30% más lento.",
+      "cost": 7000,
+      "effect": { "type": "wear", "value": 0.7 },
+      "requires": ""
+    },
+    "tuned_machines": {
+      "name": "Máquinas ajustadas",
+      "description": "Aumenta un 20% la velocidad de producción.",
+      "cost": 9000,
+      "effect": { "type": "machine_speed", "value": 1.2 },
+      "requires": ""
+    },
+    "tuned_machines_2": {
+      "name": "Máquinas ajustadas II",
+      "description": "Aumenta un 20% adicional la velocidad de producción.",
+      "cost": 20000,
+      "effect": { "type": "machine_speed", "value": 1.2 },
+      "requires": "tuned_machines"
+    },
+    "fast_belts": {
+      "name": "Cintas rápidas",
+      "description": "Las cintas transportan un 40% más rápido.",
+      "cost": 5000,
+      "effect": { "type": "conveyor_speed", "value": 1.4 },
+      "requires": ""
+    },
+    "sales_network": {
+      "name": "Red comercial",
+      "description": "Mejora un 12% el precio de venta de los productos.",
+      "cost": 11000,
+      "effect": { "type": "sell", "value": 1.12 },
+      "requires": ""
+    }
+  }
 }

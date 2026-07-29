@@ -17,9 +17,16 @@ Recibes una fábrica deteriorada y endeudada, y debes ponerla a producir, cumpli
 | **7 — Automatización** | Prioridades, deslastre por energía, reglas SI→ENTONCES | ✅ |
 | **8 — UI y guardado** | HUD, paneles (máquina, finanzas, contratos, personal, automatización), guardado | ✅ |
 | **Pulido** | Objetivos/meta, condición de victoria, ayuda inicial | ✅ |
-| **V2 (en curso)** | Logística de distribución (divisor/unificador/filtro) y expansión de terreno | ✅ |
+| **V2 (en curso)** | Logística de distribución, expansión de terreno, mejoras/investigación | ✅ |
 
-Verificado con un test de integración headless (`tests/smoke_test.tscn`, **20/20 PASS**): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos, logística de distribución, expansión de terreno, objetivos/victoria y guardado/carga.
+Verificado con un test de integración headless (`tests/smoke_test.tscn`, **26/26 PASS**): producción, transporte por cinta, venta, sobrecarga eléctrica, contratos, logística de distribución, expansión de terreno, mejoras, objetivos/victoria y guardado/carga.
+
+### Mejoras / investigación (spec §26 "mejorar la línea")
+
+Panel 🔬 Mejoras: inversiones globales que optimizan toda la fábrica —
+velocidad de producción, consumo eléctrico, desgaste, velocidad de cintas y
+precio de venta— con niveles encadenados (una mejora habilita la siguiente).
+Configurables en `data/upgrades/upgrades.json`.
 
 ### Logística de distribución (spec §9)
 

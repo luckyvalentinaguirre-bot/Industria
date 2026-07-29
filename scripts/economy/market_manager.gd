@@ -79,6 +79,8 @@ func sell(item_id: String, qty: int) -> float:
 		return 0.0
 	var cfg := _load_prices()
 	var margin := float(cfg.get("sell_margin", 1.0))
+	if GameManager.upgrades:
+		margin *= GameManager.upgrades.sell_mult()
 	var revenue: float = ItemDB.base_price(item_id) * margin * sold
 	GameManager.economy.earn(revenue, "sales")
 	EventBus.notify.emit("Vendidas %d× %s por %s" % [sold, ItemDB.display_name(item_id), Fmt.money(revenue)], "success")

@@ -29,6 +29,7 @@ var automation_ui: PanelContainer
 var contracts_panel: PanelContainer
 var workers_panel: PanelContainer
 var objectives_panel: PanelContainer
+var upgrades_panel: PanelContainer
 var _right_panels: Array = []
 
 var _toasts: VBoxContainer
@@ -107,7 +108,8 @@ func _build_right_panels() -> void:
 	contracts_panel = _make_contracts_panel()
 	workers_panel = _make_workers_panel()
 	objectives_panel = _make_scroll_panel()
-	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel]:
+	upgrades_panel = _make_scroll_panel()
+	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel, upgrades_panel]:
 		p.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		p.offset_right = -8
 		p.offset_top = 64
@@ -135,6 +137,7 @@ func _build_bottom_bar() -> void:
 	bar.add_child(h)
 
 	_add_bottom_btn(h, "🎯 Objetivos", _on_objectives)
+	_add_bottom_btn(h, "🔬 Mejoras", _on_upgrades)
 	_add_bottom_btn(h, "💰 Finanzas", _on_finance)
 	_add_bottom_btn(h, "📄 Contratos", _on_contracts)
 	_add_bottom_btn(h, "👷 Personal", _on_workers)
@@ -156,6 +159,7 @@ func _on_contracts() -> void: _toggle_right(contracts_panel); _refresh_contracts
 func _on_workers() -> void: _toggle_right(workers_panel); _refresh_workers()
 func _on_automation() -> void: _toggle_right(automation_ui)
 func _on_objectives() -> void: _toggle_right(objectives_panel); _refresh_objectives()
+func _on_upgrades() -> void: _toggle_right(upgrades_panel); _refresh_upgrades()
 
 # --- Toasts -----------------------------------------------------------------
 func _build_toasts() -> void:
@@ -201,6 +205,7 @@ func _connect_signals() -> void:
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
 	EventBus.objectives_updated.connect(_refresh_objectives)
 	EventBus.game_won.connect(_on_game_won)
+	EventBus.money_changed.connect(func(_m): _refresh_upgrades())
 
 func _refresh_hud() -> void:
 	if _money_lbl == null:
@@ -345,6 +350,48 @@ func _refresh_objectives() -> void:
 	var done: int = GameManager.objectives.completed_count()
 	box.add_child(UITheme.hsep())
 	box.add_child(UITheme.make_label("Progreso: %d / %d" % [done, GameManager.objectives.objectives.size()], 13, UITheme.ACCENT))
+
+# --- Panel de mejoras -------------------------------------------------------
+func _refresh_upgrades() -> void:
+	if upgrades_panel == null or not upgrades_panel.visible:
+		return
+	var box := _find_box(upgrades_panel)
+	if box == null:
+		return
+	for c in box.get_children():
+		c.queue_free()
+	box.add_child(UITheme.make_title("Mejoras"))
+	box.add_child(UITheme.make_label("Invierte para optimizar toda la fábrica.", 12))
+	box.add_child(UITheme.hsep())
+	var um: Node = GameManager.upgrades
+	for id in um.defs.keys():
+		var d: Dictionary = um.defs[id]
+		var v := VBoxContainer.new()
+		var owned: bool = um.is_owned(id)
+		var avail: bool = um.is_available(id)
+		var title_color := UITheme.ACCENT2 if owned else (UITheme.TEXT if avail else Color(0.5, 0.5, 0.55))
+		v.add_child(UITheme.make_label(String(d.get("name", id)), 14, title_color))
+		var desc := UITheme.make_label(String(d.get("description", "")), 11)
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc.custom_minimum_size = Vector2(300, 0)
+		v.add_child(desc)
+		if owned:
+			v.add_child(UITheme.make_label("✅ Adquirida", 12, UITheme.ACCENT2))
+		elif avail:
+			var b := UITheme.make_button("Comprar (%s)" % Fmt.money(um.cost(id)))
+			b.disabled = not GameManager.economy.can_afford(um.cost(id))
+			b.pressed.connect(_on_buy_upgrade.bind(String(id)))
+			v.add_child(b)
+		else:
+			var req := String(d.get("requires", ""))
+			var req_name := String(um.defs.get(req, {}).get("name", req))
+			v.add_child(UITheme.make_label("🔒 Requiere: %s" % req_name, 11, UITheme.WARN))
+		v.add_child(UITheme.hsep())
+		box.add_child(v)
+
+func _on_buy_upgrade(id: String) -> void:
+	GameManager.upgrades.buy(id)
+	_refresh_upgrades()
 
 # --- Victoria ---------------------------------------------------------------
 func _on_game_won() -> void:
