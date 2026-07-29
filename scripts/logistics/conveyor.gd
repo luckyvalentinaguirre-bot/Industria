@@ -136,9 +136,53 @@ func _build_belt() -> void:
 		leg.position = Vector3(0, -BELT_HEIGHT * 0.5, z)
 		add_child(leg)
 
+	# Flechas de dirección (chevrones) apuntando hacia el destino (-Z local).
+	var arrow_mat := StandardMaterial3D.new()
+	arrow_mat.albedo_color = Color(0.95, 0.8, 0.2)
+	arrow_mat.emission_enabled = true
+	arrow_mat.emission = Color(0.9, 0.7, 0.1)
+	arrow_mat.emission_energy_multiplier = 0.8
+	arrow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var n_arrows := maxi(1, int(_length / 1.6))
+	for i in range(n_arrows):
+		var az := lerpf(_length * 0.4, -_length * 0.4, float(i) / float(maxi(1, n_arrows - 1)))
+		_make_chevron(Vector3(0, 0.15, az), arrow_mat)
+
+	# Postes de conexión: verde = salida (origen), azul = entrada (destino).
+	_end_post(Vector3(0, 0, _length * 0.5), Color(0.3, 0.85, 0.4))    # junto al origen
+	_end_post(Vector3(0, 0, -_length * 0.5), Color(0.3, 0.6, 0.95))   # junto al destino
+
 	# Orienta la banda hacia el destino (su eje Z local queda alineado con el trazado).
 	if dir.length() > 0.01:
 		look_at(_to, Vector3.UP)
+
+func _make_chevron(pos: Vector3, mat: Material) -> void:
+	# Dos barras en "V" apuntando hacia -Z (sentido de avance).
+	for s in [-1, 1]:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.28, 0.04, 0.1)
+		mi.mesh = bm
+		mi.material_override = mat
+		mi.position = pos + Vector3(s * 0.14, 0, 0.09)
+		mi.rotation.y = deg_to_rad(-s * 38.0)
+		add_child(mi)
+
+func _end_post(pos: Vector3, color: Color) -> void:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.07
+	cm.bottom_radius = 0.07
+	cm.height = 0.7
+	mi.mesh = cm
+	mi.position = pos + Vector3(0.42, 0.35, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 1.2
+	mi.material_override = mat
+	add_child(mi)
 
 func _make_belt_material() -> ShaderMaterial:
 	var shader := Shader.new()

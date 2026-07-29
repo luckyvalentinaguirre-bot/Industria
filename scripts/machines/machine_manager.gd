@@ -24,8 +24,15 @@ func create_machine(machine_id: String, origin: Vector2i) -> Machine:
 	m.setup(machine_id, origin)
 	m.global_position = GameManager.grid.cell_to_world(origin) + _size_offset(m)
 	machines.append(m)
+	_spawn_pop(m)
 	EventBus.machine_placed.emit(m)
 	return m
+
+## Pequeña animación de aparición al colocar (feedback de construcción).
+func _spawn_pop(node: Node3D) -> void:
+	node.scale = Vector3.ONE * 0.2
+	var tw := node.create_tween()
+	tw.tween_property(node, "scale", Vector3.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _size_offset(m: Machine) -> Vector3:
 	# cell_to_world da el centro de la celda origin; desplazamos al centro del área.

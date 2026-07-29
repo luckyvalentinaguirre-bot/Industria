@@ -24,6 +24,9 @@ func create_building(building_id: String, origin: Vector2i) -> Building:
 	b.global_position = GameManager.grid.cell_to_world(origin) + _size_offset(b)
 	buildings.append(b)
 	_register_effects(b)
+	b.scale = Vector3.ONE * 0.2
+	var tw := b.create_tween()
+	tw.tween_property(b, "scale", Vector3.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	EventBus.building_placed.emit(b)
 	return b
 

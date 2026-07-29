@@ -254,6 +254,7 @@ func apply_dict(data: Dictionary) -> void:
 # Modelos bespoke por tipo (horno, prensa, celda robótica) con partes animadas.
 # Preparado para sustituirse por el asset final del pipeline gráfico.
 var _sparks: GPUParticles3D
+var _damage_smoke: GPUParticles3D
 var _beacon_light: OmniLight3D
 var _glow_light: OmniLight3D
 var _glow_mat: StandardMaterial3D
@@ -308,6 +309,11 @@ func _build_visual() -> void:
 	_sparks = _make_sparks(color)
 	_sparks.position = Vector3(0, 1.1, d * 0.42)
 	add_child(_sparks)
+
+	# Humo negro de avería (sólo cuando la máquina está averiada).
+	_damage_smoke = _make_damage_smoke()
+	_damage_smoke.position = Vector3(-w * 0.2, 2.3, 0)
+	add_child(_damage_smoke)
 
 	# Colisión para selección (capa 2).
 	var pick := StaticBody3D.new()
@@ -628,6 +634,32 @@ func _make_steam() -> GPUParticles3D:
 	p.draw_pass_1 = dot
 	return p
 
+func _make_damage_smoke() -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 10
+	p.lifetime = 1.8
+	p.emitting = false
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0.2, 1, 0)
+	mat.spread = 18.0
+	mat.initial_velocity_min = 0.8
+	mat.initial_velocity_max = 1.6
+	mat.gravity = Vector3(0.3, 0.6, 0)
+	mat.scale_min = 0.4
+	mat.scale_max = 1.2
+	p.process_material = mat
+	var dot := SphereMesh.new()
+	dot.radius = 0.22
+	dot.height = 0.44
+	var dm := StandardMaterial3D.new()
+	dm.albedo_color = Color(0.12, 0.12, 0.13, 0.5)
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	dot.material = dm
+	p.draw_pass_1 = dot
+	return p
+
 func _make_sparks(color: Color) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
 	p.amount = 10
@@ -719,6 +751,8 @@ func _update_visual_state() -> void:
 		# Chispas sólo en máquinas de manufactura/procesado en marcha.
 		var cat := String(def.get("category", ""))
 		_sparks.emitting = (state == State.RUNNING) and (cat == "manufacturing" or cat == "processing")
+	if _damage_smoke:
+		_damage_smoke.emitting = (state == State.BROKEN)
 
 func _pbr(color: Color, rough: float, metal: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

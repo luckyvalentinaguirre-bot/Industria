@@ -52,6 +52,21 @@ func _ready() -> void:
 	_target_position = global_position
 	_target_yaw = rotation.y
 	_target_zoom = _spring.spring_length
+	# Enfocar rápidamente la máquina/edificio seleccionado.
+	EventBus.machine_selected.connect(_on_selected)
+
+func _on_selected(obj: Node) -> void:
+	if obj is Node3D:
+		focus_on((obj as Node3D).global_position)
+
+## Desplaza suavemente la cámara para centrar un punto del mundo.
+func focus_on(world_pos: Vector3) -> void:
+	_target_position = Vector3(
+		clampf(world_pos.x, -bounds_extent, bounds_extent),
+		0.0,
+		clampf(world_pos.z, -bounds_extent, bounds_extent))
+	# Acercar un poco si estábamos muy alejados.
+	_target_zoom = clampf(_target_zoom, zoom_min, 28.0)
 
 func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)

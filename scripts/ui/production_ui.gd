@@ -1,26 +1,32 @@
 extends PanelContainer
-## ProductionUI — panel de inspección de máquina (spec §19 "Panel de máquina").
+## ProductionUI — panel de inspección de máquina con jerarquía visual (spec §19).
 ##
-## Muestra y edita: nombre, estado, receta, entrada, salida, producción, consumo,
-## condición y prioridad. Se abre al seleccionar una máquina.
+## Muestra primero lo importante (estado, receta, progreso de ciclo, E/S) y
+## debajo los datos secundarios (energía, condición) y las acciones (reparar,
+## activar/desactivar). Se abre al seleccionar una máquina.
 
 var machine: Machine = null
-var _content: VBoxContainer
+var _box: VBoxContainer
+var _title: Label
+var _status: Label
 var _recipe_opt: OptionButton
 var _priority_opt: OptionButton
-var _enable_chk: CheckButton
+var _cycle_bar: ProgressBar
+var _in_lbl: Label
+var _out_lbl: Label
+var _power_lbl: Label
 var _cond_bar: ProgressBar
-var _state_lbl: Label
-var _io_lbl: Label
+var _cond_lbl: Label
 var _repair_btn: Button
-var _refresh_accum: float = 0.0
+var _toggle_btn: Button
+var _accum: float = 0.0
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(310, 0)
+	custom_minimum_size = Vector2(320, 0)
 	add_theme_stylebox_override("panel", UITheme.panel_style())
-	_content = VBoxContainer.new()
-	_content.add_theme_constant_override("separation", 6)
-	add_child(_content)
+	_box = VBoxContainer.new()
+	_box.add_theme_constant_override("separation", 7)
+	add_child(_box)
 	EventBus.machine_selected.connect(_on_selected)
 	EventBus.machine_state_changed.connect(_on_state_changed)
 	visible = false
@@ -39,28 +45,33 @@ func close() -> void:
 	visible = false
 	machine = null
 
+func _section(text: String) -> void:
+	_box.add_child(UITheme.make_label(text.to_upper(), 11, UITheme.ACCENT))
+
 func _rebuild() -> void:
-	for c in _content.get_children():
+	for c in _box.get_children():
 		c.queue_free()
 	if machine == null:
 		return
 
+	# Cabecera.
 	var header := HBoxContainer.new()
-	header.add_child(UITheme.make_title(machine.display_name()))
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(spacer)
-	var x := UITheme.make_button("✕")
-	x.custom_minimum_size = Vector2(30, 30)
+	_title = UITheme.make_label(machine.display_name(), 20, UITheme.TEXT)
+	header.add_child(_title)
+	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(sp)
+	var x := UITheme.make_button("✕"); x.custom_minimum_size = Vector2(30, 30)
 	x.pressed.connect(close)
 	header.add_child(x)
-	_content.add_child(header)
+	_box.add_child(header)
 
-	_state_lbl = UITheme.make_label("")
-	_content.add_child(_state_lbl)
+	# Estado destacado.
+	_status = UITheme.make_label("", 16)
+	_box.add_child(_status)
+	_box.add_child(UITheme.hsep())
 
-	# Receta
-	_content.add_child(UITheme.make_label("Receta:", 12, UITheme.ACCENT))
+	# Receta.
+	_section("Receta")
 	_recipe_opt = OptionButton.new()
 	var recs: Array = machine.def.get("recipes", [])
 	for i in recs.size():
@@ -68,51 +79,110 @@ func _rebuild() -> void:
 		if String(recs[i]) == machine.recipe_id:
 			_recipe_opt.select(i)
 	_recipe_opt.item_selected.connect(_on_recipe_selected)
-	_content.add_child(_recipe_opt)
+	_box.add_child(_recipe_opt)
 
-	# Prioridad
-	_content.add_child(UITheme.make_label("Prioridad:", 12, UITheme.ACCENT))
+	# Producción (barra de ciclo).
+	_section("Producción · progreso de ciclo")
+	_cycle_bar = ProgressBar.new()
+	_cycle_bar.max_value = 100
+	_cycle_bar.show_percentage = false
+	_cycle_bar.custom_minimum_size = Vector2(0, 16)
+	_box.add_child(_cycle_bar)
+
+	# Entrada / Salida.
+	var io := HBoxContainer.new()
+	io.add_theme_constant_override("separation", 12)
+	var incol := VBoxContainer.new()
+	incol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	incol.add_child(UITheme.make_label("ENTRADA", 11, UITheme.ACCENT))
+	_in_lbl = UITheme.make_label("", 12)
+	incol.add_child(_in_lbl)
+	var outcol := VBoxContainer.new()
+	outcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outcol.add_child(UITheme.make_label("SALIDA", 11, UITheme.ACCENT2))
+	_out_lbl = UITheme.make_label("", 12)
+	outcol.add_child(_out_lbl)
+	io.add_child(incol)
+	io.add_child(outcol)
+	_box.add_child(io)
+	_box.add_child(UITheme.hsep())
+
+	# Datos secundarios.
+	_power_lbl = UITheme.make_label("", 12)
+	_box.add_child(_power_lbl)
+	_section("Condición")
+	_cond_bar = ProgressBar.new()
+	_cond_bar.max_value = 100
+	_cond_bar.show_percentage = false
+	_cond_bar.custom_minimum_size = Vector2(0, 14)
+	_box.add_child(_cond_bar)
+	_cond_lbl = UITheme.make_label("", 12)
+	_box.add_child(_cond_lbl)
+
+	# Prioridad (secundario).
+	var prow := HBoxContainer.new()
+	prow.add_child(UITheme.make_label("Prioridad:", 12))
 	_priority_opt = OptionButton.new()
 	for i in Machine.PRIORITY_NAMES.size():
 		_priority_opt.add_item(Machine.PRIORITY_NAMES[i], i)
 	_priority_opt.select(machine.priority)
 	_priority_opt.item_selected.connect(_on_priority_selected)
-	_content.add_child(_priority_opt)
+	prow.add_child(_priority_opt)
+	_box.add_child(prow)
 
-	# Activada
-	_enable_chk = CheckButton.new()
-	_enable_chk.text = "Activada"
-	_enable_chk.button_pressed = machine.enabled
-	_enable_chk.toggled.connect(_on_enable_toggled)
-	_content.add_child(_enable_chk)
-
-	# Condición
-	_content.add_child(UITheme.make_label("Condición:", 12, UITheme.ACCENT))
-	_cond_bar = ProgressBar.new()
-	_cond_bar.max_value = 100
-	_cond_bar.custom_minimum_size = Vector2(0, 18)
-	_content.add_child(_cond_bar)
-	_repair_btn = UITheme.make_button("Reparar")
+	# Acciones.
+	_box.add_child(UITheme.hsep())
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 6)
+	_repair_btn = UITheme.make_button("🔧 Reparar")
+	_repair_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_repair_btn.pressed.connect(_on_repair)
-	_content.add_child(_repair_btn)
-
-	_content.add_child(UITheme.hsep())
-	_io_lbl = UITheme.make_label("")
-	_io_lbl.add_theme_font_size_override("font_size", 12)
-	_content.add_child(_io_lbl)
+	_toggle_btn = UITheme.make_button("⏻ Activar/Desactivar")
+	_toggle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_toggle_btn.pressed.connect(_on_toggle)
+	actions.add_child(_repair_btn)
+	actions.add_child(_toggle_btn)
+	_box.add_child(actions)
 
 	_refresh()
 
+# --- Refresco ---------------------------------------------------------------
 func _refresh() -> void:
-	if machine == null or _state_lbl == null:
+	if machine == null or _status == null:
 		return
-	_state_lbl.text = "Estado: " + machine.state_name()
-	_state_lbl.add_theme_color_override("font_color", _state_color())
-	_cond_bar.value = machine.condition
-	_repair_btn.disabled = machine.condition >= 100.0
-	_repair_btn.text = "Reparar (%s)" % Fmt.money(GameManager.maintenance.repair_cost(machine))
-	_io_lbl.text = _io_text()
+	var dot := "🟢"
+	var col := UITheme.ACCENT2
+	match machine.state:
+		Machine.State.RUNNING: dot = "🟢"; col = UITheme.ACCENT2
+		Machine.State.NO_MATERIALS, Machine.State.BLOCKED: dot = "🟡"; col = UITheme.WARN
+		Machine.State.NO_POWER, Machine.State.BROKEN: dot = "🔴"; col = UITheme.DANGER
+		Machine.State.MAINTENANCE: dot = "🔵"; col = UITheme.ACCENT
+		_: dot = "⚪"; col = UITheme.TEXT
+	_status.text = "%s  %s" % [dot, machine.state_name()]
+	_status.add_theme_color_override("font_color", col)
 
+	if _cycle_bar:
+		_cycle_bar.value = 0.0 if machine.cycle_time() <= 0.0 else clampf(machine.progress / machine.cycle_time() * 100.0, 0, 100)
+	_in_lbl.text = _buffer_text(machine.input_buffer)
+	_out_lbl.text = _buffer_text(machine.output_buffer)
+	_power_lbl.text = "⚡ Energía: %d kW      ⏱ Ciclo: %.1fs" % [int(machine.power_draw), machine.cycle_time()]
+	_cond_bar.value = machine.condition
+	_cond_lbl.text = "Condición %d%%" % int(machine.condition)
+	_cond_lbl.add_theme_color_override("font_color", UITheme.DANGER if machine.condition < 30 else (UITheme.WARN if machine.condition < 60 else UITheme.TEXT))
+	_repair_btn.disabled = machine.condition >= 100.0
+	_repair_btn.text = "🔧 Reparar" if machine.condition >= 100.0 else "🔧 Reparar (%s)" % Fmt.money(GameManager.maintenance.repair_cost(machine))
+	_toggle_btn.text = "⏸ Desactivar" if machine.enabled else "▶ Activar"
+
+func _buffer_text(inv: Inventory) -> String:
+	var items := inv.provide_peek()
+	if items.is_empty():
+		return "—"
+	var s := ""
+	for id in items.keys():
+		s += "%s ×%d\n" % [ItemDB.display_name(id), int(items[id])]
+	return s
+
+# --- Handlers ---------------------------------------------------------------
 func _on_recipe_selected(idx: int) -> void:
 	if machine == null:
 		return
@@ -125,42 +195,19 @@ func _on_priority_selected(idx: int) -> void:
 	if machine:
 		machine.set_priority(idx)
 
-func _on_enable_toggled(v: bool) -> void:
+func _on_toggle() -> void:
 	if machine:
-		machine.set_enabled(v)
+		machine.set_enabled(not machine.enabled)
+		_refresh()
 
 func _on_repair() -> void:
 	if machine and GameManager.maintenance.repair(machine):
 		_refresh()
 
-func _state_color() -> Color:
-	match machine.state:
-		Machine.State.RUNNING: return UITheme.ACCENT2
-		Machine.State.BROKEN, Machine.State.NO_POWER: return UITheme.DANGER
-		Machine.State.NO_MATERIALS, Machine.State.BLOCKED: return UITheme.WARN
-		_: return UITheme.TEXT
-
-func _io_text() -> String:
-	var s := "⚡ Consumo: %d kW\n" % int(machine.power_draw)
-	s += "⏱ Ciclo: %.1fs\n\n" % machine.cycle_time()
-	s += "▼ Entrada:\n"
-	var inp := machine.input_buffer.provide_peek()
-	if inp.is_empty():
-		s += "   (vacía)\n"
-	for id in inp.keys():
-		s += "   %s: %d\n" % [ItemDB.display_name(id), int(inp[id])]
-	s += "▲ Salida:\n"
-	var outp := machine.output_buffer.provide_peek()
-	if outp.is_empty():
-		s += "   (vacía)\n"
-	for id in outp.keys():
-		s += "   %s: %d\n" % [ItemDB.display_name(id), int(outp[id])]
-	return s
-
 func _process(delta: float) -> void:
 	if not visible or machine == null:
 		return
-	_refresh_accum += delta
-	if _refresh_accum >= 0.4:
-		_refresh_accum = 0.0
+	_accum += delta
+	if _accum >= 0.25:
+		_accum = 0.0
 		_refresh()

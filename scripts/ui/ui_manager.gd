@@ -16,6 +16,7 @@ var root: Control
 
 # HUD
 var _money_lbl: Label
+var _value_lbl: Label
 var _debt_lbl: Label
 var _rep_lbl: Label
 var _clock_lbl: Label
@@ -65,25 +66,28 @@ func _build_topbar() -> void:
 	bar.offset_top = 8
 	root.add_child(bar)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 18)
+	h.add_theme_constant_override("separation", 14)
 	bar.add_child(h)
 
-	_money_lbl = UITheme.make_label("", 16, UITheme.ACCENT2)
-	_debt_lbl = UITheme.make_label("", 16, UITheme.WARN)
-	_rep_lbl = UITheme.make_label("", 16)
-	_clock_lbl = UITheme.make_label("", 16)
-	_power_lbl = UITheme.make_label("", 16, UITheme.ACCENT)
-	_mode_lbl = UITheme.make_label("", 14, UITheme.WARN)
-	h.add_child(_money_lbl)
-	h.add_child(_debt_lbl)
-	h.add_child(_rep_lbl)
-	h.add_child(_clock_lbl)
-	h.add_child(_power_lbl)
-	h.add_child(_mode_lbl)
+	_money_lbl = _stat(h, UITheme.ACCENT2, 110)
+	h.add_child(_vsep())
+	_value_lbl = _stat(h, UITheme.TEXT, 130)
+	h.add_child(_vsep())
+	_debt_lbl = _stat(h, UITheme.WARN, 120)
+	h.add_child(_vsep())
+	_rep_lbl = _stat(h, UITheme.ACCENT, 70)
+	h.add_child(_vsep())
+	_clock_lbl = _stat(h, UITheme.TEXT, 140)
+	h.add_child(_vsep())
+	_power_lbl = _stat(h, UITheme.ACCENT, 120)
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(spacer)
+
+	_mode_lbl = UITheme.make_label("", 13, UITheme.WARN)
+	h.add_child(_mode_lbl)
+	h.add_child(_vsep())
 
 	# Controles de velocidad.
 	for item in [["⏸", 0.0], ["▶", 1.0], ["▶▶", 2.0], ["▶▶▶", 3.0]]:
@@ -91,6 +95,28 @@ func _build_topbar() -> void:
 		b.custom_minimum_size = Vector2(44, 30)
 		b.pressed.connect(TimeManager.set_time_scale.bind(float(item[1])))
 		h.add_child(b)
+
+func _stat(h: HBoxContainer, color: Color, min_w: int) -> Label:
+	var l := UITheme.make_label("", 16, color)
+	l.custom_minimum_size = Vector2(min_w, 0)
+	h.add_child(l)
+	return l
+
+func _vsep() -> VSeparator:
+	var v := VSeparator.new()
+	v.add_theme_constant_override("separation", 8)
+	return v
+
+## Valor de fábrica = caja + capital invertido en máquinas y edificios.
+func _factory_value() -> float:
+	var invested := 0.0
+	if GameManager.machines:
+		for m in GameManager.machines.machines:
+			invested += float(m.def.get("cost", 0))
+	if GameManager.buildings:
+		for b in GameManager.buildings.buildings:
+			invested += float(b.def.get("cost", 0))
+	return GameState.money + invested
 
 # --- Menú de construcción (izquierda) ---------------------------------------
 func _build_left_menu() -> void:
@@ -190,7 +216,7 @@ func _on_notify(message: String, level: String) -> void:
 
 # --- Señales / HUD ----------------------------------------------------------
 func _connect_signals() -> void:
-	EventBus.money_changed.connect(func(_m): _refresh_hud())
+	EventBus.money_changed.connect(_on_money_changed)
 	EventBus.debt_changed.connect(func(_d): _refresh_hud())
 	EventBus.reputation_changed.connect(func(_r): _refresh_hud())
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_hud())
@@ -205,19 +231,35 @@ func _connect_signals() -> void:
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
 	EventBus.objectives_updated.connect(_refresh_objectives)
 	EventBus.game_won.connect(_on_game_won)
-	EventBus.money_changed.connect(func(_m): _refresh_upgrades())
 
 func _refresh_hud() -> void:
 	if _money_lbl == null:
 		return
 	_money_lbl.text = "💰 " + Fmt.money(GameState.money)
+	_value_lbl.text = "🏭 " + Fmt.money(_factory_value())
 	_debt_lbl.text = "🏦 " + Fmt.money(GameState.debt)
 	_rep_lbl.text = "⭐ %d" % GameState.reputation
 	_clock_lbl.text = "📅 " + TimeManager.get_clock_string()
 	var ps: Dictionary = GameManager.power.get_status()
-	var picon := "⚡"
-	_power_lbl.text = "%s %d/%d kW" % [picon, int(ps["consumption"]), int(ps["capacity"])]
-	_power_lbl.add_theme_color_override("font_color", UITheme.DANGER if ps["overload"] else UITheme.ACCENT)
+	var cons: float = ps["consumption"]
+	var cap: float = ps["capacity"]
+	_power_lbl.text = "⚡ %d/%d kW" % [int(cons), int(cap)]
+	# Feedback de energía: verde ok, amarillo cerca del límite, rojo sobrecarga.
+	var pcol := UITheme.ACCENT2
+	if ps["overload"]:
+		pcol = UITheme.DANGER
+	elif cap > 0 and cons / cap > 0.8:
+		pcol = UITheme.WARN
+	_power_lbl.add_theme_color_override("font_color", pcol)
+
+func _on_money_changed(_m: float) -> void:
+	_refresh_hud()
+	_refresh_upgrades()
+	# Destello de la caja al cambiar (feedback discreto).
+	if _money_lbl:
+		_money_lbl.modulate = Color(1.4, 1.4, 1.0)
+		var tw := create_tween()
+		tw.tween_property(_money_lbl, "modulate", Color(1, 1, 1), 0.4)
 
 func _on_build_mode(active: bool, kind: String) -> void:
 	_mode_lbl.text = ("🔨 Construyendo: " + kind + "  (Esc para salir, R rota)") if active else ""

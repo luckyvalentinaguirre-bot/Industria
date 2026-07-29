@@ -21,9 +21,56 @@ var _ghost: MeshInstance3D
 var _ghost_mat: StandardMaterial3D
 var _conveyor_source: Node = null
 var _selected: Node = null
+var _sel_highlight: Node3D
 
 func _ready() -> void:
 	_build_ghost()
+	EventBus.machine_removed.connect(_on_obj_removed)
+	EventBus.building_removed.connect(_on_obj_removed)
+
+func _on_obj_removed(obj: Node) -> void:
+	if obj == _selected:
+		_clear_highlight()
+		_selected = null
+
+# --- Resaltado de selección (amarillo) --------------------------------------
+func _highlight_selected(obj: Node) -> void:
+	_clear_highlight()
+	if not (obj is Node3D):
+		return
+	var gs: Vector2i = obj.grid_size if ("grid_size" in obj) else Vector2i(2, 2)
+	var w: float = gs.x * GameState.CELL_SIZE * 0.5 + 0.3
+	var d: float = gs.y * GameState.CELL_SIZE * 0.5 + 0.3
+	_sel_highlight = Node3D.new()
+	add_child(_sel_highlight)
+	_sel_highlight.global_position = Vector3((obj as Node3D).global_position.x, 0.09, (obj as Node3D).global_position.z)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.85, 0.2)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.8, 0.15)
+	mat.emission_energy_multiplier = 2.0
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Cuatro esquineras tipo corchete.
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			var cx := _corner_bar(Vector3(0.9, 0.06, 0.14), Vector3(sx * (w - 0.45), 0, sz * d), mat)
+			var cz := _corner_bar(Vector3(0.14, 0.06, 0.9), Vector3(sx * w, 0, sz * (d - 0.45)), mat)
+
+func _corner_bar(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.position = pos
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_sel_highlight.add_child(mi)
+	return mi
+
+func _clear_highlight() -> void:
+	if _sel_highlight and is_instance_valid(_sel_highlight):
+		_sel_highlight.queue_free()
+	_sel_highlight = null
 
 # --- API (la llama la UI) ---------------------------------------------------
 func set_mode_select() -> void:
@@ -140,7 +187,10 @@ func _on_click() -> void:
 			var obj := _ray_pick_object()
 			if obj:
 				_selected = obj
+				_highlight_selected(obj)
 				EventBus.machine_selected.emit(obj)
+			else:
+				_clear_highlight()
 		Mode.MACHINE, Mode.BUILDING:
 			_try_place()
 		Mode.CONVEYOR:

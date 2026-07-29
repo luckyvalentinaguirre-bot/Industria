@@ -19,16 +19,45 @@ const CELL_SIZE := 2.0  # metros por celda (coincide con GameState.CELL_SIZE)
 @export var line_color: Color = Color(0.35, 0.75, 0.85, 0.35)
 @export var major_line_color: Color = Color(0.45, 0.9, 1.0, 0.55)
 
+const IDLE_INTENSITY := 0.28
+const BUILD_INTENSITY := 1.0
+
 var _occupied: Dictionary = {}          # Vector2i -> bool
 var _mesh_instance: MeshInstance3D
+var _grid_mat: ShaderMaterial
 var _visible_grid: bool = true
 var _border: Node3D
+var _occ_overlay: Node3D
+var _build_active: bool = false
+var _intensity: float = IDLE_INTENSITY
+var _target_intensity: float = IDLE_INTENSITY
 
 func _ready() -> void:
 	grid_size = GameState.grid_size
 	_build_visual()
 	_build_border()
 	EventBus.grid_visibility_changed.connect(_on_grid_visibility_changed)
+	EventBus.build_mode_changed.connect(_on_build_mode)
+	set_process(true)
+
+func _process(delta: float) -> void:
+	# Suaviza la intensidad de la cuadrícula al entrar/salir de construcción.
+	if absf(_intensity - _target_intensity) > 0.001:
+		_intensity = lerpf(_intensity, _target_intensity, clampf(delta * 8.0, 0, 1))
+		if _grid_mat:
+			_grid_mat.set_shader_parameter("intensity", _intensity)
+
+func _on_build_mode(active: bool, _kind: String) -> void:
+	set_build_active(active)
+
+## Resalta el grid y muestra las celdas ocupadas mientras se construye.
+func set_build_active(active: bool) -> void:
+	_build_active = active
+	_target_intensity = BUILD_INTENSITY if active else IDLE_INTENSITY
+	if active:
+		_refresh_occupancy_overlay()
+	elif _occ_overlay:
+		_occ_overlay.visible = false
 
 # --- Coordenadas ------------------------------------------------------------
 
@@ -101,11 +130,15 @@ func occupy_area(origin: Vector2i, size: Vector2i, owner_id: int) -> void:
 	for x in range(size.x):
 		for y in range(size.y):
 			_occupied[origin + Vector2i(x, y)] = owner_id
+	if _build_active:
+		_refresh_occupancy_overlay()
 
 func free_area(origin: Vector2i, size: Vector2i) -> void:
 	for x in range(size.x):
 		for y in range(size.y):
 			_occupied.erase(origin + Vector2i(x, y))
+	if _build_active:
+		_refresh_occupancy_overlay()
 
 # --- Visualización ----------------------------------------------------------
 
@@ -133,6 +166,7 @@ uniform float grid_cells_y = 40.0;
 uniform vec4 line_color : source_color = vec4(0.35, 0.75, 0.85, 0.35);
 uniform vec4 major_color : source_color = vec4(0.45, 0.9, 1.0, 0.55);
 uniform float line_width = 0.03;
+uniform float intensity = 0.35;   // 0.35 en reposo, ~1.0 al construir
 
 float grid_line(vec2 coord, float width) {
 	vec2 g = abs(fract(coord - 0.5) - 0.5) / fwidth(coord);
@@ -151,7 +185,7 @@ void fragment() {
 	vec4 col = mix(line_color, major_color, major);
 	float a = max(minor * line_color.a, major * major_color.a);
 	ALBEDO = col.rgb;
-	ALPHA = a;
+	ALPHA = a * intensity;
 }
 """
 	var mat := ShaderMaterial.new()
@@ -161,7 +195,30 @@ void fragment() {
 	mat.set_shader_parameter("grid_cells_y", float(grid_size.y))
 	mat.set_shader_parameter("line_color", line_color)
 	mat.set_shader_parameter("major_color", major_line_color)
+	mat.set_shader_parameter("intensity", IDLE_INTENSITY)
+	_grid_mat = mat
 	return mat
+
+## Dibuja parches translúcidos sobre las celdas ocupadas (sólo al construir).
+func _refresh_occupancy_overlay() -> void:
+	if _occ_overlay and is_instance_valid(_occ_overlay):
+		_occ_overlay.queue_free()
+	_occ_overlay = Node3D.new()
+	_occ_overlay.name = "OccupancyOverlay"
+	add_child(_occ_overlay)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.9, 0.35, 0.3, 0.28)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for cell in _occupied.keys():
+		var q := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(CELL_SIZE * 0.9, CELL_SIZE * 0.9)
+		q.mesh = pm
+		q.material_override = mat
+		q.position = cell_to_world(cell) + Vector3(0, 0.05, 0)
+		q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_occ_overlay.add_child(q)
 
 func _build_border() -> void:
 	if _border and is_instance_valid(_border):

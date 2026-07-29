@@ -96,6 +96,17 @@ Se respeta la estructura de la especificación: `assets/`, `audio/`, `data/` (JS
 
 Los datos configurables de la V1 (recursos, productos, recetas, máquinas, edificios, economía/proveedores, contratos, trabajadores) viven en `data/` como JSON.
 
+## Pulido de jugabilidad y presentación
+
+- **Grid inteligente:** discreto en reposo, se intensifica al construir; resalta las celdas ocupadas y el terreno construible. Vista previa verde (válido) / roja (inválido) y **resaltado amarillo** de la máquina seleccionada.
+- **Feedback de acciones:** animación de aparición al construir, destello de la caja al cambiar el dinero, humo negro de avería, baliza de estado por color y sonidos por evento.
+- **Cintas legibles:** flechas de dirección (chevrones) hacia el destino, postes de conexión (verde=origen, azul=destino) e ítems visibles circulando.
+- **UI de construcción por tarjetas** con icono, nombre, precio y tooltip, agrupadas por categoría (Producción / Logística / Energía / Mantenimiento / Expansión).
+- **Panel de máquina jerárquico:** estado destacado, receta, barra de progreso de ciclo, entrada/salida, energía, condición y acciones (reparar / activar-desactivar) abajo.
+- **Barra superior** con dinero, valor de fábrica, deuda, reputación, día/hora y energía (con aviso de color al acercarse al límite).
+- **Cámara** que enfoca la máquina seleccionada, con movimiento/zoom/rotación suaves y límites.
+- **Terreno** sobre un plinto de hormigón con canto visible, rodeado del lote exterior y del horizonte industrial.
+
 ## Presentación visual
 
 Modelos compuestos generados por código (sustituibles por los assets finales sin tocar la lógica):

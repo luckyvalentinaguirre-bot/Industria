@@ -192,6 +192,18 @@ func _setup_ground() -> void:
 	_ground.mesh = plane
 	_ground.material_override = _make_ground_material()
 
+	# Plinto: la nave se asienta sobre una losa de hormigón con canto visible.
+	var plinth := MeshInstance3D.new()
+	plinth.name = "Plinth"
+	var pbm := BoxMesh.new()
+	pbm.size = Vector3(size.x + 1.5, 0.6, size.y + 1.5)
+	plinth.mesh = pbm
+	plinth.position = Vector3(0, -0.3, 0)
+	var pmat := StandardMaterial3D.new()
+	pmat.albedo_color = Color(0.2, 0.2, 0.22)
+	pmat.roughness = 0.95
+	_ground.add_child(plinth)
+
 	# Colisión del suelo para el raycasting de construcción (ETAPA 2).
 	var body := StaticBody3D.new()
 	body.name = "GroundBody"
@@ -216,7 +228,7 @@ func _setup_props() -> void:
 	var fp := PlaneMesh.new()
 	fp.size = Vector2(ext * 8.0, ext * 8.0)
 	far.mesh = fp
-	far.position = Vector3(0, -0.06, 0)
+	far.position = Vector3(0, -0.62, 0)
 	far.material_override = _simple(Color(0.17, 0.18, 0.2), 0.95, 0.0)
 	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	props.add_child(far)

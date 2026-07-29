@@ -1,17 +1,25 @@
 extends PanelContainer
-## FactoryUI — menú de construcción (spec §6, §19 Construcción).
+## FactoryUI — menú de construcción tipo videojuego (spec §19 Construcción).
 ##
-## Barra lateral con categorías: Producción, Logística, Energía, Mantenimiento.
-## Cada botón activa el modo de colocación del BuildController. Incluye las
-## herramientas de cinta, selección y eliminación.
+## Tarjetas por categoría con icono, nombre, precio y tooltip descriptivo.
+## Compacto para no tapar el mapa. Activa el modo de colocación del
+## BuildController; incluye herramientas de cinta, selección y eliminación.
+
+const ICONS := {
+	"smelter": "🔥", "press": "🛠", "assembler": "🦾",
+	"small_storage": "📦", "large_storage": "🏬",
+	"splitter": "🔀", "merger": "🔗", "filter": "🧲",
+	"generator": "🔌", "substation": "⚡", "workshop": "🔧",
+}
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UITheme.panel_style())
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(210, 480)
+	scroll.custom_minimum_size = Vector2(232, 520)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", 5)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	_build(box)
@@ -22,87 +30,126 @@ func _controller() -> Node:
 	return null
 
 func _build(box: VBoxContainer) -> void:
-	box.add_child(UITheme.make_title("Construcción"))
+	box.add_child(UITheme.make_title("🏗  Construcción"))
 
-	var sel := UITheme.make_button("🖱 Seleccionar")
-	sel.pressed.connect(_on_select)
-	box.add_child(sel)
+	var tools := HBoxContainer.new()
+	tools.add_theme_constant_override("separation", 4)
+	var sel := _tool_btn("🖱", "Seleccionar", _on_select)
+	var del := _tool_btn("🗑", "Eliminar", _on_delete)
+	tools.add_child(sel)
+	tools.add_child(del)
+	box.add_child(tools)
 
-	# Producción (máquinas)
-	box.add_child(UITheme.make_label("Producción", 12, UITheme.ACCENT))
+	_header(box, "PRODUCCIÓN")
 	for mid in GameManager.recipes.machine_ids():
-		var d: Dictionary = GameManager.recipes.get_machine_def(mid)
-		var b := UITheme.make_button("%s  (%s)" % [String(d.get("name", mid)), Fmt.money(d.get("cost", 0))])
-		b.pressed.connect(_on_place_machine.bind(String(mid)))
-		box.add_child(b)
+		box.add_child(_machine_card(String(mid)))
 
-	# Logística
-	box.add_child(UITheme.make_label("Logística", 12, UITheme.ACCENT))
-	var conv := UITheme.make_button("Cinta transportadora (%s)" % Fmt.money(350))
-	conv.pressed.connect(_on_conveyor)
-	box.add_child(conv)
-	_building_buttons(box, "storage")
-	_building_buttons(box, "logistics")
+	_header(box, "LOGÍSTICA")
+	box.add_child(_card("➡", "Cinta transportadora", 350,
+		"Transporta materiales entre máquinas y almacenes.\nConecta: clic en origen y luego en destino.", _on_conveyor))
+	for bid in _buildings_of("storage") + _buildings_of("logistics"):
+		box.add_child(_building_card(bid))
 
-	# Energía
-	box.add_child(UITheme.make_label("Energía", 12, UITheme.ACCENT))
-	_building_buttons(box, "energy")
+	_header(box, "ENERGÍA")
+	for bid in _buildings_of("energy"):
+		box.add_child(_building_card(bid))
 
-	# Mantenimiento
-	box.add_child(UITheme.make_label("Mantenimiento", 12, UITheme.ACCENT))
-	_building_buttons(box, "maintenance")
+	_header(box, "MANTENIMIENTO")
+	for bid in _buildings_of("maintenance"):
+		box.add_child(_building_card(bid))
 
-	# Expansión de terreno
-	box.add_child(UITheme.make_label("Expansión", 12, UITheme.ACCENT))
-	var expand_btn := UITheme.make_button("Ampliar terreno")
-	expand_btn.pressed.connect(_on_expand)
-	box.add_child(expand_btn)
+	_header(box, "EXPANSIÓN")
+	box.add_child(_card("🗺", "Ampliar terreno", 0,
+		"Aumenta el área construible. Más espacio pero mayores costos fijos.", _on_expand))
 
-	box.add_child(UITheme.hsep())
-	var del := UITheme.make_button("🗑 Eliminar")
-	del.pressed.connect(_on_delete)
-	box.add_child(del)
+# --- Widgets ----------------------------------------------------------------
+func _header(box: VBoxContainer, text: String) -> void:
+	var p := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.30, 0.78, 0.86, 0.14)
+	st.corner_radius_top_left = 4
+	st.corner_radius_top_right = 4
+	st.corner_radius_bottom_left = 4
+	st.corner_radius_bottom_right = 4
+	st.content_margin_left = 8
+	st.content_margin_top = 3
+	st.content_margin_bottom = 3
+	p.add_theme_stylebox_override("panel", st)
+	var l := UITheme.make_label(text, 11, UITheme.ACCENT)
+	l.add_theme_constant_override("outline_size", 0)
+	p.add_child(l)
+	box.add_child(p)
 
-func _building_buttons(box: VBoxContainer, category: String) -> void:
+func _card(icon: String, name: String, price: int, tooltip: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(0, 40)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.tooltip_text = "%s\n\n%s%s" % [name, tooltip, ("" if price <= 0 else "\n\nPrecio: " + Fmt.money(price))]
+	b.text = "%s  %s%s" % [icon, name, ("" if price <= 0 else "   " + Fmt.money(price))]
+	b.add_theme_font_size_override("font_size", 12)
+	b.clip_text = true
+	b.pressed.connect(cb)
+	return b
+
+func _tool_btn(icon: String, label: String, cb: Callable) -> Button:
+	var b := UITheme.make_button("%s %s" % [icon, label])
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.tooltip_text = label
+	b.pressed.connect(cb)
+	return b
+
+func _machine_card(mid: String) -> Button:
+	var d: Dictionary = GameManager.recipes.get_machine_def(mid)
+	var size: Array = d.get("size", [2, 2])
+	var recs: Array = d.get("recipes", [])
+	var rec_names: Array = []
+	for r in recs:
+		rec_names.append(GameManager.recipes.recipe_name(String(r)))
+	var tip := "Tamaño %d×%d · %d kW\nFabrica: %s" % [int(size[0]), int(size[1]), int(d.get("power", 0)), ", ".join(rec_names)]
+	return _card(ICONS.get(mid, "⚙"), String(d.get("name", mid)), int(d.get("cost", 0)), tip, _on_place_machine.bind(mid))
+
+func _building_card(bid: String) -> Button:
+	var d: Dictionary = _all_buildings().get(bid, {})
+	var size: Array = d.get("size", [2, 2])
+	var tip := "Tamaño %d×%d" % [int(size[0]), int(size[1])]
+	if d.has("capacity"): tip += " · Capacidad +%d" % int(d["capacity"])
+	if d.has("power_output"): tip += " · Genera %d kW" % int(d["power_output"])
+	if d.has("power_capacity"): tip += " · Capacidad +%d kW" % int(d["power_capacity"])
+	if d.has("is_filter"): tip += " · Filtra un tipo de ítem"
+	return _card(ICONS.get(bid, "🏢"), String(d.get("name", bid)), int(d.get("cost", 0)), tip, _on_place_building.bind(bid))
+
+func _buildings_of(category: String) -> Array:
+	var out: Array = []
 	var defs := _all_buildings()
 	for bid in defs.keys():
-		var d: Dictionary = defs[bid]
-		if String(d.get("category", "")) != category:
-			continue
-		var b := UITheme.make_button("%s  (%s)" % [String(d.get("name", bid)), Fmt.money(d.get("cost", 0))])
-		b.pressed.connect(_on_place_building.bind(String(bid)))
-		box.add_child(b)
+		if String(defs[bid].get("category", "")) == category:
+			out.append(bid)
+	return out
 
 # --- Handlers ---------------------------------------------------------------
 func _on_select() -> void:
 	var c := _controller()
-	if c:
-		c.set_mode_select()
+	if c: c.set_mode_select()
 
 func _on_place_machine(mid: String) -> void:
 	var c := _controller()
-	if c:
-		c.start_place_machine(mid)
+	if c: c.start_place_machine(mid)
 
 func _on_place_building(bid: String) -> void:
 	var c := _controller()
-	if c:
-		c.start_place_building(bid)
+	if c: c.start_place_building(bid)
 
 func _on_conveyor() -> void:
 	var c := _controller()
-	if c:
-		c.start_conveyor()
+	if c: c.start_conveyor()
 
 func _on_delete() -> void:
 	var c := _controller()
-	if c:
-		c.start_delete()
+	if c: c.start_delete()
 
 func _on_expand() -> void:
 	var c := _controller()
-	if c:
-		c.buy_expansion()
+	if c: c.buy_expansion()
 
 func _all_buildings() -> Dictionary:
 	var path := "res://data/buildings/buildings.json"
