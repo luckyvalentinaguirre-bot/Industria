@@ -206,6 +206,9 @@ func _origin_cell() -> Vector2i:
 	return center_cell - Vector2i(int(size.x / 2.0), int(size.y / 2.0))
 
 func _try_place() -> void:
+	if GameManager.progression and not GameManager.progression.is_unlocked(current_id):
+		EventBus.notify.emit("Se desbloquea en nivel %d de empresa" % GameManager.progression.required_level(current_id), "warning")
+		return
 	var size := _current_size()
 	var origin := _origin_cell()
 	if not GameManager.grid.is_area_buildable(origin, size):

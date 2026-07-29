@@ -137,6 +137,7 @@ func _deliver(c: Contract) -> void:
 func _complete(c: Contract) -> void:
 	c.completed = true
 	active.erase(c)
+	GameState.contracts_completed += 1
 	GameManager.economy.earn(c.payment, "sales")
 	_add_reputation(c.reputation)
 	EventBus.contract_completed.emit(c)

@@ -21,29 +21,43 @@ func _ready() -> void:
 	EventBus.debt_changed.connect(_on_debt_changed)
 	EventBus.day_passed.connect(_on_day)
 	EventBus.game_started.connect(_on_game_started)
+	EventBus.money_changed.connect(func(_m): _check_long_term())
+	EventBus.reputation_changed.connect(func(_r): _check_long_term())
+	EventBus.company_level_changed.connect(func(_l, _n): _check_long_term())
 
 func _on_game_started() -> void:
 	_initial_debt = maxf(1.0, GameState.debt)
 
 func _define_objectives() -> void:
 	objectives = [
-		{"id": "repair", "title": "Repara la máquina averiada", "done": false},
-		{"id": "produce", "title": "Fabrica tu primer producto", "done": false},
-		{"id": "sell", "title": "Realiza tu primera venta", "done": false},
-		{"id": "contract", "title": "Cumple tu primer contrato", "done": false},
-		{"id": "automate", "title": "Configura una regla de automatización", "done": false},
-		{"id": "profit", "title": "Cierra un día con ganancias", "done": false},
-		{"id": "halve_debt", "title": "Reduce la deuda a la mitad", "done": false},
-		{"id": "solvent", "title": "Salda por completo la deuda (¡victoria!)", "done": false},
+		{"id": "repair", "title": "Repara la máquina averiada", "done": false, "reward": 1000, "long": false},
+		{"id": "produce", "title": "Fabrica tu primer producto", "done": false, "reward": 1000, "long": false},
+		{"id": "sell", "title": "Realiza tu primera venta", "done": false, "reward": 1000, "long": false},
+		{"id": "contract", "title": "Cumple tu primer contrato", "done": false, "reward": 1500, "long": false},
+		{"id": "automate", "title": "Configura una regla de automatización", "done": false, "reward": 1500, "long": false},
+		{"id": "profit", "title": "Cierra un día con ganancias", "done": false, "reward": 2000, "long": false},
+		{"id": "halve_debt", "title": "Reduce la deuda a la mitad", "done": false, "reward": 5000, "long": false},
+		{"id": "solvent", "title": "Salda por completo la deuda", "done": false, "reward": 10000, "long": false},
+		# Metas de largo plazo (spec §12).
+		{"id": "machines50", "title": "🏭 Construí 50 máquinas", "done": false, "reward": 20000, "long": true},
+		{"id": "million", "title": "💰 Alcanzá $1.000.000 de capital", "done": false, "reward": 25000, "long": true},
+		{"id": "units10k", "title": "⚙️ Producí 10.000 unidades", "done": false, "reward": 20000, "long": true},
+		{"id": "contracts100", "title": "📦 Completá 100 contratos", "done": false, "reward": 30000, "long": true},
+		{"id": "rep100", "title": "⭐ Alcanzá reputación 100", "done": false, "reward": 20000, "long": true},
+		{"id": "corporation", "title": "🏢 Convertite en Corporación (nivel 5)", "done": false, "reward": 50000, "long": true},
 	]
 
 func _complete(id: String) -> void:
 	for o in objectives:
 		if o["id"] == id and not o["done"]:
 			o["done"] = true
+			var reward := int(o.get("reward", 0))
+			if reward > 0 and GameManager.economy:
+				GameManager.economy.earn(reward, "misc")
+				EventBus.objective_reward.emit("%s: +%s" % [o["title"], Fmt.money(reward)])
 			EventBus.objective_completed.emit(id, o["title"])
 			EventBus.objectives_updated.emit()
-			EventBus.notify.emit("Objetivo cumplido: %s" % o["title"], "success")
+			EventBus.notify.emit("Objetivo cumplido: %s (+%s)" % [o["title"], Fmt.money(reward)], "success")
 			if id == "solvent":
 				_win()
 			return
@@ -83,6 +97,29 @@ func _on_day(_day: int) -> void:
 	var hist: Array = GameManager.finance.daily_history
 	if hist.size() > 0 and float(hist[hist.size() - 1]["profit"]) > 0.0:
 		_complete("profit")
+	_check_long_term()
+
+## Metas de largo plazo: se comprueban por métricas reales de la simulación.
+func _check_long_term() -> void:
+	if GameManager.machines and GameManager.machines.count() >= 50:
+		_complete("machines50")
+	if GameState.money >= 1000000.0:
+		_complete("million")
+	if _units_produced() >= 10000:
+		_complete("units10k")
+	if GameState.contracts_completed >= 100:
+		_complete("contracts100")
+	if GameState.reputation >= 100:
+		_complete("rep100")
+	if GameState.company_level >= 5:
+		_complete("corporation")
+
+func _units_produced() -> int:
+	var total := 0
+	if GameManager.production:
+		for v in GameManager.production.produced_total.values():
+			total += int(v)
+	return total
 
 func _win() -> void:
 	if won:

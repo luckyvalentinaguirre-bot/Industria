@@ -21,6 +21,12 @@ var money: float = 15000.0
 var debt: float = 120000.0
 var reputation: int = 50
 
+# --- Progresión -------------------------------------------------------------
+var company_level: int = 1
+var contracts_completed: int = 0
+var tutorial_active: bool = true
+var tutorial_index: int = 0
+
 # --- Tiempo (gestionado por TimeManager) ------------------------------------
 var day: int = 1
 var hour: int = 8
@@ -42,6 +48,10 @@ func to_dict() -> Dictionary:
 		"money": money,
 		"debt": debt,
 		"reputation": reputation,
+		"company_level": company_level,
+		"contracts_completed": contracts_completed,
+		"tutorial_active": tutorial_active,
+		"tutorial_index": tutorial_index,
 		"day": day,
 		"hour": hour,
 		"minute": minute,
@@ -56,6 +66,10 @@ func from_dict(data: Dictionary) -> void:
 	money = float(data.get("money", money))
 	debt = float(data.get("debt", debt))
 	reputation = int(data.get("reputation", reputation))
+	company_level = int(data.get("company_level", company_level))
+	contracts_completed = int(data.get("contracts_completed", contracts_completed))
+	tutorial_active = bool(data.get("tutorial_active", false))
+	tutorial_index = int(data.get("tutorial_index", tutorial_index))
 	day = int(data.get("day", day))
 	hour = int(data.get("hour", hour))
 	minute = int(data.get("minute", minute))

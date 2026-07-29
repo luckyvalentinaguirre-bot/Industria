@@ -19,9 +19,12 @@ var _money_lbl: Label
 var _value_lbl: Label
 var _debt_lbl: Label
 var _rep_lbl: Label
+var _level_lbl: Label
 var _clock_lbl: Label
 var _power_lbl: Label
 var _mode_lbl: Label
+var _tutorial_banner: PanelContainer
+var _tutorial_label: Label
 
 # Panels
 var production_ui: PanelContainer
@@ -52,11 +55,45 @@ func _build_ui() -> void:
 	_build_left_menu()
 	_build_right_panels()
 	_build_bottom_bar()
+	_build_tutorial()
 	_build_toasts()
 	_connect_signals()
 	_refresh_hud()
 	if not GameManager.save.has_save():
 		_show_intro()
+
+# --- Banner del tutorial (centro superior) ----------------------------------
+func _build_tutorial() -> void:
+	_tutorial_banner = UITheme.make_panel(UITheme.BG)
+	_tutorial_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_tutorial_banner.offset_top = 58
+	_tutorial_banner.offset_left = -300
+	_tutorial_banner.offset_right = 300
+	_tutorial_banner.visible = false
+	root.add_child(_tutorial_banner)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	_tutorial_banner.add_child(h)
+	var icon := UITheme.make_label("🎓", 18)
+	h.add_child(icon)
+	_tutorial_label = UITheme.make_label("", 14, UITheme.TEXT)
+	_tutorial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tutorial_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tutorial_label.custom_minimum_size = Vector2(460, 0)
+	h.add_child(_tutorial_label)
+	var skip := UITheme.make_button("Saltar")
+	skip.pressed.connect(func(): GameManager.tutorial.skip())
+	h.add_child(skip)
+
+func _on_tutorial_step(text: String, index: int, total: int) -> void:
+	if _tutorial_banner == null:
+		return
+	_tutorial_banner.visible = true
+	_tutorial_label.text = "Paso %d/%d — %s" % [index, total, text]
+
+func _on_tutorial_finished() -> void:
+	if _tutorial_banner:
+		_tutorial_banner.visible = false
 
 # --- Barra superior ---------------------------------------------------------
 func _build_topbar() -> void:
@@ -77,6 +114,8 @@ func _build_topbar() -> void:
 	_debt_lbl = _stat(h, UITheme.WARN, 120)
 	h.add_child(_vsep())
 	_rep_lbl = _stat(h, UITheme.ACCENT, 70)
+	h.add_child(_vsep())
+	_level_lbl = _stat(h, UITheme.ACCENT2, 180)
 	h.add_child(_vsep())
 	_clock_lbl = _stat(h, UITheme.TEXT, 140)
 	h.add_child(_vsep())
@@ -236,6 +275,9 @@ func _connect_signals() -> void:
 	EventBus.objectives_updated.connect(_refresh_objectives)
 	EventBus.game_won.connect(_on_game_won)
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
+	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
+	EventBus.tutorial_finished.connect(_on_tutorial_finished)
+	EventBus.company_level_changed.connect(func(_l, _n): _refresh_hud())
 
 func _refresh_hud() -> void:
 	if _money_lbl == null:
@@ -244,6 +286,7 @@ func _refresh_hud() -> void:
 	_value_lbl.text = "🏭 " + Fmt.money(_factory_value())
 	_debt_lbl.text = "🏦 " + Fmt.money(GameState.debt)
 	_rep_lbl.text = "⭐ %d" % GameState.reputation
+	_level_lbl.text = "🏢 N%d · %s" % [GameState.company_level, GameManager.progression.level_name()]
 	_clock_lbl.text = "📅 " + TimeManager.get_clock_string()
 	var ps: Dictionary = GameManager.power.get_status()
 	var cons: float = ps["consumption"]
@@ -391,15 +434,31 @@ func _refresh_objectives() -> void:
 	for c in box.get_children():
 		c.queue_free()
 	box.add_child(UITheme.make_title("Objetivos"))
-	box.add_child(UITheme.make_label("Salva la empresa: pon a producir la fábrica, cúmplela y salda la deuda.", 12, UITheme.TEXT))
+	box.add_child(UITheme.make_label("Nivel de empresa: %s (N%d)" % [GameManager.progression.level_name(), GameState.company_level], 12, UITheme.ACCENT2))
 	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("PRINCIPALES", 11, UITheme.ACCENT))
 	for o in GameManager.objectives.objectives:
-		var mark := "✅" if o["done"] else "⬜"
-		var color := UITheme.ACCENT2 if o["done"] else UITheme.TEXT
-		box.add_child(UITheme.make_label("%s  %s" % [mark, o["title"]], 13, color))
+		if o.get("long", false):
+			continue
+		box.add_child(_objective_row(o))
+	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("METAS DE LARGO PLAZO", 11, UITheme.ACCENT))
+	for o in GameManager.objectives.objectives:
+		if o.get("long", false):
+			box.add_child(_objective_row(o))
 	var done: int = GameManager.objectives.completed_count()
 	box.add_child(UITheme.hsep())
 	box.add_child(UITheme.make_label("Progreso: %d / %d" % [done, GameManager.objectives.objectives.size()], 13, UITheme.ACCENT))
+
+func _objective_row(o: Dictionary) -> Label:
+	var mark := "✅" if o["done"] else "⬜"
+	var color := UITheme.ACCENT2 if o["done"] else UITheme.TEXT
+	var reward := int(o.get("reward", 0))
+	var suffix := "  (+%s)" % Fmt.money(reward) if reward > 0 else ""
+	var l := UITheme.make_label("%s  %s%s" % [mark, o["title"], suffix], 12, color)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(300, 0)
+	return l
 
 # --- Panel de mejoras -------------------------------------------------------
 func _refresh_upgrades() -> void:

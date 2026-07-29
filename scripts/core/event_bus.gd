@@ -85,10 +85,21 @@ signal rule_triggered(rule: Dictionary)
 signal game_saved()
 signal game_loaded()
 
+# --- Logística (cintas) -----------------------------------------------------
+signal conveyor_placed(conveyor: Node)
+
 # --- Objetivos / progresión -------------------------------------------------
 signal objective_completed(id: String, title: String)
+signal objective_reward(text: String)
 signal objectives_updated()
 signal game_won()
+
+# --- Tutorial ---------------------------------------------------------------
+signal tutorial_step_changed(text: String, index: int, total: int)
+signal tutorial_finished()
+
+# --- Nivel de empresa -------------------------------------------------------
+signal company_level_changed(level: int, name: String)
 
 # --- UI / notificaciones ----------------------------------------------------
 ## level: "info" | "success" | "warning" | "error"

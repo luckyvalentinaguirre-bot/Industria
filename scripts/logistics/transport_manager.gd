@@ -27,6 +27,7 @@ func create_conveyor(source: Node, sink: Node, charge: bool = true) -> Conveyor:
 		_container.add_child(c)
 	c.setup(source, sink)
 	conveyors.append(c)
+	EventBus.conveyor_placed.emit(c)
 	EventBus.notify.emit("Cinta conectada", "success")
 	return c
 

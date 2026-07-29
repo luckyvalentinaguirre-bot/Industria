@@ -36,6 +36,8 @@ var rules: Node
 var automation: Node
 var events: Node
 var vehicles: Node
+var progression: Node
+var tutorial: Node
 var objectives: Node
 var upgrades: Node
 var audio: Node
@@ -70,6 +72,8 @@ func _create_managers() -> void:
 	automation = _add("res://scripts/automation/automation_manager.gd", "AutomationManager")
 	events = _add("res://scripts/events/event_manager.gd", "EventManager")
 	vehicles = _add("res://scripts/vehicles/vehicle_manager.gd", "VehicleManager")
+	progression = _add("res://scripts/core/progression_manager.gd", "ProgressionManager")
+	tutorial = _add("res://scripts/core/tutorial_manager.gd", "TutorialManager")
 	objectives = _add("res://scripts/core/objective_manager.gd", "ObjectiveManager")
 	upgrades = _add("res://scripts/core/upgrade_manager.gd", "UpgradeManager")
 	audio = _add("res://scripts/core/audio_manager.gd", "AudioManager")

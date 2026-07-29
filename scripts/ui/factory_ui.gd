@@ -12,17 +12,26 @@ const ICONS := {
 	"generator": "🔌", "substation": "⚡", "workshop": "🔧",
 }
 
+var _box: VBoxContainer
+
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UITheme.panel_style())
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(232, 520)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 5)
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(box)
-	_build(box)
+	_box = VBoxContainer.new()
+	_box.add_theme_constant_override("separation", 5)
+	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_box)
+	_build(_box)
+	# Reconstruye el menú al subir de nivel (se desbloquean construcciones).
+	EventBus.company_level_changed.connect(func(_l, _n): _rebuild())
+
+func _rebuild() -> void:
+	for c in _box.get_children():
+		c.queue_free()
+	_build(_box)
 
 func _controller() -> Node:
 	if GameManager.world and ("build_controller" in GameManager.world):
@@ -106,7 +115,9 @@ func _machine_card(mid: String) -> Button:
 	for r in recs:
 		rec_names.append(GameManager.recipes.recipe_name(String(r)))
 	var tip := "Tamaño %d×%d · %d kW\nFabrica: %s" % [int(size[0]), int(size[1]), int(d.get("power", 0)), ", ".join(rec_names)]
-	return _card(ICONS.get(mid, "⚙"), String(d.get("name", mid)), int(d.get("cost", 0)), tip, _on_place_machine.bind(mid))
+	var b := _card(ICONS.get(mid, "⚙"), String(d.get("name", mid)), int(d.get("cost", 0)), tip, _on_place_machine.bind(mid))
+	_apply_lock(b, mid, String(d.get("name", mid)))
+	return b
 
 func _building_card(bid: String) -> Button:
 	var d: Dictionary = _all_buildings().get(bid, {})
@@ -116,7 +127,17 @@ func _building_card(bid: String) -> Button:
 	if d.has("power_output"): tip += " · Genera %d kW" % int(d["power_output"])
 	if d.has("power_capacity"): tip += " · Capacidad +%d kW" % int(d["power_capacity"])
 	if d.has("is_filter"): tip += " · Filtra un tipo de ítem"
-	return _card(ICONS.get(bid, "🏢"), String(d.get("name", bid)), int(d.get("cost", 0)), tip, _on_place_building.bind(bid))
+	var b := _card(ICONS.get(bid, "🏢"), String(d.get("name", bid)), int(d.get("cost", 0)), tip, _on_place_building.bind(bid))
+	_apply_lock(b, bid, String(d.get("name", bid)))
+	return b
+
+## Bloquea la tarjeta si la construcción aún no está desbloqueada por nivel.
+func _apply_lock(b: Button, id: String, name: String) -> void:
+	if GameManager.progression and not GameManager.progression.is_unlocked(id):
+		var lvl: int = GameManager.progression.required_level(id)
+		b.disabled = true
+		b.text = "🔒 " + b.text
+		b.tooltip_text = "%s\n\n🔒 Se desbloquea en nivel de empresa %d (%s)" % [name, lvl, GameManager.progression.level_name(lvl)]
 
 func _buildings_of(category: String) -> Array:
 	var out: Array = []
