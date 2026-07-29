@@ -76,15 +76,15 @@ func _setup_initial_scenario() -> void:
 	var g := GameManager.grid
 
 	# Eje central de la línea (columna X ~= centro del terreno construible).
-	var raw: Building = _place_building("large_storage", Vector2i(16, 8))     # materia prima (fondo)
-	var smelter: Machine = _place_machine("smelter", Vector2i(19, 15))
-	var press: Machine = _place_machine("press", Vector2i(19, 19))
-	var assembler: Machine = _place_machine("assembler", Vector2i(18, 23))
-	var out_store: Building = _place_building("large_storage", Vector2i(16, 28))  # productos (frente)
+	var raw: Building = _place_building("large_storage", Vector2i(15, 8))     # materia prima (fondo) 5x5
+	var smelter: Machine = _place_machine("smelter", Vector2i(16, 15))        # 3x3
+	var press: Machine = _place_machine("press", Vector2i(16, 19))            # 2x2
+	var assembler: Machine = _place_machine("assembler", Vector2i(15, 23))    # 4x3
+	var out_store: Building = _place_building("large_storage", Vector2i(15, 27)) # productos (frente) 5x5
 
 	# Energía propia a un lado.
-	var gen: Building = _place_building("generator", Vector2i(26, 13))
-	var sub: Building = _place_building("substation", Vector2i(27, 18))
+	var gen: Building = _place_building("generator", Vector2i(24, 14))
+	var sub: Building = _place_building("substation", Vector2i(25, 19))
 
 	# Recetas de la cadena hierro → lingote → placa → pieza metálica.
 	smelter.set_recipe("smelt_iron")

@@ -11,18 +11,50 @@ class_name IndKit
 ## queda separado de la lógica (spec §16) y es fácil de sustituir por assets
 ## definitivos. Los constructores añaden hijos a un `parent` dado.
 
+# --- Desgaste compartido (grime/suciedad por triplanar, spec §11/§26) -------
+# Una única textura de ruido triplanar aplicada a los materiales grandes rompe
+# la planitud sin texturas pesadas: parches sutiles de suciedad/desgaste
+# coherentes en toda la escena (una sola textura, barata).
+static var _wear: NoiseTexture2D
+
+static func _wear_tex() -> NoiseTexture2D:
+	if _wear != null:
+		return _wear
+	var n := NoiseTexture2D.new()
+	n.width = 256
+	n.height = 256
+	n.seamless = true
+	var fn := FastNoiseLite.new()
+	fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	fn.frequency = 0.02
+	fn.fractal_octaves = 3
+	n.noise = fn
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.6, 0.58, 0.56))   # zonas de suciedad/desgaste
+	grad.set_color(1, Color(1.0, 1.0, 1.0))     # zonas limpias
+	n.color_ramp = grad
+	_wear = n
+	return _wear
+
+static func _apply_wear(m: StandardMaterial3D) -> StandardMaterial3D:
+	m.albedo_texture = _wear_tex()
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3(0.11, 0.11, 0.11)
+	return m
+
 # --- Paleta de materiales (coherencia visual) -------------------------------
 static func steel() -> StandardMaterial3D:
-	return _m(Color(0.56, 0.58, 0.62), 0.38, 0.9)
+	return _apply_wear(_m(Color(0.56, 0.58, 0.62), 0.38, 0.9))
 
 static func dark_metal() -> StandardMaterial3D:
-	return _m(Color(0.13, 0.14, 0.16), 0.5, 0.85)
+	return _apply_wear(_m(Color(0.13, 0.14, 0.16), 0.5, 0.85))
 
 static func housing(color: Color) -> StandardMaterial3D:
-	return _m(color, 0.42, 0.6)
+	return _apply_wear(_m(color, 0.42, 0.6))
 
 static func concrete() -> StandardMaterial3D:
-	return _m(Color(0.24, 0.24, 0.26), 0.95, 0.0)
+	return _apply_wear(_m(Color(0.24, 0.24, 0.26), 0.95, 0.0))
 
 static func rubber() -> StandardMaterial3D:
 	return _m(Color(0.07, 0.07, 0.08), 0.9, 0.0)

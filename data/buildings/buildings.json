@@ -26,9 +26,9 @@
     "large_storage": {
       "name": "Almacen grande",
       "category": "storage",
-      "size": [4, 4],
-      "cost": 7000,
-      "capacity": 2000
+      "size": [5, 5],
+      "cost": 7500,
+      "capacity": 2500
     },
     "workshop": {
       "name": "Taller de mantenimiento",

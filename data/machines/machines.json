@@ -4,8 +4,8 @@
     "smelter": {
       "name": "Fundicion",
       "category": "processing",
-      "size": [2, 2],
-      "cost": 3500,
+      "size": [3, 3],
+      "cost": 4500,
       "power": 40,
       "base_speed": 1.0,
       "recipes": ["smelt_iron", "smelt_copper", "recycle_scrap"]
@@ -22,8 +22,8 @@
     "assembler": {
       "name": "Ensambladora",
       "category": "manufacturing",
-      "size": [3, 2],
-      "cost": 6800,
+      "size": [4, 3],
+      "cost": 7500,
       "power": 55,
       "base_speed": 1.0,
       "recipes": ["make_industrial_part", "assemble_metal_piece", "assemble_industrial_comp", "assemble_motor"]
