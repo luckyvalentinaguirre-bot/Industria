@@ -116,9 +116,10 @@ func _build_visual() -> void:
 	var mat_concrete := IndKit.concrete()
 	var mat_steel := IndKit.steel()
 
-	# Losa base común con pernos perimetrales.
-	_box(Vector3(w * 0.98, 0.25, d * 0.98), Vector3(0, 0.12, 0), mat_concrete)
-	IndKit.bolt_row(self, 5, -w * 0.4, w * 0.4, 0.24, d * 0.48, mat_dark)
+	# Losa base común con pernos perimetrales. Cara inferior a y=0.05 (no en y=0)
+	# para evitar z-fighting coplanar con el suelo (líneas blancas, spec §21).
+	_box(Vector3(w * 0.98, 0.25, d * 0.98), Vector3(0, 0.175, 0), mat_concrete)
+	IndKit.bolt_row(self, 5, -w * 0.4, w * 0.4, 0.30, d * 0.48, mat_dark)
 	match category:
 		"storage": _build_storage(w, d, height, mat, mat_dark, mat_steel)
 		"energy":

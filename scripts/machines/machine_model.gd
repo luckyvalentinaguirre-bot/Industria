@@ -44,8 +44,11 @@ func build(p_id: String, p_def: Dictionary, p_grid: Vector2i) -> void:
 	}
 
 	# Losa de cimentación con canto metálico (base común, coherencia).
-	IndKit.box(self, Vector3(w * 0.99, 0.3, d * 0.99), Vector3(0, 0.15, 0), mats["concrete"])
-	IndKit.box(self, Vector3(w * 0.99, 0.08, d * 0.99), Vector3(0, 0.32, 0), mats["dark"])
+	# Cara inferior a y=0.05 (NO en y=0) para no quedar coplanar con el plano de
+	# suelo: esa coplanaridad producía z-fighting = líneas blancas al mover la
+	# cámara alrededor de cada máquina (spec §21).
+	IndKit.box(self, Vector3(w * 0.99, 0.3, d * 0.99), Vector3(0, 0.20, 0), mats["concrete"])
+	IndKit.box(self, Vector3(w * 0.99, 0.08, d * 0.99), Vector3(0, 0.37, 0), mats["dark"])
 
 	match machine_id:
 		"smelter": _build_smelter(w, d, mats)
@@ -227,8 +230,9 @@ func _add_beacon(w: float, d: float, mats: Dictionary) -> void:
 	_status_light.mesh = lm
 	_status_light.position = Vector3(hx, 3.75, hz)
 	add_child(_status_light)
-	_beacon_light = _omni(Vector3(hx, 3.75, hz), Color(0.3, 0.9, 0.4), 6.0, 1.5)
-	add_child(_beacon_light)
+	# Sin OmniLight3D por baliza: la esfera emisiva ya comunica el estado sin
+	# sumar una luz dinámica por máquina (rendimiento con muchas máquinas, spec §18).
+	_beacon_light = null
 
 func _add_effects(w: float, d: float, color: Color) -> void:
 	_sparks = _make_sparks(color)
@@ -296,7 +300,7 @@ func _category_color() -> Color:
 # --- Partículas -------------------------------------------------------------
 func _make_steam() -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = 14
+	p.amount = 8
 	p.lifetime = 2.0
 	p.emitting = false
 	var mat := ParticleProcessMaterial.new()
@@ -313,7 +317,7 @@ func _make_steam() -> GPUParticles3D:
 
 func _make_sparks(color: Color) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = 10
+	p.amount = 6
 	p.lifetime = 0.6
 	p.emitting = false
 	var mat := ParticleProcessMaterial.new()
@@ -340,7 +344,7 @@ func _make_sparks(color: Color) -> GPUParticles3D:
 
 func _make_damage_smoke() -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = 10
+	p.amount = 6
 	p.lifetime = 1.8
 	p.emitting = false
 	var mat := ParticleProcessMaterial.new()
@@ -404,6 +408,22 @@ func set_state(state: int) -> void:
 		_glow_light.light_energy = 0.6
 	if _glow_mat and not running:
 		_glow_mat.emission_energy_multiplier = 0.5
+	# Sólo procesamos animación mientras la máquina funciona: una máquina parada,
+	# ociosa o averiada no gasta CPU por frame (spec §16 — estados de máquina).
+	var animates := running and _anim_kind != ""
+	set_process(animates)
+	if not animates:
+		_reset_anim_pose()
+
+## Deja las piezas móviles en su posición de reposo (una sola vez al parar).
+func _reset_anim_pose() -> void:
+	match _anim_kind:
+		"press":
+			if _anim_primary:
+				_anim_primary.position.y = _ram_base_y
+		"arm":
+			if _anim_secondary:
+				_anim_secondary.rotation.x = 0.15
 
 func _process(delta: float) -> void:
 	if TimeManager.time_scale <= 0.0:

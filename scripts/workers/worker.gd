@@ -17,6 +17,25 @@ var _speed: float = 2.2
 var _target: Vector3
 var _has_target: bool = false
 
+# Materiales COMPARTIDOS entre todos los trabajadores (una sola copia en memoria,
+# permite batching y evita crear ~5 materiales por trabajador). Los del cuerpo
+# varían por especialidad y se cachean por color.
+static var _shared: Dictionary = {}
+static var _body_mats: Dictionary = {}
+
+static func _mat(key: String, color: Color, rough: float, emissive: bool = false, energy: float = 0.0) -> StandardMaterial3D:
+	if _shared.has(key):
+		return _shared[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = rough
+	if emissive:
+		m.emission_enabled = true
+		m.emission = color
+		m.emission_energy_multiplier = energy
+	_shared[key] = m
+	return m
+
 func setup(id: String, def: Dictionary) -> void:
 	type_id = id
 	worker_name = String(def.get("name", id))
@@ -53,14 +72,16 @@ func _pick_target() -> void:
 	_has_target = true
 
 func _build_visual() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = _specialty_color()
-	mat.roughness = 0.75
+	var col := _specialty_color()
+	var mat: StandardMaterial3D = _body_mats.get(specialty)
+	if mat == null:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = col
+		mat.roughness = 0.75
+		_body_mats[specialty] = mat
 
 	# Piernas.
-	var legmat := StandardMaterial3D.new()
-	legmat.albedo_color = Color(0.2, 0.22, 0.26)
-	legmat.roughness = 0.8
+	var legmat := _mat("legs", Color(0.2, 0.22, 0.26), 0.8)
 	for sx in [-1, 1]:
 		var leg := MeshInstance3D.new()
 		var lc := CapsuleMesh.new()
@@ -89,12 +110,7 @@ func _build_visual() -> void:
 	vc.height = 0.5
 	vest.mesh = vc
 	vest.position = Vector3(0, 1.2, 0)
-	var vmat := StandardMaterial3D.new()
-	vmat.albedo_color = Color(0.95, 0.55, 0.1)
-	vmat.emission_enabled = true
-	vmat.emission = Color(0.9, 0.5, 0.1)
-	vmat.emission_energy_multiplier = 0.4
-	vest.material_override = vmat
+	vest.material_override = _mat("vest", Color(0.95, 0.55, 0.1), 0.6, true, 0.4)
 	add_child(vest)
 
 	# Cabeza.
@@ -104,9 +120,7 @@ func _build_visual() -> void:
 	hs.height = 0.4
 	head.mesh = hs
 	head.position = Vector3(0, 1.75, 0)
-	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.8, 0.62, 0.5)
-	head.material_override = skin
+	head.material_override = _mat("skin", Color(0.8, 0.62, 0.5), 0.7)
 	add_child(head)
 
 	# Casco.
@@ -116,10 +130,7 @@ func _build_visual() -> void:
 	hm.height = 0.28
 	helmet.mesh = hm
 	helmet.position = Vector3(0, 1.86, 0)
-	var hmat := StandardMaterial3D.new()
-	hmat.albedo_color = Color(0.95, 0.8, 0.2)
-	hmat.roughness = 0.4
-	helmet.material_override = hmat
+	helmet.material_override = _mat("helmet", Color(0.95, 0.8, 0.2), 0.4)
 	add_child(helmet)
 
 func _specialty_color() -> Color:

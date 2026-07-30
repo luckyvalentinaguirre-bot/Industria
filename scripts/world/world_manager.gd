@@ -612,7 +612,7 @@ func _light_pole(parent: Node3D, base: Vector3, mat: Material) -> void:
 
 func _make_dust(ext: float) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = 60
+	p.amount = 28
 	p.lifetime = 8.0
 	p.position = Vector3(0, 6, 0)
 	p.visibility_aabb = AABB(Vector3(-ext, -2, -ext), Vector3(ext * 2, 20, ext * 2))

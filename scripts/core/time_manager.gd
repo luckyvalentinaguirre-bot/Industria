@@ -10,9 +10,15 @@ extends Node
 const GAME_MINUTES_PER_REAL_SECOND := 5.0
 ## Velocidades de simulación seleccionables.
 const SPEED_STEPS: Array[float] = [0.0, 1.0, 2.0, 3.0]
+## Cadencia fija de la simulación: en lugar de emitir `tick` cada frame (60/s),
+## acumulamos e emitimos ~10 veces por segundo. Las máquinas, cintas, energía y
+## mantenimiento avanzan con `progress += delta`, así que la suma es idéntica
+## pero se ejecuta 6× menos lógica por segundo (gran ahorro de CPU, spec §14).
+const SIM_TICK := 0.1
 
 var time_scale: float = 1.0
 var _minute_accumulator: float = 0.0
+var _tick_accumulator: float = 0.0
 var _running: bool = false
 
 func _ready() -> void:
@@ -31,7 +37,11 @@ func _process(delta: float) -> void:
 	if not _running or time_scale <= 0.0:
 		return
 
-	EventBus.tick.emit(delta * time_scale)
+	# Simulación a cadencia fija (10 Hz): agrupa varios frames en un solo tick.
+	_tick_accumulator += delta
+	if _tick_accumulator >= SIM_TICK:
+		EventBus.tick.emit(_tick_accumulator * time_scale)
+		_tick_accumulator = 0.0
 
 	_minute_accumulator += delta * time_scale * GAME_MINUTES_PER_REAL_SECOND
 	while _minute_accumulator >= 1.0:

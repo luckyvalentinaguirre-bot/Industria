@@ -14,6 +14,35 @@ var _speed: float = 9.0
 var kind: String = "truck"
 var loop: bool = false
 
+# Materiales compartidos entre vehículos (una sola instancia en memoria).
+static var _shared: Dictionary = {}
+static var _body_mats: Dictionary = {}
+
+static func _smat(key: String, color: Color, rough: float, metal: float, emissive: bool = false, energy: float = 0.0) -> StandardMaterial3D:
+	if _shared.has(key):
+		return _shared[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = rough
+	m.metallic = metal
+	if emissive:
+		m.emission_enabled = true
+		m.emission = color
+		m.emission_energy_multiplier = energy
+	_shared[key] = m
+	return m
+
+static func _body_mat(color: Color) -> StandardMaterial3D:
+	var key := str(color)
+	if _body_mats.has(key):
+		return _body_mats[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = 0.5
+	m.metallic = 0.4
+	_body_mats[key] = m
+	return m
+
 func setup(waypoints: Array, color: Color, p_kind: String = "truck", p_loop: bool = false) -> void:
 	_waypoints = waypoints
 	kind = p_kind
@@ -51,17 +80,9 @@ func _process(delta: float) -> void:
 	global_transform.basis = global_transform.basis.slerp(tf.basis, clampf(delta * 6.0, 0, 1))
 
 func _build_visual(color: Color) -> void:
-	var body := StandardMaterial3D.new()
-	body.albedo_color = color
-	body.roughness = 0.5
-	body.metallic = 0.4
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.1, 0.1, 0.12)
-	dark.roughness = 0.7
-	var cargo := StandardMaterial3D.new()
-	cargo.albedo_color = Color(0.55, 0.56, 0.58)
-	cargo.roughness = 0.6
-	cargo.metallic = 0.5
+	var body := _body_mat(color)
+	var dark := _smat("dark", Color(0.1, 0.1, 0.12), 0.7, 0.0)
+	var cargo := _smat("cargo", Color(0.55, 0.56, 0.58), 0.6, 0.5)
 
 	# Cabina.
 	_box(Vector3(1.8, 1.4, 1.8), Vector3(0, 1.1, 1.9), body)
@@ -77,26 +98,14 @@ func _build_visual(color: Color) -> void:
 			var wheel := _cyl(0.4, 0.4, 0.3, Vector3(wx * 0.95, 0.4, wz), dark)
 			wheel.rotation_degrees = Vector3(0, 0, 90)
 	# Faros.
-	var head := StandardMaterial3D.new()
-	head.albedo_color = Color(1, 0.95, 0.7)
-	head.emission_enabled = true
-	head.emission = Color(1, 0.95, 0.7)
-	head.emission_energy_multiplier = 2.0
+	var head := _smat("headlight", Color(1, 0.95, 0.7), 0.3, 0.0, true, 2.0)
 	for hx in [-0.6, 0.6]:
 		_box(Vector3(0.25, 0.25, 0.05), Vector3(hx, 0.9, 2.85), head)
 
 func _build_forklift(color: Color) -> void:
-	var body := StandardMaterial3D.new()
-	body.albedo_color = color
-	body.roughness = 0.5
-	body.metallic = 0.4
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.1, 0.1, 0.12)
-	dark.roughness = 0.7
-	var fork := StandardMaterial3D.new()
-	fork.albedo_color = Color(0.5, 0.5, 0.55)
-	fork.roughness = 0.4
-	fork.metallic = 0.8
+	var body := _body_mat(color)
+	var dark := _smat("dark", Color(0.1, 0.1, 0.12), 0.7, 0.0)
+	var fork := _smat("fork", Color(0.5, 0.5, 0.55), 0.4, 0.8)
 	# Cuerpo / contrapeso.
 	_box(Vector3(1.3, 1.0, 1.8), Vector3(0, 0.9, -0.6), body)
 	_box(Vector3(1.2, 0.7, 0.8), Vector3(0, 1.5, -1.1), dark)   # bloque motor trasero
@@ -117,11 +126,7 @@ func _build_forklift(color: Color) -> void:
 			var wheel := _cyl(0.35, 0.35, 0.28, Vector3(wx * 0.65, 0.35, wz), dark)
 			wheel.rotation_degrees = Vector3(0, 0, 90)
 	# Baliza ámbar.
-	var beacon := StandardMaterial3D.new()
-	beacon.albedo_color = Color(0.95, 0.6, 0.1)
-	beacon.emission_enabled = true
-	beacon.emission = Color(0.95, 0.55, 0.1)
-	beacon.emission_energy_multiplier = 2.0
+	var beacon := _smat("beacon", Color(0.95, 0.6, 0.1), 0.4, 0.0, true, 2.0)
 	_cyl(0.1, 0.1, 0.18, Vector3(0, 2.8, 0.35), beacon)
 
 func _box(size: Vector3, pos: Vector3, mat: Material) -> void:

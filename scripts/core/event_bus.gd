@@ -94,6 +94,10 @@ signal objective_reward(text: String)
 signal objectives_updated()
 signal game_won()
 
+# --- Expansión de fábrica ---------------------------------------------------
+## Emitida cuando el terreno construible crece (spec §6/§18).
+signal factory_expanded(buildable_size: Vector2i)
+
 # --- Tutorial ---------------------------------------------------------------
 signal tutorial_step_changed(text: String, index: int, total: int)
 signal tutorial_finished()

@@ -26,6 +26,12 @@ var _mode_lbl: Label
 var _tutorial_banner: PanelContainer
 var _tutorial_label: Label
 
+# Rastreador compacto de objetivo actual (discreto, un solo objetivo).
+var _obj_tracker: PanelContainer
+var _obj_title: Label
+var _obj_progress: Label
+var _obj_bar: ProgressBar
+
 # Panels
 var production_ui: PanelContainer
 var finance_ui: PanelContainer
@@ -58,9 +64,11 @@ func _build_ui() -> void:
 	_build_right_panels()
 	_build_bottom_bar()
 	_build_tutorial()
+	_build_objective_tracker()
 	_build_toasts()
 	_connect_signals()
 	_refresh_hud()
+	_refresh_objective_tracker()
 	# El HUD/UI del juego SOLO se ve dentro de la partida, no en el menú principal.
 	layer.visible = false
 	EventBus.world_ready.connect(_on_enter_game)
@@ -68,6 +76,7 @@ func _build_ui() -> void:
 func _on_enter_game() -> void:
 	if layer:
 		layer.visible = true
+	_refresh_objective_tracker()
 	# Bienvenida temporal sólo en partida nueva (desaparece sola).
 	if not GameManager.pending_load:
 		_show_intro()
@@ -100,10 +109,69 @@ func _on_tutorial_step(text: String, index: int, total: int) -> void:
 		return
 	_tutorial_banner.visible = true
 	_tutorial_label.text = "Paso %d/%d — %s" % [index, total, text]
+	_refresh_objective_tracker()
 
 func _on_tutorial_finished() -> void:
 	if _tutorial_banner:
 		_tutorial_banner.visible = false
+	_refresh_objective_tracker()
+
+# --- Rastreador compacto de objetivo actual (centro superior, discreto) -----
+func _build_objective_tracker() -> void:
+	_obj_tracker = UITheme.make_panel(UITheme.BG)
+	_obj_tracker.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_obj_tracker.offset_top = 58
+	_obj_tracker.offset_left = -260
+	_obj_tracker.offset_right = 260
+	_obj_tracker.visible = false
+	root.add_child(_obj_tracker)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	_obj_tracker.add_child(v)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	top.add_child(UITheme.make_label("🎯", 16))
+	_obj_title = UITheme.make_label("", 14, UITheme.TEXT)
+	_obj_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_obj_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_obj_title.custom_minimum_size = Vector2(360, 0)
+	top.add_child(_obj_title)
+	_obj_progress = UITheme.make_label("", 13, UITheme.ACCENT2)
+	top.add_child(_obj_progress)
+	var see := UITheme.make_button("VER")
+	see.custom_minimum_size = Vector2(52, 26)
+	see.pressed.connect(func(): _toggle_right(objectives_panel); _refresh_objectives())
+	top.add_child(see)
+	v.add_child(top)
+	_obj_bar = ProgressBar.new()
+	_obj_bar.max_value = 100
+	_obj_bar.show_percentage = false
+	_obj_bar.custom_minimum_size = Vector2(0, 6)
+	_obj_bar.visible = false
+	v.add_child(_obj_bar)
+
+func _refresh_objective_tracker() -> void:
+	if _obj_tracker == null:
+		return
+	# No competir con el banner del tutorial: éste guía los primeros pasos.
+	if _tutorial_banner and _tutorial_banner.visible:
+		_obj_tracker.visible = false
+		return
+	var o: Dictionary = GameManager.objectives.current()
+	if o.is_empty():
+		_obj_tracker.visible = false
+		return
+	_obj_tracker.visible = true
+	var reward := int(o.get("reward", 0))
+	var suffix := "  ·  +%s" % Fmt.money(reward) if reward > 0 else ""
+	_obj_title.text = String(o["title"]) + suffix
+	var ptext: String = GameManager.objectives.progress_text(o)
+	_obj_progress.text = ptext
+	if o.has("target"):
+		_obj_bar.visible = true
+		_obj_bar.value = GameManager.objectives.progress_ratio(o) * 100.0
+	else:
+		_obj_bar.visible = false
 
 # --- Barra superior ---------------------------------------------------------
 func _build_topbar() -> void:
@@ -315,12 +383,16 @@ func _connect_signals() -> void:
 	EventBus.contract_failed.connect(func(_c): _refresh_contracts())
 	EventBus.worker_hired.connect(func(_w): _refresh_workers())
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
-	EventBus.objectives_updated.connect(_refresh_objectives)
+	EventBus.objectives_updated.connect(_on_objectives_updated)
 	EventBus.game_won.connect(_on_game_won)
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
 	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.tutorial_finished.connect(_on_tutorial_finished)
 	EventBus.company_level_changed.connect(func(_l, _n): _refresh_hud())
+
+func _on_objectives_updated() -> void:
+	_refresh_objective_tracker()
+	_refresh_objectives()
 
 func _refresh_hud() -> void:
 	if _money_lbl == null:
@@ -346,6 +418,7 @@ func _refresh_hud() -> void:
 func _on_money_changed(_m: float) -> void:
 	_refresh_hud()
 	_refresh_upgrades()
+	_refresh_objective_tracker()
 	# Destello de la caja al cambiar (feedback discreto).
 	if _money_lbl:
 		_money_lbl.modulate = Color(1.4, 1.4, 1.0)
@@ -469,7 +542,8 @@ func _make_scroll_panel() -> PanelContainer:
 
 # --- Panel de objetivos -----------------------------------------------------
 func _refresh_objectives() -> void:
-	if objectives_panel == null:
+	# Sólo se reconstruye cuando está a la vista (evita trabajo de UI oculto, §17).
+	if objectives_panel == null or not objectives_panel.visible:
 		return
 	var box := _find_box(objectives_panel)
 	if box == null:
@@ -478,6 +552,19 @@ func _refresh_objectives() -> void:
 		c.queue_free()
 	box.add_child(UITheme.make_title("Objetivos"))
 	box.add_child(UITheme.make_label("Nivel de empresa: %s (N%d)" % [GameManager.progression.level_name(), GameState.company_level], 12, UITheme.ACCENT2))
+	# Objetivo actual destacado con su pista (qué hacer y por qué).
+	var cur: Dictionary = GameManager.objectives.current()
+	if not cur.is_empty():
+		box.add_child(UITheme.hsep())
+		box.add_child(UITheme.make_label("🎯 OBJETIVO ACTUAL", 11, UITheme.ACCENT))
+		var ct := String(cur["title"])
+		if cur.has("target"):
+			ct += "   [%s]" % GameManager.objectives.progress_text(cur)
+		box.add_child(UITheme.make_label(ct, 14, UITheme.TEXT))
+		var hint := UITheme.make_label(String(cur.get("hint", "")), 12, UITheme.MUTED)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.custom_minimum_size = Vector2(300, 0)
+		box.add_child(hint)
 	box.add_child(UITheme.hsep())
 	box.add_child(UITheme.make_label("PRINCIPALES", 11, UITheme.ACCENT))
 	for o in GameManager.objectives.objectives:
@@ -498,7 +585,10 @@ func _objective_row(o: Dictionary) -> Label:
 	var color := UITheme.ACCENT2 if o["done"] else UITheme.TEXT
 	var reward := int(o.get("reward", 0))
 	var suffix := "  (+%s)" % Fmt.money(reward) if reward > 0 else ""
-	var l := UITheme.make_label("%s  %s%s" % [mark, o["title"], suffix], 12, color)
+	var prog := ""
+	if not o["done"] and o.has("target"):
+		prog = "   [%s]" % GameManager.objectives.progress_text(o)
+	var l := UITheme.make_label("%s  %s%s%s" % [mark, o["title"], prog, suffix], 12, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(300, 0)
 	return l
@@ -512,8 +602,9 @@ func _refresh_upgrades() -> void:
 		return
 	for c in box.get_children():
 		c.queue_free()
-	box.add_child(UITheme.make_title("Mejoras"))
+	box.add_child(UITheme.make_title("Investigación y Mejoras"))
 	box.add_child(UITheme.make_label("Invierte para optimizar toda la fábrica.", 12))
+	box.add_child(_expansion_block())
 	box.add_child(UITheme.hsep())
 	var um: Node = GameManager.upgrades
 	for id in um.defs.keys():
@@ -544,6 +635,26 @@ func _refresh_upgrades() -> void:
 func _on_buy_upgrade(id: String) -> void:
 	GameManager.upgrades.buy(id)
 	_refresh_upgrades()
+
+## Bloque de ampliación de terreno (spec §6/§18): meta económica de crecimiento.
+func _expansion_block() -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	v.add_child(UITheme.make_label("🗺 TERRENO DE LA FÁBRICA", 12, UITheme.ACCENT))
+	var bc: Node = GameManager.world.build_controller if GameManager.world and ("build_controller" in GameManager.world) else null
+	var bs: Vector2i = GameState.buildable_size
+	v.add_child(UITheme.make_label("Superficie construible: %d×%d celdas" % [bs.x, bs.y], 12))
+	if GameManager.grid and GameManager.grid.is_at_max_expansion():
+		v.add_child(UITheme.make_label("✅ Terreno al máximo.", 12, UITheme.ACCENT2))
+	elif bc:
+		var cost: int = bc.expansion_cost()
+		var b := UITheme.make_button("Ampliar terreno (%s)" % Fmt.money(cost))
+		b.disabled = not GameManager.economy.can_afford(cost)
+		b.pressed.connect(func():
+			bc.buy_expansion()
+			_refresh_upgrades())
+		v.add_child(b)
+	return v
 
 # --- Panel de almacén / inventario ------------------------------------------
 func _refresh_storage() -> void:

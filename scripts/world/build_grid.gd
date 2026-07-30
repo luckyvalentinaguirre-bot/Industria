@@ -119,6 +119,7 @@ func expand(delta: int = 8) -> bool:
 		min(grid_size.x, GameState.buildable_size.x + delta),
 		min(grid_size.y, GameState.buildable_size.y + delta))
 	_build_border()
+	EventBus.factory_expanded.emit(GameState.buildable_size)
 	return true
 
 # --- Ocupación (base para ETAPA 2) -----------------------------------------
