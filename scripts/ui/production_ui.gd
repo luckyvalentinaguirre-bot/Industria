@@ -19,6 +19,7 @@ var _cond_bar: ProgressBar
 var _cond_lbl: Label
 var _repair_btn: Button
 var _toggle_btn: Button
+var _upgrade_btn: Button
 var _accum: float = 0.0
 
 func _ready() -> void:
@@ -143,6 +144,9 @@ func _rebuild() -> void:
 	actions.add_child(_repair_btn)
 	actions.add_child(_toggle_btn)
 	_box.add_child(actions)
+	_upgrade_btn = UITheme.make_button("⬆ Mejorar")
+	_upgrade_btn.pressed.connect(_on_upgrade)
+	_box.add_child(_upgrade_btn)
 
 	_refresh()
 
@@ -160,12 +164,14 @@ func _refresh() -> void:
 		_: dot = "⚪"; col = UITheme.TEXT
 	_status.text = "%s  %s" % [dot, machine.state_name()]
 	_status.add_theme_color_override("font_color", col)
+	if _title:
+		_title.text = machine.display_name()
 
 	if _cycle_bar:
 		_cycle_bar.value = 0.0 if machine.cycle_time() <= 0.0 else clampf(machine.progress / machine.cycle_time() * 100.0, 0, 100)
 	_in_lbl.text = _buffer_text(machine.input_buffer)
 	_out_lbl.text = _buffer_text(machine.output_buffer)
-	_power_lbl.text = "⚡ Energía: %d kW      ⏱ Ciclo: %.1fs" % [int(machine.power_draw), machine.cycle_time()]
+	_power_lbl.text = "⚡ %d kW   ⏱ %.1fs   📈 %.1f/min" % [int(machine.effective_power_draw()), machine.cycle_time(), machine.production_per_min()]
 	_cond_bar.value = machine.condition
 	var eff := int(lerpf(45.0, 100.0, clampf(machine.condition / 100.0, 0.0, 1.0)))
 	_cond_lbl.text = "Condición %d%%  ·  Eficiencia %d%%" % [int(machine.condition), eff]
@@ -173,6 +179,17 @@ func _refresh() -> void:
 	_repair_btn.disabled = machine.condition >= 100.0
 	_repair_btn.text = "🔧 Reparar" if machine.condition >= 100.0 else "🔧 Reparar (%s)" % Fmt.money(GameManager.maintenance.repair_cost(machine))
 	_toggle_btn.text = "⏸ Desactivar" if machine.enabled else "▶ Activar"
+	if _upgrade_btn:
+		if machine.can_upgrade():
+			_upgrade_btn.disabled = false
+			_upgrade_btn.text = "⬆ Mejorar a nivel %d (%s)" % [machine.level + 1, Fmt.money(machine.upgrade_cost())]
+		else:
+			_upgrade_btn.disabled = true
+			_upgrade_btn.text = "⬆ Nivel máximo"
+
+func _on_upgrade() -> void:
+	if machine and machine.upgrade():
+		_refresh()
 
 func _buffer_text(inv: Inventory) -> String:
 	var items := inv.provide_peek()

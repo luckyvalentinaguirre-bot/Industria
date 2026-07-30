@@ -23,6 +23,7 @@ const PRIORITY_NAMES := ["Baja", "Normal", "Alta", "Crítica"]
 
 const BUFFER_CAPACITY := 24
 const WEAR_PER_CYCLE := 0.6      # % de condición perdida por ciclo producido
+const MAX_LEVEL := 3
 
 # --- Identidad / colocación -------------------------------------------------
 var machine_id: String = ""
@@ -37,6 +38,7 @@ var enabled: bool = true
 var priority: int = 1            # 0 Baja .. 3 Crítica
 var power_draw: float = 0.0
 var base_speed: float = 1.0
+var level: int = 1               # nivel de mejora (I..III)
 
 # --- Estado dinámico --------------------------------------------------------
 var state: int = State.IDLE
@@ -139,14 +141,55 @@ func _effective_speed() -> float:
 	var upg := 1.0
 	if GameManager.upgrades:
 		upg = GameManager.upgrades.machine_speed_mult()
-	return base_speed * condition_factor * (1.0 + op) * upg
+	return base_speed * condition_factor * (1.0 + op) * upg * level_speed_mult()
 
-## Consumo eléctrico efectivo (con mejoras de eficiencia).
+## Consumo eléctrico efectivo (mejoras globales + nivel de la máquina).
 func effective_power_draw() -> float:
 	var mult := 1.0
 	if GameManager.upgrades:
 		mult = GameManager.upgrades.power_draw_mult()
-	return power_draw * mult
+	return power_draw * mult * (1.0 + (level - 1) * 0.15)
+
+# --- Mejora por máquina (Fundición I → II → III, spec §8/§20) ----------------
+func level_speed_mult() -> float:
+	match level:
+		2: return 1.5
+		3: return 2.2
+		_: return 1.0
+
+func can_upgrade() -> bool:
+	return level < MAX_LEVEL
+
+func upgrade_cost() -> float:
+	return float(def.get("cost", 1000)) * (0.8 + (level - 1) * 0.6)
+
+## Mejora la máquina un nivel si hay fondos. Devuelve true si se aplicó.
+func upgrade() -> bool:
+	if not can_upgrade():
+		return false
+	var cost := upgrade_cost()
+	if not GameManager.economy.spend(cost, "construction"):
+		return false
+	level += 1
+	set_condition(minf(100.0, condition + 20.0))
+	EventBus.machine_state_changed.emit(self)
+	EventBus.notify.emit("%s mejorada a nivel %d (%s)" % [display_name(), level, Fmt.money(cost)], "success")
+	return true
+
+func roman_level() -> String:
+	return ["", "I", "II", "III", "IV"][clampi(level, 0, 4)]
+
+## Producción teórica por minuto (para el panel de máquina, spec §20).
+func production_per_min() -> float:
+	if recipe_id == "":
+		return 0.0
+	var outs := current_outputs()
+	var total := 0
+	for v in outs.values():
+		total += int(v)
+	if total <= 0 or cycle_time() <= 0.0:
+		return 0.0
+	return float(total) / cycle_time() * _effective_speed() * 60.0
 
 func _output_has_room(outputs: Dictionary) -> bool:
 	var needed := 0
@@ -188,7 +231,8 @@ func state_name() -> String:
 	return STATE_NAMES.get(state, "?")
 
 func display_name() -> String:
-	return String(def.get("name", machine_id))
+	var n := String(def.get("name", machine_id))
+	return n + (" " + roman_level() if level > 1 else "")
 
 # --- Puertos (para cintas) --------------------------------------------------
 func port_provide_peek() -> Dictionary:
@@ -230,6 +274,7 @@ func to_dict() -> Dictionary:
 		"recipe": recipe_id,
 		"enabled": enabled,
 		"priority": priority,
+		"level": level,
 		"condition": condition,
 		"progress": progress,
 		"input": input_buffer.to_dict(),
@@ -241,6 +286,7 @@ func apply_dict(data: Dictionary) -> void:
 	recipe_id = String(data.get("recipe", recipe_id))
 	enabled = bool(data.get("enabled", true))
 	priority = int(data.get("priority", 1))
+	level = int(data.get("level", 1))
 	condition = float(data.get("condition", 100.0))
 	progress = float(data.get("progress", 0.0))
 	if data.has("input"):

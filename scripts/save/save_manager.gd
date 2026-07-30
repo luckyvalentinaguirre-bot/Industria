@@ -24,6 +24,23 @@ func _on_day_passed(_day: int) -> void:
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
+## Metadatos del guardado para la pantalla de carga (sin cargar la partida).
+func get_save_info() -> Dictionary:
+	if not has_save():
+		return {}
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	if typeof(data) != TYPE_DICTIONARY:
+		return {}
+	var s: Dictionary = data.get("state", {})
+	var modified := FileAccess.get_modified_time(SAVE_PATH)
+	return {
+		"company": String(s.get("company_name", "Industria S.A.")),
+		"day": int(s.get("day", 1)),
+		"money": float(s.get("money", 0.0)),
+		"level": int(s.get("company_level", 1)),
+		"date": Time.get_datetime_string_from_unix_time(modified).replace("T", " "),
+	}
+
 func save_game(silent: bool = false) -> bool:
 	var data := {
 		"version": SAVE_VERSION,

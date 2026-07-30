@@ -201,8 +201,10 @@ func _build_bottom_bar() -> void:
 	bar.offset_left = 8
 	bar.offset_bottom = -8
 	root.add_child(bar)
-	var menu_btn := UITheme.make_button("☰  Menú")
-	menu_btn.custom_minimum_size = Vector2(120, 38)
+	var menu_btn := UITheme.make_button("☰  MENÚ")
+	menu_btn.custom_minimum_size = Vector2(168, 48)
+	menu_btn.add_theme_font_size_override("font_size", 18)
+	menu_btn.add_theme_color_override("font_color", UITheme.ACCENT)
 	menu_btn.pressed.connect(_toggle_menu)
 	bar.add_child(menu_btn)
 	_build_menu_panel()

@@ -26,6 +26,8 @@ func setup(id: String, def: Dictionary) -> void:
 	_build_visual()
 
 func _process(delta: float) -> void:
+	if TimeManager.time_scale <= 0.0:
+		return   # pausa real: los trabajadores se detienen
 	if not _has_target:
 		_pick_target()
 		return
