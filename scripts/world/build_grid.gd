@@ -46,10 +46,13 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# Suaviza la intensidad de la cuadrícula al entrar/salir de construcción.
-	if absf(_intensity - _target_intensity) > 0.001:
-		_intensity = lerpf(_intensity, _target_intensity, clampf(delta * 8.0, 0, 1))
-		if _grid_mat:
-			_grid_mat.set_shader_parameter("intensity", _intensity)
+	# Cuando llega al valor objetivo se apaga el _process (0 coste por frame).
+	if absf(_intensity - _target_intensity) <= 0.001:
+		set_process(false)
+		return
+	_intensity = lerpf(_intensity, _target_intensity, clampf(delta * 8.0, 0, 1))
+	if _grid_mat:
+		_grid_mat.set_shader_parameter("intensity", _intensity)
 
 func _on_build_mode(active: bool, _kind: String) -> void:
 	set_build_active(active)
@@ -58,6 +61,7 @@ func _on_build_mode(active: bool, _kind: String) -> void:
 func set_build_active(active: bool) -> void:
 	_build_active = active
 	_target_intensity = BUILD_INTENSITY if active else IDLE_INTENSITY
+	set_process(true)   # reanuda la transición suave de intensidad
 	if _mesh_instance:
 		_mesh_instance.visible = active   # sin malla de grid = sin líneas al mover la cámara
 	if _border:

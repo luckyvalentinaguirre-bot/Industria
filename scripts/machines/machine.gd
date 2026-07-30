@@ -51,6 +51,11 @@ var operator_bonus: float = 0.0  # lo fija WorkerManager
 var input_buffer: Inventory
 var output_buffer: Inventory
 
+## Máquinas manuales (banco de trabajo): tiran sus insumos del almacén central y
+## depositan su producción allí, sin necesidad de cintas. Permite la ETAPA MANUAL
+## del inicio (spec §4) reutilizando el sistema de producción existente.
+var auto_supply: bool = false
+
 # --- Visual (capa de modelo separada de la lógica, spec §2/§31) -------------
 const MachineModelScript := preload("res://scripts/machines/machine_model.gd")
 var _model: MachineModel
@@ -63,6 +68,7 @@ func setup(id: String, origin: Vector2i) -> void:
 	grid_size = Vector2i(int(s[0]), int(s[1]))
 	power_draw = float(def.get("power", 0.0))
 	base_speed = float(def.get("base_speed", 1.0))
+	auto_supply = bool(def.get("auto_supply", false))
 	input_buffer = Inventory.new(BUFFER_CAPACITY)
 	output_buffer = Inventory.new(BUFFER_CAPACITY)
 	# Receta por defecto: la primera disponible.
@@ -119,6 +125,10 @@ func _compute_and_progress(delta: float) -> int:
 	var inputs := current_inputs()
 	var outputs := current_outputs()
 
+	# Banco de trabajo: se auto-abastece del almacén y descarga allí su producción.
+	if auto_supply:
+		_auto_supply_tick(inputs)
+
 	if not input_buffer.has_all(inputs):
 		return State.NO_MATERIALS
 	if not _output_has_room(outputs):
@@ -131,6 +141,25 @@ func _compute_and_progress(delta: float) -> int:
 		progress -= cycle_time()
 		_produce_cycle(inputs, outputs)
 	return State.RUNNING
+
+## Tira insumos del almacén central (hasta ~4 ciclos en buffer) y vacía la salida
+## al almacén. Sólo para máquinas manuales (auto_supply).
+func _auto_supply_tick(inputs: Dictionary) -> void:
+	for id in inputs.keys():
+		var per_cycle := int(inputs[id])
+		var want: int = per_cycle * 4
+		var have: int = input_buffer.count(id)
+		if have < want:
+			var pulled: int = GameManager.storage.withdraw(id, want - have)
+			if pulled > 0:
+				input_buffer.add(id, pulled)
+	# Descarga la producción acumulada al almacén de la empresa.
+	var out_items := output_buffer.provide_peek()
+	for id in out_items.keys():
+		var n := int(out_items[id])
+		var stored: int = GameManager.storage.deposit(id, n)
+		if stored > 0:
+			output_buffer.remove(id, stored)
 
 func _effective_speed() -> float:
 	# La condición degrada la velocidad; el operador y las mejoras la aumentan.

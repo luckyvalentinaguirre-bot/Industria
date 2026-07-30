@@ -257,12 +257,18 @@ func _delete_click() -> void:
 		GameManager.buildings.remove_building(obj)
 	EventBus.notify.emit("Construcción eliminada (reembolso 40%)", "info")
 
-# --- Expansión de terreno (spec §18) ----------------------------------------
+# --- Expansión de terreno (spec §12) ----------------------------------------
+## La parcela arranca en 12×12 y crece de a 8 celdas por compra.
+const EXPANSION_COSTS := [25000, 75000, 200000, 400000]
+
 func expansion_level() -> int:
-	return int((GameState.buildable_size.x - 24) / 8)
+	return int((GameState.buildable_size.x - 12) / 8)
 
 func expansion_cost() -> int:
-	return 18000 * (expansion_level() + 1)
+	var lvl: int = expansion_level()
+	if lvl < EXPANSION_COSTS.size():
+		return EXPANSION_COSTS[lvl]
+	return EXPANSION_COSTS[EXPANSION_COSTS.size() - 1] + (lvl - EXPANSION_COSTS.size() + 1) * 200000
 
 func buy_expansion() -> void:
 	if GameManager.grid.is_at_max_expansion():

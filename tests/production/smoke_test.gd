@@ -15,6 +15,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_setup_world_refs()
 	_test_production()
+	_test_workbench_manual()
 	_test_conveyor()
 	_test_economy_sell()
 	_test_power_overload()
@@ -64,6 +65,18 @@ func _test_production() -> void:
 	var ingots: int = m.output_buffer.count("iron_ingot")
 	_check("Producción: la fundición fabricó lingotes de hierro (%d)" % ingots, ingots >= 2)
 	_check("Producción: consumió mineral de la entrada", m.input_buffer.count("iron_ore") < 10)
+
+func _test_workbench_manual() -> void:
+	# Etapa manual: el banco de trabajo se auto-abastece del almacén central
+	# (sin cintas) y descarga allí su producción de herramientas.
+	GameManager.storage.deposit("scrap", 40)
+	var wb: Machine = GameManager.machines.create_machine("workbench", Vector2i(30, 2))
+	wb.set_condition(100.0)
+	wb.powered = true
+	_tick(30.0)  # 7s/ciclo, 4 chatarra→1 herramienta
+	var tools: int = GameManager.storage.count("hand_tool")
+	_check("Banco de trabajo: fabrica herramientas desde el almacén (%d)" % tools, tools >= 2)
+	_check("Banco de trabajo: consumió chatarra del almacén", GameManager.storage.count("scrap") < 40)
 
 func _test_conveyor() -> void:
 	# Almacén con stock que alimenta una prensa vía cinta, y devuelve el producto.
@@ -189,12 +202,12 @@ func _test_vehicles() -> void:
 	_check("Vehículos: llega un camión al recibir una entrega", GameManager.vehicles._active.size() > before)
 
 func _test_objectives() -> void:
-	# Ventas y contratos previos deben haber marcado objetivos; forzamos deuda 0.
+	# Ventas y contratos previos deben haber marcado objetivos de la campaña.
 	_check("Objetivos: 'realiza tu primera venta' cumplido", _obj_done("sell"))
 	_check("Objetivos: 'cumple tu primer contrato' cumplido", _obj_done("contract"))
-	GameState.debt = 0.0
-	EventBus.debt_changed.emit(0.0)
-	_check("Objetivos: saldar la deuda dispara la victoria", GameManager.objectives.won)
+	# La victoria se alcanza al llegar a Complejo Industrial (nivel 5).
+	EventBus.company_level_changed.emit(5, "Complejo industrial")
+	_check("Objetivos: alcanzar nivel 5 dispara la victoria", GameManager.objectives.won)
 
 func _obj_done(id: String) -> bool:
 	for o in GameManager.objectives.objectives:

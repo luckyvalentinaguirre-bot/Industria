@@ -1,6 +1,16 @@
 {
   "_comment": "Industria V1 - definicion de maquinas. size en celdas de grid. power en kW.",
   "machines": {
+    "workbench": {
+      "name": "Banco de trabajo",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 800,
+      "power": 0,
+      "base_speed": 1.0,
+      "auto_supply": true,
+      "recipes": ["craft_handtool"]
+    },
     "smelter": {
       "name": "Fundicion",
       "category": "processing",

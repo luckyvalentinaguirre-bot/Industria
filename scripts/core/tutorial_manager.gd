@@ -8,23 +8,17 @@ extends Node
 ## Nota de estructura: progresión/onboarding → vive en scripts/core/.
 
 const STEPS := [
-	{ "id": "repair", "text": "Repará la fundición averiada: seleccionala y pulsá Reparar.", "reward": 1500 },
-	{ "id": "conveyor", "text": "Conectá el almacén a la fundición con una Cinta transportadora.", "reward": 1500 },
-	{ "id": "produce", "text": "Comprá mineral de hierro (Finanzas) y producí tu primer lingote.", "reward": 2000 },
-	{ "id": "contract", "text": "Aceptá y completá tu primer contrato (📄 Contratos).", "reward": 2500 },
-	{ "id": "second_machine", "text": "Ampliá tu fábrica: construí una segunda máquina.", "reward": 2000 },
-	{ "id": "energy", "text": "Mejorá tu suministro energético (Generador o Subestación).", "reward": 3000 },
+	{ "id": "workbench", "text": "Abrí ☰ MENÚ → 🏭 Fábrica y construí tu Banco de trabajo (tu primer puesto).", "reward": 500 },
+	{ "id": "craft", "text": "Comprá chatarra en 💰 Economía; el banco fabricará tu primera herramienta.", "reward": 800 },
+	{ "id": "sell", "text": "Vendé tus herramientas en 💰 Economía → Vender para conseguir tus primeros ingresos.", "reward": 800 },
 ]
 
 var _started: bool = false
 
 func _ready() -> void:
-	EventBus.machine_repaired.connect(func(_m): _try_advance("repair"))
 	EventBus.machine_placed.connect(_on_machine_placed)
-	EventBus.conveyor_placed.connect(func(_c): _try_advance("conveyor"))
 	EventBus.item_produced.connect(_on_item_produced)
-	EventBus.contract_completed.connect(func(_c): _try_advance("contract"))
-	EventBus.building_placed.connect(_on_building_placed)
+	EventBus.transaction.connect(_on_transaction)
 	EventBus.game_started.connect(_on_started)
 	EventBus.game_loaded.connect(_on_started)
 
@@ -68,16 +62,14 @@ func _try_advance(step_id: String) -> void:
 		_show_current()
 
 # --- Detección de pasos -----------------------------------------------------
-func _on_machine_placed(_m: Node) -> void:
-	if _current_id() == "smelter":
-		_try_advance("smelter")
-	elif _current_id() == "second_machine" and GameManager.machines.count() >= 2:
-		_try_advance("second_machine")
+func _on_machine_placed(m: Node) -> void:
+	if _current_id() == "workbench" and ("machine_id" in m) and m.machine_id == "workbench":
+		_try_advance("workbench")
 
 func _on_item_produced(item_id: String, _qty: int) -> void:
-	if _current_id() == "produce" and (item_id == "iron_ingot" or item_id == "copper_ingot"):
-		_try_advance("produce")
+	if _current_id() == "craft" and item_id == "hand_tool":
+		_try_advance("craft")
 
-func _on_building_placed(b: Node) -> void:
-	if _current_id() == "energy" and ("category" in b) and b.category == "energy":
-		_try_advance("energy")
+func _on_transaction(category: String, _amount: float, is_income: bool) -> void:
+	if _current_id() == "sell" and is_income and category == "sales":
+		_try_advance("sell")

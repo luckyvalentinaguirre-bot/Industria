@@ -32,17 +32,22 @@ var difficulty: int = 1   # 0 fácil, 1 normal, 2 difícil
 func reset_for_new_game(p_name: String, p_difficulty: int) -> void:
 	company_name = p_name if p_name.strip_edges() != "" else "Industria S.A."
 	difficulty = p_difficulty
+	# Empezás DESDE CERO: terreno pequeño, poco capital y SIN deuda. La meta ya no
+	# es saldar una deuda heredada sino crecer de un taller a un complejo
+	# industrial (spec §2, §3, §7, §23).
 	match p_difficulty:
-		0: money = 25000.0; debt = 90000.0    # fácil
-		2: money = 10000.0; debt = 150000.0   # difícil
-		_: money = 15000.0; debt = 120000.0   # normal
-	reputation = 50
+		0: money = 5000.0     # fácil
+		2: money = 2500.0     # difícil
+		_: money = 3500.0     # normal
+	debt = 0.0
+	reputation = 40
 	company_level = 1
 	contracts_completed = 0
 	tutorial_active = true
 	tutorial_index = 0
 	day = 1; hour = 8; minute = 0
-	buildable_size = Vector2i(24, 24)
+	# Parcela inicial pequeña; se amplía comprando expansiones (spec §12).
+	buildable_size = Vector2i(12, 12)
 
 # --- Tiempo (gestionado por TimeManager) ------------------------------------
 var day: int = 1

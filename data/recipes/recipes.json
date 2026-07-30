@@ -1,6 +1,13 @@
 {
   "_comment": "Industria V1 - recetas. inputs/outputs en {id: cantidad}. time = segundos de juego por ciclo.",
   "recipes": {
+    "craft_handtool": {
+      "name": "Fabricar herramienta manual",
+      "machine": "workbench",
+      "time": 7.0,
+      "inputs": { "scrap": 4 },
+      "outputs": { "hand_tool": 1 }
+    },
     "smelt_iron": {
       "name": "Fundir hierro",
       "machine": "smelter",

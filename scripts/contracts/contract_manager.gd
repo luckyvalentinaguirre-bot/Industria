@@ -62,9 +62,9 @@ func _gen_typed(type: String) -> Contract:
 	var rep := 4
 	match type:
 		"facil":
-			product = ["metal_plate", "iron_ingot", "copper_part"][randi() % 3]
+			product = ["hand_tool", "metal_plate", "iron_ingot", "copper_part"][randi() % 4]
 			unit = _unit_value(product)
-			amount = randi_range(30, 80); pay_mult = 1.15; pen_mult = 0.2; deadline = randi_range(6, 9); rep = 2
+			amount = randi_range(20, 60); pay_mult = 1.2; pen_mult = 0.2; deadline = randi_range(6, 9); rep = 2
 		"grande":
 			amount = randi_range(250, 500); pay_mult = 1.3; pen_mult = 0.35; deadline = randi_range(10, 14); rep = 6
 		"urgente":

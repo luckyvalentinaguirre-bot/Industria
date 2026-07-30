@@ -1,32 +1,28 @@
 extends Node
-## ObjectiveManager — campaña guiada y metas de la partida (spec §2, §3, §10, §11).
+## ObjectiveManager — campaña guiada DESDE CERO (spec §2, §3, §7, §8, §23).
 ##
-## Da al juego un LOOP con propósito: una secuencia ordenada de objetivos donde
-## cada uno lleva naturalmente al siguiente (reactivar → producir → vender →
-## contratar → crecer → ascender → construir → expandir → saldar la deuda). Cada
-## objetivo tiene recompensa y, cuando aplica, progreso numérico (X/Y) para que
-## el jugador sepa siempre QUÉ hacer, POR QUÉ y CUÁNTO le falta.
+## El juego arranca con un terreno vacío y poco capital. Esta campaña acompaña el
+## crecimiento: banco de trabajo manual → primeras ventas → capital → primera
+## máquina industrial → producción → contratos → personal → línea → expansión →
+## complejo industrial. Cada objetivo lleva naturalmente al siguiente y explica
+## QUÉ hacer, POR QUÉ y CUÁNTO falta (progreso X/Y).
 ##
-## Se apoya en señales del EventBus (no se acopla a los sistemas). Además de la
-## campaña guiada mantiene metas de largo plazo y la condición de victoria
-## (saldar la deuda). Nota de estructura: progresión del juego → scripts/core/.
+## Se apoya en señales del EventBus. Mantiene metas de largo plazo y la condición
+## de victoria (llegar a Complejo Industrial, nivel 5). scripts/core/.
 
-var objectives: Array = []         # [{id, title, done, reward, long, target, progress, hint}]
+var objectives: Array = []         # [{id, title, done, reward, long, target, progress, hint, money}]
 var won: bool = false
-var _initial_debt: float = 0.0
 var _started: bool = false
 
 func _ready() -> void:
 	_define_objectives()
-	EventBus.machine_repaired.connect(_on_repair)
 	EventBus.item_produced.connect(_on_produced)
 	EventBus.transaction.connect(_on_transaction)
 	EventBus.contract_completed.connect(_on_contract)
 	EventBus.worker_hired.connect(_on_worker_hired)
 	EventBus.machine_placed.connect(_on_machine_placed)
 	EventBus.factory_expanded.connect(_on_expanded)
-	EventBus.debt_changed.connect(_on_debt_changed)
-	EventBus.day_passed.connect(_on_day)
+	EventBus.day_passed.connect(func(_d): _check_long_term())
 	EventBus.game_started.connect(_on_game_started)
 	EventBus.game_loaded.connect(_on_game_started)
 	EventBus.money_changed.connect(_on_money)
@@ -35,31 +31,29 @@ func _ready() -> void:
 
 func _on_game_started() -> void:
 	_started = true
-	_initial_debt = maxf(1.0, GameState.debt)
 	EventBus.objectives_updated.emit()
 
-## Campaña guiada: cada paso tiene una RAZÓN dentro del desarrollo de la empresa.
+## Campaña guiada: cada paso tiene una RAZÓN dentro del crecimiento de la empresa.
 func _define_objectives() -> void:
 	objectives = [
-		{"id": "repair", "title": "Reactivá la fundición averiada", "hint": "Seleccioná la fundición y pulsá 🔧 Reparar para que la línea vuelva a producir.", "done": false, "reward": 1500, "long": false},
-		{"id": "iron50", "title": "Producí 50 lingotes de hierro", "hint": "Comprá mineral en 💰 Economía y dejá que la fundición trabaje.", "done": false, "reward": 1500, "long": false, "target": 50, "progress": 0},
-		{"id": "sell", "title": "Vendé tu primer lote en el mercado", "hint": "Abrí 💰 Economía → Vender y convertí producto en dinero.", "done": false, "reward": 1200, "long": false},
-		{"id": "contract", "title": "Cumplí tu primer contrato", "hint": "Aceptá un contrato en 📋 Contratos y entregá lo pedido a tiempo.", "done": false, "reward": 2000, "long": false},
-		{"id": "cash25k", "title": "Reuní $25.000 en caja", "hint": "Vendé producto y cumplí contratos para financiar tu crecimiento.", "done": false, "reward": 2500, "long": false, "target": 25000, "progress": 0},
-		{"id": "hire", "title": "Contratá a tu primer trabajador", "hint": "En 👷 Personal contratá un operario: aumenta la productividad.", "done": false, "reward": 1500, "long": false},
-		{"id": "plates100", "title": "Producí 100 placas metálicas", "hint": "La prensa convierte lingotes en placas: alimentá la cadena.", "done": false, "reward": 2500, "long": false, "target": 100, "progress": 0},
-		{"id": "level2", "title": "Ascendé tu empresa a Nivel 2", "hint": "Sumá valor, máquinas y contratos: desbloquea nuevas construcciones.", "done": false, "reward": 3000, "long": false},
-		{"id": "new_machine", "title": "Construí una máquina nueva", "hint": "Menú ☰ → 🏗 Construcción. Amplía tu capacidad de producción.", "done": false, "reward": 2500, "long": false},
-		{"id": "expand", "title": "Ampliá el terreno de tu fábrica", "hint": "En 🔬 Investigación ampliá el terreno para construir más.", "done": false, "reward": 3000, "long": false},
-		{"id": "halve_debt", "title": "Reducí la deuda a la mitad", "hint": "Pagá deuda desde 💰 Economía con tus ganancias.", "done": false, "reward": 5000, "long": false},
-		{"id": "solvent", "title": "Saldá por completo la deuda", "hint": "Última meta: dejar la empresa libre de deuda.", "done": false, "reward": 10000, "long": false},
+		{"id": "workbench", "title": "Instalá tu banco de trabajo", "hint": "Abrí ☰ Menú → 🏭 Fábrica y construí el Banco de trabajo: tu primer puesto de producción manual.", "done": false, "reward": 800, "long": false},
+		{"id": "craft", "title": "Fabricá tu primera herramienta", "hint": "Comprá chatarra en 💰 Economía; el banco la convierte en herramientas para vender.", "done": false, "reward": 800, "long": false},
+		{"id": "sell", "title": "Vendé tu primer lote", "hint": "Abrí 💰 Economía → Vender y convertí tus herramientas en dinero.", "done": false, "reward": 1000, "long": false},
+		{"id": "cash6k", "title": "Reuní $6.000 de capital", "hint": "Producí y vendé para financiar tu primera máquina industrial.", "done": false, "reward": 1500, "long": false, "target": 6000, "progress": 0, "money": true},
+		{"id": "level2", "title": "Alcanzá Nivel 2 (Pequeño productor)", "hint": "Sumá valor y producción: al subir de nivel se desbloquean las máquinas industriales.", "done": false, "reward": 2000, "long": false},
+		{"id": "first_machine", "title": "Construí tu primera máquina industrial", "hint": "Ya desbloqueada: colocá una Fundición o Prensa desde 🏗 Construcción. ¡Un gran salto!", "done": false, "reward": 2500, "long": false},
+		{"id": "iron50", "title": "Producí 50 lingotes de hierro", "hint": "Comprá mineral y conectá una cinta desde un almacén hacia la fundición.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
+		{"id": "contract", "title": "Cumplí tu primer contrato", "hint": "En 📋 Contratos aceptá un pedido y entregá lo solicitado a tiempo.", "done": false, "reward": 2500, "long": false},
+		{"id": "hire", "title": "Contratá a tu primer trabajador", "hint": "En 👷 Personal contratá un operario: aumenta la productividad de la fábrica.", "done": false, "reward": 1500, "long": false},
+		{"id": "line", "title": "Montá una segunda máquina industrial", "hint": "Encadená máquinas con cintas para formar tu primera línea de producción.", "done": false, "reward": 2500, "long": false},
+		{"id": "expand", "title": "Ampliá el terreno de tu fábrica", "hint": "En 🔬 Tecnología ampliá el terreno para poder construir más.", "done": false, "reward": 3000, "long": false},
+		{"id": "top", "title": "Convertite en Complejo Industrial (Nivel 5)", "hint": "La gran meta: hacé crecer tu taller hasta el mayor complejo industrial de la región.", "done": false, "reward": 15000, "long": false},
 		# Metas de largo plazo (spec §12).
 		{"id": "machines50", "title": "🏭 Construí 50 máquinas", "done": false, "reward": 20000, "long": true},
 		{"id": "million", "title": "💰 Alcanzá $1.000.000 de capital", "done": false, "reward": 25000, "long": true},
 		{"id": "units10k", "title": "⚙️ Producí 10.000 unidades", "done": false, "reward": 20000, "long": true},
 		{"id": "contracts100", "title": "📦 Completá 100 contratos", "done": false, "reward": 30000, "long": true},
 		{"id": "rep100", "title": "⭐ Alcanzá reputación 100", "done": false, "reward": 20000, "long": true},
-		{"id": "corporation", "title": "🏢 Convertite en Corporación (nivel 5)", "done": false, "reward": 50000, "long": true},
 	]
 
 func _find(id: String) -> Dictionary:
@@ -68,21 +62,20 @@ func _find(id: String) -> Dictionary:
 			return o
 	return {}
 
-## Objetivo actual de la campaña: el primer objetivo guiado sin completar.
-## Alimenta el rastreador compacto del HUD (spec §11).
+## Objetivo actual: el primer objetivo guiado sin completar (alimenta el HUD, §11).
 func current() -> Dictionary:
 	for o in objectives:
 		if not o.get("long", false) and not o["done"]:
 			return o
 	return {}
 
-## Texto de progreso legible para el HUD ("32 / 50", "$18.400 / $25.000" o "").
+## Texto de progreso legible ("32 / 50", "$4.200 / $6.000" o "").
 func progress_text(o: Dictionary) -> String:
 	if not o.has("target"):
 		return ""
 	var target := int(o["target"])
 	var prog := int(o.get("progress", 0))
-	if o["id"] == "cash25k":
+	if o.get("money", false):
 		return "%s / %s" % [Fmt.money(prog), Fmt.money(target)]
 	return "%d / %d" % [prog, target]
 
@@ -129,7 +122,7 @@ func _complete(id: String) -> void:
 	EventBus.objective_completed.emit(id, o["title"])
 	EventBus.objectives_updated.emit()
 	EventBus.notify.emit("Objetivo cumplido: %s (+%s)" % [o["title"], Fmt.money(reward)], "success")
-	if id == "solvent":
+	if id == "top":
 		_win()
 
 func completed_count() -> int:
@@ -140,14 +133,11 @@ func completed_count() -> int:
 	return n
 
 # --- Detección --------------------------------------------------------------
-func _on_repair(_m: Node) -> void:
-	_complete("repair")
-
 func _on_produced(item_id: String, qty: int) -> void:
-	if item_id == "iron_ingot":
+	if item_id == "hand_tool":
+		_complete("craft")
+	elif item_id == "iron_ingot":
 		_advance("iron50", qty)
-	elif item_id == "metal_plate":
-		_advance("plates100", qty)
 	_check_long_term()
 
 func _on_transaction(category: String, _amount: float, is_income: bool) -> void:
@@ -158,15 +148,26 @@ func _on_contract(_c: Resource) -> void:
 	_complete("contract")
 
 func _on_worker_hired(_w: Node) -> void:
-	# Sólo cuenta la plantilla real (los operarios ambientales no se añaden a ella).
 	if GameManager.workers and GameManager.workers.workers.size() >= 1:
 		_complete("hire")
 
-func _on_machine_placed(_m: Node) -> void:
-	# El escenario inicial coloca máquinas ANTES de arrancar la partida; sólo
-	# cuentan las que construye el jugador una vez iniciado el juego.
-	if _started:
-		_complete("new_machine")
+func _on_machine_placed(m: Node) -> void:
+	var mid := String(m.machine_id) if ("machine_id" in m) else ""
+	if mid == "workbench":
+		_complete("workbench")
+		return
+	# Máquina industrial (cualquiera que no sea el banco de trabajo).
+	_complete("first_machine")
+	if _industrial_count() >= 2:
+		_complete("line")
+
+func _industrial_count() -> int:
+	var n := 0
+	if GameManager.machines:
+		for m in GameManager.machines.machines:
+			if String(m.machine_id) != "workbench":
+				n += 1
+	return n
 
 func _on_expanded(_size: Vector2i) -> void:
 	_complete("expand")
@@ -174,19 +175,12 @@ func _on_expanded(_size: Vector2i) -> void:
 func _on_level(level: int, _name: String) -> void:
 	if level >= 2:
 		_complete("level2")
+	if level >= 5:
+		_complete("top")
 	_check_long_term()
 
 func _on_money(money: float) -> void:
-	_set_progress("cash25k", int(money))
-	_check_long_term()
-
-func _on_debt_changed(debt: float) -> void:
-	if _initial_debt > 1.0 and debt <= _initial_debt * 0.5:
-		_complete("halve_debt")
-	if debt <= 0.0:
-		_complete("solvent")
-
-func _on_day(_day: int) -> void:
+	_set_progress("cash6k", int(money))
 	_check_long_term()
 
 ## Metas de largo plazo: se comprueban por métricas reales de la simulación.
@@ -201,8 +195,6 @@ func _check_long_term() -> void:
 		_complete("contracts100")
 	if GameState.reputation >= 100:
 		_complete("rep100")
-	if GameState.company_level >= 5:
-		_complete("corporation")
 
 func _units_produced() -> int:
 	var total := 0
@@ -216,15 +208,14 @@ func _win() -> void:
 		return
 	won = true
 	EventBus.game_won.emit()
-	EventBus.notify.emit("¡La empresa está saneada! Has salvado Industria.", "success")
+	EventBus.notify.emit("¡Complejo industrial alcanzado! Tu taller se convirtió en una gran industria.", "success")
 
 # --- Serialización ----------------------------------------------------------
 func to_dict() -> Dictionary:
-	return { "objectives": objectives.duplicate(true), "won": won, "initial_debt": _initial_debt }
+	return { "objectives": objectives.duplicate(true), "won": won }
 
 func from_dict(data: Dictionary) -> void:
 	if data.has("objectives"):
 		objectives = (data["objectives"] as Array).duplicate(true)
 	won = bool(data.get("won", false))
-	_initial_debt = float(data.get("initial_debt", _initial_debt))
 	EventBus.objectives_updated.emit()

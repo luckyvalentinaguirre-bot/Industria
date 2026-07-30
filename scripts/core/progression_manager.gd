@@ -7,20 +7,31 @@ extends Node
 ##
 ## Nota de estructura: progresión global → vive en scripts/core/.
 
+## Niveles industriales alcanzables DESDE CERO (spec §7). value = caja + capital
+## invertido. Cada nivel desbloquea nuevas máquinas/edificios.
 const LEVELS := [
 	{ "name": "Taller", "value": 0, "machines": 0, "contracts": 0 },
-	{ "name": "Pequeña fábrica", "value": 40000, "machines": 2, "contracts": 1 },
-	{ "name": "Industria", "value": 120000, "machines": 6, "contracts": 5 },
-	{ "name": "Complejo industrial", "value": 350000, "machines": 15, "contracts": 15 },
-	{ "name": "Corporación", "value": 800000, "machines": 25, "contracts": 30 },
+	{ "name": "Pequeño productor", "value": 6000, "machines": 1, "contracts": 0 },
+	{ "name": "Fabricante", "value": 20000, "machines": 3, "contracts": 2 },
+	{ "name": "Industrial", "value": 60000, "machines": 8, "contracts": 8 },
+	{ "name": "Complejo industrial", "value": 150000, "machines": 18, "contracts": 20 },
 ]
 
-# Nivel de empresa mínimo para desbloquear cada construcción (capítulos).
+# Nivel de empresa mínimo para desbloquear cada construcción (capítulos). El
+# banco de trabajo NO está listado → disponible desde el nivel 1 (etapa manual).
+# La PRIMERA máquina industrial (fundición/prensa) se gana al alcanzar nivel 2.
 const UNLOCK_LEVEL := {
-	"assembler": 2,
-	"large_storage": 2,
+	"small_storage": 1,
+	"smelter": 2,
+	"press": 2,
+	"generator": 2,
+	"splitter": 2,
+	"merger": 2,
+	"assembler": 3,
+	"large_storage": 3,
 	"substation": 3,
 	"filter": 3,
+	"workshop": 3,
 }
 
 func _ready() -> void:
@@ -64,7 +75,7 @@ func evaluate() -> void:
 	if new_level > GameState.company_level:
 		var old := GameState.company_level
 		GameState.company_level = new_level
-		var bonus: float = new_level * 5000.0
+		var bonus: float = new_level * 2500.0
 		GameManager.economy.earn(bonus, "misc")
 		EventBus.company_level_changed.emit(new_level, level_name())
 		EventBus.notify.emit("¡Tu empresa ascendió a %s! (+%s)" % [level_name(), Fmt.money(bonus)], "success")

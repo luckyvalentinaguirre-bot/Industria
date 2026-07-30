@@ -5,8 +5,9 @@ extends PanelContainer
 ## mercado (comprar materias primas a proveedores y vender productos).
 
 const RAW_ITEMS := ["iron_ore", "copper_ore", "scrap", "oil", "chemicals"]
-const SELL_ITEMS := ["metal_plate", "copper_part", "industrial_part",
-	"metal_piece", "industrial_comp", "simple_motor", "iron_ingot", "copper_ingot"]
+const SELL_ITEMS := ["hand_tool", "metal_plate", "copper_part", "industrial_part",
+	"metal_piece", "industrial_comp", "simple_motor", "iron_ingot", "copper_ingot",
+	"recycled_metal"]
 
 var _summary_lbl: Label
 var _debt_spin: SpinBox

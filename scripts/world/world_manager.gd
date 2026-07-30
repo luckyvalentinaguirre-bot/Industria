@@ -60,53 +60,30 @@ func _on_day_upkeep(_day: int) -> void:
 		GameManager.economy.force_spend(level * 250.0, "misc")
 
 func _emit_world_ready() -> void:
-	# Cargar guardado (Continuar/Cargar) o crear la fábrica inicial (Nueva partida).
+	# Cargar guardado (Continuar/Cargar) o arrancar DESDE CERO (nueva partida).
 	if GameManager.pending_load:
 		GameManager.save.load_game()
 	else:
 		_setup_initial_scenario()
-	# Vida ambiental del patio (carretilla patrullando + operarios).
-	GameManager.vehicles.spawn_ambient()
-	GameManager.workers.spawn_ambient(4)
+	# Vida ambiental: NO al empezar (terreno vacío = arranque desde cero y menos
+	# nodos = mejor rendimiento). Aparece cuando la fábrica crece (nivel ≥ 2).
+	EventBus.company_level_changed.connect(_on_level_ambient)
 	EventBus.world_ready.emit()
 
-## Fábrica deteriorada de partida: un almacén y una fundición vieja averiada.
+var _ambient_spawned: bool = false
+func _on_level_ambient(level: int, _name: String) -> void:
+	if _ambient_spawned or level < 2:
+		return
+	_ambient_spawned = true
+	# Poca vida ambiental, proporcional al crecimiento (rendimiento, spec §24/§25).
+	GameManager.vehicles.spawn_ambient()
+	GameManager.workers.spawn_ambient(2)
+
+## Arranque DESDE CERO (spec §2, §3): terreno vacío, sin máquinas ni edificios.
+## Sólo un pequeño lote de chatarra para que el jugador fabrique su primer
+## producto en el banco de trabajo y consiga sus primeros ingresos (etapa manual).
 func _setup_initial_scenario() -> void:
-	# Fábrica HEREDADA y deteriorada, ya compuesta como una LÍNEA DE PRODUCCIÓN
-	# (spec §2/§16): almacén → fundición → prensa → ensambladora → almacén, con
-	# cintas conectándolas y su propia energía. Se lee como una fábrica desde el
-	# primer segundo; el jugador la revive (repara la fundición) y la mejora.
-	var g := GameManager.grid
-
-	# Eje central de la línea (columna X ~= centro del terreno construible).
-	var raw: Building = _place_building("large_storage", Vector2i(15, 8))     # materia prima (fondo) 5x5
-	var smelter: Machine = _place_machine("smelter", Vector2i(16, 15))        # 3x3
-	var press: Machine = _place_machine("press", Vector2i(16, 19))            # 2x2
-	var assembler: Machine = _place_machine("assembler", Vector2i(15, 23))    # 4x3
-	var out_store: Building = _place_building("large_storage", Vector2i(15, 27)) # productos (frente) 5x5
-
-	# Energía propia a un lado.
-	var gen: Building = _place_building("generator", Vector2i(24, 14))
-	var sub: Building = _place_building("substation", Vector2i(25, 19))
-
-	# Recetas de la cadena hierro → lingote → placa → pieza metálica.
-	smelter.set_recipe("smelt_iron")
-	press.set_recipe("press_plate")
-	assembler.set_recipe("assemble_metal_piece")
-
-	# La fundición está deteriorada (el jugador la reparará: paso 1 del tutorial).
-	smelter.set_condition(35.0)
-
-	# Cintas gratis que enlazan la línea (transporte visible entre estaciones).
-	var t := GameManager.transport
-	t.create_conveyor(raw, smelter, false)
-	t.create_conveyor(smelter, press, false)
-	t.create_conveyor(press, assembler, false)
-	t.create_conveyor(assembler, out_store, false)
-
-	# Materia prima inicial y combustible para el generador.
-	GameManager.storage.deposit("iron_ore", 120)
-	GameManager.storage.deposit("fuel", 80)
+	GameManager.storage.deposit("scrap", 24)
 
 ## Coloca una máquina del escenario y ocupa su área en el grid.
 func _place_machine(id: String, origin: Vector2i) -> Machine:
@@ -563,13 +540,9 @@ func _setup_floor_markings(parent: Node3D, ext: float) -> void:
 	yellow.emission_enabled = true
 	yellow.emission = Color(0.6, 0.5, 0.05)
 	yellow.emission_energy_multiplier = 0.3
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color(0.8, 0.8, 0.82)
-	white.roughness = 0.7
 
-	# Carril de circulación de camiones (dos líneas paralelas hasta el centro).
-	for lz in [5.0, 7.0]:
-		_pbox(parent, Vector3(ext, 0.03, 0.2), Vector3(-ext * 0.5, 0.04, lz), white)
+	# (Se retiraron las líneas de carril BLANCAS: quads finos a ras del suelo que
+	#  parpadeaban como "líneas blancas" al mover la cámara — spec §27.)
 	# Flechas/franjas de peligro cerca del portón oeste.
 	for i in range(5):
 		var stripe := _pbox(parent, Vector3(0.5, 0.03, 1.6), Vector3(-ext + 2 + i * 0.9, 0.04, 6), yellow)

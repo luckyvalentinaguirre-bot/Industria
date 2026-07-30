@@ -182,8 +182,19 @@ func _build_topbar() -> void:
 	bar.offset_top = 8
 	root.add_child(bar)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 14)
+	h.add_theme_constant_override("separation", 12)
 	bar.add_child(h)
+
+	# Botón de MENÚ (hamburguesa) — prominente y siempre visible, primer elemento
+	# de la barra superior. Antes vivía en una barra inferior con rect de altura
+	# negativa (preset BOTTOM_LEFT + offsets) que lo dejaba fuera de pantalla.
+	var menu_btn := UITheme.make_primary_button("☰  MENÚ")
+	menu_btn.custom_minimum_size = Vector2(120, 40)
+	menu_btn.add_theme_font_size_override("font_size", 18)
+	menu_btn.tooltip_text = "Menú principal (Fábrica, Producción, Economía, Contratos…)"
+	menu_btn.pressed.connect(_toggle_menu)
+	h.add_child(menu_btn)
+	h.add_child(_vsep())
 
 	# HUD mínimo: sólo lo esencial permanente (el resto vive en los menús).
 	_money_lbl = _stat(h, UITheme.ACCENT2, 110)
@@ -267,19 +278,8 @@ func _toggle_right(panel: Control) -> void:
 			p.visible = false
 	panel.visible = show
 
-# --- Barra inferior: sólo el botón de Menú ----------------------------------
+# --- Sistema de menú desplegable (abre desde el botón ☰ de la barra superior) -
 func _build_bottom_bar() -> void:
-	var bar := UITheme.make_panel(UITheme.BG)
-	bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	bar.offset_left = 8
-	bar.offset_bottom = -8
-	root.add_child(bar)
-	var menu_btn := UITheme.make_button("☰  MENÚ")
-	menu_btn.custom_minimum_size = Vector2(168, 48)
-	menu_btn.add_theme_font_size_override("font_size", 18)
-	menu_btn.add_theme_color_override("font_color", UITheme.ACCENT)
-	menu_btn.pressed.connect(_toggle_menu)
-	bar.add_child(menu_btn)
 	_build_menu_panel()
 	# El catálogo de construcción se cierra al salir del modo construcción.
 	EventBus.build_mode_changed.connect(func(active, _k):
@@ -288,26 +288,28 @@ func _build_bottom_bar() -> void:
 
 func _build_menu_panel() -> void:
 	menu_panel = UITheme.make_panel(UITheme.BG)
-	menu_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	menu_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	menu_panel.offset_left = 8
-	menu_panel.offset_bottom = -54
+	menu_panel.offset_top = 58           # justo debajo de la barra superior
 	menu_panel.custom_minimum_size = Vector2(240, 0)
 	menu_panel.visible = false
 	root.add_child(menu_panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 3)
 	menu_panel.add_child(v)
-	v.add_child(UITheme.make_title("Menú"))
-	_menu_item(v, "🏗  Construcción", _on_construction)
-	_menu_item(v, "🏭  Producción", _on_storage)      # inventario/materiales de producción
-	_menu_item(v, "🚚  Logística", _on_automation)     # reglas/prioridades de flujo
-	_menu_item(v, "⚡  Energía", _on_energy)
-	_menu_item(v, "💰  Economía", _on_finance)
-	_menu_item(v, "📋  Contratos", _on_contracts)
-	_menu_item(v, "🔬  Investigación", _on_upgrades)
+	v.add_child(UITheme.make_title("INDUSTRIA"))
+	_menu_item(v, "🏭  Fábrica (construir)", _on_construction)
+	_menu_item(v, "📦  Producción", _on_storage)
+	_menu_item(v, "🚚  Logística", _on_automation)
 	_menu_item(v, "👷  Personal", _on_workers)
-	_menu_item(v, "📊  Estadísticas", _on_objectives)
-	_menu_item(v, "⚙  Configuración", _on_config)
+	_menu_item(v, "💰  Economía", _on_finance)
+	_menu_item(v, "📈  Mercado", _on_finance)
+	_menu_item(v, "🔬  Tecnología", _on_upgrades)
+	_menu_item(v, "📋  Contratos", _on_contracts)
+	_menu_item(v, "🏆  Objetivos", _on_objectives)
+	_menu_item(v, "📊  Progreso", _on_objectives)
+	_menu_item(v, "💾  Guardar", _on_save)
+	_menu_item(v, "⚙  Ajustes", _on_config)
 
 func _menu_item(v: VBoxContainer, text: String, cb: Callable) -> void:
 	var b := UITheme.make_button(text)
@@ -329,9 +331,12 @@ func _on_construction() -> void:
 func _on_energy() -> void:
 	EventBus.notify.emit("Energía: usá el HUD (⚡) y coloca Generador/Subestación desde Construcción.", "info")
 
-func _on_config() -> void:
-	EventBus.notify.emit("Configuración: 💾 Guardar / 📂 Cargar disponibles.", "info")
+func _on_save() -> void:
 	GameManager.save.save_game()
+	EventBus.notify.emit("Partida guardada.", "success")
+
+func _on_config() -> void:
+	EventBus.notify.emit("Ajustes: la partida se guarda con 💾 Guardar y automáticamente cada 2 días.", "info")
 
 func _on_finance() -> void: _toggle_right(finance_ui)
 func _on_contracts() -> void: _toggle_right(contracts_panel); _refresh_contracts()
@@ -726,16 +731,16 @@ func _show_intro() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	panel.add_child(v)
-	v.add_child(UITheme.make_title("Bienvenido a Industria"))
-	var text := "Heredas una fábrica endeudada y deteriorada. Tu meta: ponerla a producir, cumplir contratos y saldar la deuda.\n\n" \
+	v.add_child(UITheme.make_title("Industria — Construí. Producí. Crecé."))
+	var text := "Tenés un terreno vacío y un pequeño capital. Tu objetivo: convertirlo en una gran industria, desde cero.\n\n" \
 		+ "Primeros pasos:\n" \
-		+ "1. Selecciona la fundición averiada y repárala.\n" \
-		+ "2. Compra mineral de hierro en Finanzas → Comprar.\n" \
-		+ "3. Conecta el almacén a la fundición con una Cinta.\n" \
-		+ "4. Deja que produzca lingotes y véndelos o cumple un contrato.\n\n" \
-		+ "Cámara: WASD/bordes mover · Q/E rotar · rueda zoom · G cuadrícula.\n" \
-		+ "Construcción: menú izquierdo · R rota · Esc cancela.\n" \
-		+ "Velocidad: ⏸ ▶ ▶▶ ▶▶▶ arriba a la derecha."
+		+ "1. Abrí ☰ MENÚ (arriba a la izquierda) → 🏭 Fábrica y construí tu Banco de trabajo.\n" \
+		+ "2. Comprá chatarra en 💰 Economía. El banco la convierte en herramientas.\n" \
+		+ "3. Vendé tus herramientas para conseguir tus primeros ingresos.\n" \
+		+ "4. Crecé, subí de nivel y desbloqueá tu primera máquina industrial.\n\n" \
+		+ "Cámara: WASD/bordes mover · Q/E rotar · rueda zoom.\n" \
+		+ "Construcción: R rota · Esc cancela.  ·  Velocidad: ⏸ ▶ ▶▶ ▶▶▶ arriba a la derecha.\n" \
+		+ "Seguí el objetivo 🎯 arriba en el centro: siempre te dice qué hacer."
 	var lbl := UITheme.make_label(text, 13)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.custom_minimum_size = Vector2(560, 0)

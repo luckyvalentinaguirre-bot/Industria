@@ -71,9 +71,9 @@ func _show_intro() -> void:
 	var v := _center_panel(600, 320)
 	v.add_child(UITheme.make_title("INDUSTRIA"))
 	var lines := [
-		"El sector industrial está en expansión.",
-		"Una pequeña planta acaba de comenzar sus operaciones.",
-		"Tu objetivo: convertirla en un imperio industrial.",
+		"Conseguiste un terreno vacío y un pequeño capital.",
+		"Empezás desde cero: un banco de trabajo y tus primeras ventas.",
+		"Tu objetivo: convertir ese taller en el mayor complejo industrial de la región.",
 	]
 	for t in lines:
 		var l := UITheme.make_label(t, 15)
