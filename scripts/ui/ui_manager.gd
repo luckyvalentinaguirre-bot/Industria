@@ -61,7 +61,15 @@ func _build_ui() -> void:
 	_build_toasts()
 	_connect_signals()
 	_refresh_hud()
-	if not GameManager.save.has_save():
+	# El HUD/UI del juego SOLO se ve dentro de la partida, no en el menú principal.
+	layer.visible = false
+	EventBus.world_ready.connect(_on_enter_game)
+
+func _on_enter_game() -> void:
+	if layer:
+		layer.visible = true
+	# Bienvenida temporal sólo en partida nueva (desaparece sola).
+	if not GameManager.pending_load:
 		_show_intro()
 
 # --- Banner del tutorial (centro superior) ----------------------------------
@@ -109,19 +117,15 @@ func _build_topbar() -> void:
 	h.add_theme_constant_override("separation", 14)
 	bar.add_child(h)
 
+	# HUD mínimo: sólo lo esencial permanente (el resto vive en los menús).
 	_money_lbl = _stat(h, UITheme.ACCENT2, 110)
-	h.add_child(_vsep())
-	_value_lbl = _stat(h, UITheme.TEXT, 130)
-	h.add_child(_vsep())
-	_debt_lbl = _stat(h, UITheme.WARN, 120)
-	h.add_child(_vsep())
-	_rep_lbl = _stat(h, UITheme.ACCENT, 70)
-	h.add_child(_vsep())
-	_level_lbl = _stat(h, UITheme.ACCENT2, 180)
-	h.add_child(_vsep())
-	_clock_lbl = _stat(h, UITheme.TEXT, 140)
-	h.add_child(_vsep())
-	_power_lbl = _stat(h, UITheme.ACCENT, 120)
+	_level_lbl = _stat(h, UITheme.ACCENT, 170)
+	_clock_lbl = _stat(h, UITheme.TEXT, 150)
+	_power_lbl = _stat(h, UITheme.ACCENT, 130)
+	# valor/deuda/reputación se consultan en el panel de Economía (no en el HUD).
+	_value_lbl = null
+	_debt_lbl = null
+	_rep_lbl = null
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -322,9 +326,9 @@ func _refresh_hud() -> void:
 	if _money_lbl == null:
 		return
 	_money_lbl.text = "💰 " + Fmt.money(GameState.money)
-	_value_lbl.text = "🏭 " + Fmt.money(_factory_value())
-	_debt_lbl.text = "🏦 " + Fmt.money(GameState.debt)
-	_rep_lbl.text = "⭐ %d" % GameState.reputation
+	if _value_lbl: _value_lbl.text = "🏭 " + Fmt.money(_factory_value())
+	if _debt_lbl: _debt_lbl.text = "🏦 " + Fmt.money(GameState.debt)
+	if _rep_lbl: _rep_lbl.text = "⭐ %d" % GameState.reputation
 	_level_lbl.text = "🏢 N%d · %s" % [GameState.company_level, GameManager.progression.level_name()]
 	_clock_lbl.text = "📅 " + TimeManager.get_clock_string()
 	var ps: Dictionary = GameManager.power.get_status()
@@ -625,7 +629,15 @@ func _show_intro() -> void:
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.custom_minimum_size = Vector2(560, 0)
 	v.add_child(lbl)
-	var close := UITheme.make_button("¡Empezar!")
+	var close := UITheme.make_primary_button("¡Empezar!")
 	close.pressed.connect(panel.queue_free)
 	v.add_child(close)
 	root.add_child(panel)
+	# Se cierra sola tras unos segundos (mensaje temporal, no permanente).
+	var tw := create_tween()
+	tw.tween_interval(9.0)
+	tw.tween_callback(_free_node.bind(panel))
+
+func _free_node(n: Node) -> void:
+	if is_instance_valid(n):
+		n.queue_free()

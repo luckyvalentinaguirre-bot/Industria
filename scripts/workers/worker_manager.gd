@@ -53,6 +53,21 @@ func hire(type_id: String, charge: bool = true) -> Worker:
 		EventBus.notify.emit("Contratado: %s" % w.worker_name, "info")
 	return w
 
+## Trabajadores decorativos (sin salario) que dan vida al patio, optimizados.
+func spawn_ambient(n: int) -> void:
+	if _container == null:
+		return
+	var roles := ["operator", "mechanic", "engineer", "manager"]
+	for i in range(n):
+		var type_id: String = roles[i % roles.size()]
+		if not types.has(type_id):
+			continue
+		var w: Worker = WorkerScript.new()
+		_container.add_child(w)
+		w.setup(type_id, types[type_id])
+		w.global_position = Vector3(randf_range(-16, 16), 0, randf_range(-10, 24))
+		# No se añade a `workers`: es ambiental, no cuenta para salarios ni gestión.
+
 func fire(w: Worker) -> void:
 	if not workers.has(w):
 		return

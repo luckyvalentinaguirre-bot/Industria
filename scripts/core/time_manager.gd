@@ -7,7 +7,7 @@ extends Node
 ## en lugar de usar su propio _process, evitando cálculos dispersos por frame.
 
 ## Minutos de juego que transcurren por cada segundo real a velocidad x1.
-const GAME_MINUTES_PER_REAL_SECOND := 12.0
+const GAME_MINUTES_PER_REAL_SECOND := 5.0
 ## Velocidades de simulación seleccionables.
 const SPEED_STEPS: Array[float] = [0.0, 1.0, 2.0, 3.0]
 
