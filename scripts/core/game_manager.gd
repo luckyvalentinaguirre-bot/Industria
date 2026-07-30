@@ -89,6 +89,14 @@ func _add(path: String, node_name: String) -> Node:
 # --- Registro del mundo -----------------------------------------------------
 ## Llamado por WorldManager cuando la escena 3D está lista, pasando contenedores.
 func register_world(world_node: Node3D, grid_node: Node3D, containers: Dictionary) -> void:
+	# Limpia colecciones de un mundo anterior (los nodos ya se liberaron al
+	# cambiar de escena); evita referencias colgantes al iniciar/cargar partida.
+	machines.machines.clear()
+	buildings.buildings.clear()
+	transport.conveyors.clear()
+	workers.workers.clear()
+	if "stock" in storage and storage.stock:
+		storage.stock.clear()
 	world = world_node
 	grid = grid_node
 	machines.set_container(containers.get("machines"))
@@ -99,6 +107,24 @@ func register_world(world_node: Node3D, grid_node: Node3D, containers: Dictionar
 
 func _on_world_ready() -> void:
 	start_game()
+
+# --- Flujo de partida (lo usa el menú principal) ----------------------------
+var pending_load: bool = false
+const FACTORY_SCENE := "res://scenes/main/main.tscn"
+
+## Inicia una partida nueva con nombre y dificultad, y carga la fábrica.
+func request_new_game(company_name: String, difficulty: int) -> void:
+	GameState.reset_for_new_game(company_name, difficulty)
+	pending_load = false
+	get_tree().change_scene_to_file(FACTORY_SCENE)
+
+## Continúa / carga el último guardado (una sola ranura en la V1).
+func request_load_game() -> bool:
+	if not save.has_save():
+		return false
+	pending_load = true
+	get_tree().change_scene_to_file(FACTORY_SCENE)
+	return true
 
 # --- Ciclo de vida ----------------------------------------------------------
 func start_game() -> void:

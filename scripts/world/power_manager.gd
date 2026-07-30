@@ -47,7 +47,14 @@ func unregister_building(b: Building) -> void:
 	_gen_has_fuel.erase(b.uid)
 
 # --- Cálculo de capacidad y deslastre ---------------------------------------
-func _on_tick(_delta: float) -> void:
+var _accum: float = 0.0
+
+func _on_tick(delta: float) -> void:
+	# Optimización: recalcular la red ~2 veces/seg en vez de cada frame.
+	_accum += delta
+	if _accum < 0.5:
+		return
+	_accum = 0.0
 	_recompute()
 
 func _recompute() -> void:

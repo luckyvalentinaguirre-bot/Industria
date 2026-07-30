@@ -26,6 +26,23 @@ var company_level: int = 1
 var contracts_completed: int = 0
 var tutorial_active: bool = true
 var tutorial_index: int = 0
+var difficulty: int = 1   # 0 fácil, 1 normal, 2 difícil
+
+## Reinicia el estado para una partida nueva, aplicando la dificultad elegida.
+func reset_for_new_game(p_name: String, p_difficulty: int) -> void:
+	company_name = p_name if p_name.strip_edges() != "" else "Industria S.A."
+	difficulty = p_difficulty
+	match p_difficulty:
+		0: money = 25000.0; debt = 90000.0    # fácil
+		2: money = 10000.0; debt = 150000.0   # difícil
+		_: money = 15000.0; debt = 120000.0   # normal
+	reputation = 50
+	company_level = 1
+	contracts_completed = 0
+	tutorial_active = true
+	tutorial_index = 0
+	day = 1; hour = 8; minute = 0
+	buildable_size = Vector2i(24, 24)
 
 # --- Tiempo (gestionado por TimeManager) ------------------------------------
 var day: int = 1
@@ -52,6 +69,7 @@ func to_dict() -> Dictionary:
 		"contracts_completed": contracts_completed,
 		"tutorial_active": tutorial_active,
 		"tutorial_index": tutorial_index,
+		"difficulty": difficulty,
 		"day": day,
 		"hour": hour,
 		"minute": minute,
@@ -70,6 +88,7 @@ func from_dict(data: Dictionary) -> void:
 	contracts_completed = int(data.get("contracts_completed", contracts_completed))
 	tutorial_active = bool(data.get("tutorial_active", false))
 	tutorial_index = int(data.get("tutorial_index", tutorial_index))
+	difficulty = int(data.get("difficulty", difficulty))
 	day = int(data.get("day", day))
 	hour = int(data.get("hour", hour))
 	minute = int(data.get("minute", minute))

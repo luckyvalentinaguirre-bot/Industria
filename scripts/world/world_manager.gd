@@ -60,8 +60,10 @@ func _on_day_upkeep(_day: int) -> void:
 		GameManager.economy.force_spend(level * 250.0, "misc")
 
 func _emit_world_ready() -> void:
-	# Escenario inicial: una fábrica deteriorada (spec §26).
-	if not GameManager.save.has_save():
+	# Cargar guardado (Continuar/Cargar) o crear la fábrica inicial (Nueva partida).
+	if GameManager.pending_load:
+		GameManager.save.load_game()
+	else:
 		_setup_initial_scenario()
 	# Vida ambiental del patio (carretilla patrullando).
 	GameManager.vehicles.spawn_ambient()
