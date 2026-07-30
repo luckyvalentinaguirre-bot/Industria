@@ -36,6 +36,8 @@ func _ready() -> void:
 	grid_size = GameState.grid_size
 	_build_visual()
 	_build_border()
+	if _mesh_instance:
+		_mesh_instance.visible = false   # grid oculto por completo fuera de construcción
 	if _border:
 		_border.visible = false   # el marco del terreno sólo se ve al construir
 	EventBus.grid_visibility_changed.connect(_on_grid_visibility_changed)
@@ -56,6 +58,8 @@ func _on_build_mode(active: bool, _kind: String) -> void:
 func set_build_active(active: bool) -> void:
 	_build_active = active
 	_target_intensity = BUILD_INTENSITY if active else IDLE_INTENSITY
+	if _mesh_instance:
+		_mesh_instance.visible = active   # sin malla de grid = sin líneas al mover la cámara
 	if _border:
 		_border.visible = active
 	if active:

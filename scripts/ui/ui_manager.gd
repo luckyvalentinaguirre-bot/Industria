@@ -139,9 +139,10 @@ func _build_topbar() -> void:
 		h.add_child(b)
 
 func _stat(h: HBoxContainer, color: Color, min_w: int) -> Label:
-	var l := UITheme.make_label("", 16, color)
+	var l := UITheme.make_label("", 15, color)
 	l.custom_minimum_size = Vector2(min_w, 0)
-	h.add_child(l)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(UITheme.chip_panel(l))
 	return l
 
 func _vsep() -> VSeparator:

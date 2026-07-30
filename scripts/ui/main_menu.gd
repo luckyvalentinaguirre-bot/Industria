@@ -87,22 +87,36 @@ func _show_intro() -> void:
 
 # --- Menú principal ---------------------------------------------------------
 func _show_menu() -> void:
-	var v := _center_panel(420, 470)
-	var title := UITheme.make_label("INDUSTRIA", 40, UITheme.ACCENT)
+	var v := _center_panel(440, 520)
+	var title := UITheme.make_label("INDUSTRIA", 42, UITheme.ACCENT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(title)
+	var tag := UITheme.make_label("CONSTRUYE. PRODUCE. PROGRESA.", 13, UITheme.MUTED)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(tag)
 	v.add_child(UITheme.hsep())
-	_menu_btn(v, "▶  Nueva Partida", _show_new_game)
-	_menu_btn(v, "⏵  Continuar", _on_continue)
-	_menu_btn(v, "📂  Cargar Partida", _show_load)
-	_menu_btn(v, "⚙  Configuración", _show_config)
-	_menu_btn(v, "ℹ  Créditos", _show_credits)
-	_menu_btn(v, "✕  Salir", func(): get_tree().quit())
 
-func _menu_btn(v: VBoxContainer, text: String, cb: Callable) -> void:
-	var b := UITheme.make_button(text)
-	b.custom_minimum_size = Vector2(0, 42)
+	var info: Dictionary = GameManager.save.get_save_info()
+	var has_save: bool = not info.is_empty()
+	# CONTINUAR: destacado si hay partida; deshabilitado si no.
+	_menu_btn(v, "▶  Continuar", _on_continue, has_save, not has_save)
+	if has_save:
+		var sub := UITheme.make_label("%s · Día %d · %s · Nivel %d" % [
+			info["company"], int(info["day"]), Fmt.money(info["money"]), int(info["level"])], 11, UITheme.MUTED)
+		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(sub)
+	_menu_btn(v, "＋  Nueva Partida", _show_new_game, not has_save)
+	_menu_btn(v, "📁  Cargar Partida", _show_load)
+	_menu_btn(v, "🏆  Desafíos", func(): _notice("Desafíos: próximamente."))
+	_menu_btn(v, "⚙  Ajustes", _show_config)
+	_menu_btn(v, "ℹ  Créditos", _show_credits)
+	_menu_btn(v, "⏻  Salir", func(): get_tree().quit())
+
+func _menu_btn(v: VBoxContainer, text: String, cb: Callable, primary: bool = false, disabled: bool = false) -> void:
+	var b := UITheme.make_primary_button(text) if primary else UITheme.make_button(text)
+	b.custom_minimum_size = Vector2(0, 44)
 	b.add_theme_font_size_override("font_size", 16)
+	b.disabled = disabled
 	b.pressed.connect(cb)
 	v.add_child(b)
 
