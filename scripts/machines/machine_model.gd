@@ -406,6 +406,8 @@ func set_state(state: int) -> void:
 		_glow_mat.emission_energy_multiplier = 0.5
 
 func _process(delta: float) -> void:
+	if TimeManager.time_scale <= 0.0:
+		return   # pausa real: las máquinas dejan de animarse
 	var running := _state == Machine.State.RUNNING
 	var t := Time.get_ticks_msec() / 1000.0
 	match _anim_kind:

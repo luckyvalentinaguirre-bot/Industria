@@ -22,6 +22,7 @@ func _ready() -> void:
 	_test_logistics_relay()
 	_test_expansion()
 	_test_market()
+	_test_machine_upgrade()
 	_test_contract_variety()
 	_test_upgrades()
 	_test_vehicles()
@@ -132,6 +133,14 @@ func _test_expansion() -> void:
 	_check("Expansión: celda central dentro del terreno inicial", inside)
 	var grew: bool = grid.expand(8)
 	_check("Expansión: ampliar aumenta el terreno construible", grew and GameState.buildable_size == Vector2i(32, 32))
+
+func _test_machine_upgrade() -> void:
+	var m: Machine = GameManager.machines.create_machine("press", Vector2i(30, 30))
+	GameState.money = 100000.0
+	var before: float = m.level_speed_mult()
+	var ok: bool = m.upgrade()
+	_check("Mejora de máquina: sube de nivel y velocidad", ok and m.level == 2 and m.level_speed_mult() > before)
+	_check("Mejora de máquina: el nombre muestra el nivel (II)", m.display_name().ends_with("II"))
 
 func _test_market() -> void:
 	var m = GameManager.market

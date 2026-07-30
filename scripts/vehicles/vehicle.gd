@@ -29,6 +29,8 @@ func setup(waypoints: Array, color: Color, p_kind: String = "truck", p_loop: boo
 		_build_visual(color)
 
 func _process(delta: float) -> void:
+	if TimeManager.time_scale <= 0.0:
+		return   # pausa real: los vehículos se detienen
 	if _idx >= _waypoints.size():
 		if loop and _waypoints.size() > 1:
 			_idx = 0
