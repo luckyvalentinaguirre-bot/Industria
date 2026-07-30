@@ -28,6 +28,7 @@ func _ready() -> void:
 	_test_upgrades()
 	_test_vehicles()
 	_test_objectives()
+	_test_specialization()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -214,6 +215,21 @@ func _obj_done(id: String) -> bool:
 		if o["id"] == id:
 			return o["done"]
 	return false
+
+func _test_specialization() -> void:
+	var spec := GameManager.specialization
+	# Antes de elegir: máquinas exclusivas de rama no disponibles.
+	GameState.industry_branch = ""
+	_check("Rama: aserradero bloqueado sin elegir madera", not spec.is_machine_available("sawmill"))
+	_check("Rama: fundición (general) siempre disponible", spec.is_machine_available("smelter"))
+	# Elegir madera desbloquea sus máquinas y da bonus a las suyas.
+	var ok: bool = spec.choose("wood")
+	_check("Rama: se elige la especialización (madera)", ok and spec.current() == "wood")
+	_check("Rama: madera desbloquea el aserradero", spec.is_machine_available("sawmill"))
+	_check("Rama: refinería (energía) sigue bloqueada con madera", not spec.is_machine_available("refinery"))
+	_check("Rama: bonus de producción a las máquinas de la rama", spec.machine_bonus("sawmill") > 1.0)
+	_check("Rama: sin bonus a máquinas de otra rama", is_equal_approx(spec.machine_bonus("smelter"), 1.0))
+	_check("Rama: no se puede reelegir una vez fijada", not spec.choose("metal"))
 
 func _test_save_load() -> void:
 	var ok_save: bool = GameManager.save.save_game()

@@ -98,6 +98,10 @@ signal game_won()
 ## Emitida cuando el terreno construible crece (spec §6/§18).
 signal factory_expanded(buildable_size: Vector2i)
 
+# --- Especialización / ramas industriales -----------------------------------
+## Emitida cuando el jugador elige su rama industrial (spec §8).
+signal branch_chosen(id: String, name: String)
+
 # --- Tutorial ---------------------------------------------------------------
 signal tutorial_step_changed(text: String, index: int, total: int)
 signal tutorial_finished()

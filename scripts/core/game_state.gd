@@ -24,6 +24,8 @@ var reputation: int = 50
 # --- Progresión -------------------------------------------------------------
 var company_level: int = 1
 var contracts_completed: int = 0
+## Rama industrial elegida ("" = sin elegir). Metal / madera / energía (spec §8).
+var industry_branch: String = ""
 var tutorial_active: bool = true
 var tutorial_index: int = 0
 var difficulty: int = 1   # 0 fácil, 1 normal, 2 difícil
@@ -43,6 +45,7 @@ func reset_for_new_game(p_name: String, p_difficulty: int) -> void:
 	reputation = 40
 	company_level = 1
 	contracts_completed = 0
+	industry_branch = ""
 	tutorial_active = true
 	tutorial_index = 0
 	day = 1; hour = 8; minute = 0
@@ -72,6 +75,7 @@ func to_dict() -> Dictionary:
 		"reputation": reputation,
 		"company_level": company_level,
 		"contracts_completed": contracts_completed,
+		"industry_branch": industry_branch,
 		"tutorial_active": tutorial_active,
 		"tutorial_index": tutorial_index,
 		"difficulty": difficulty,
@@ -91,6 +95,7 @@ func from_dict(data: Dictionary) -> void:
 	reputation = int(data.get("reputation", reputation))
 	company_level = int(data.get("company_level", company_level))
 	contracts_completed = int(data.get("contracts_completed", contracts_completed))
+	industry_branch = String(data.get("industry_branch", ""))
 	tutorial_active = bool(data.get("tutorial_active", false))
 	tutorial_index = int(data.get("tutorial_index", tutorial_index))
 	difficulty = int(data.get("difficulty", difficulty))

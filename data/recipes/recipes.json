@@ -8,6 +8,27 @@
       "inputs": { "scrap": 4 },
       "outputs": { "hand_tool": 1 }
     },
+    "cut_planks": {
+      "name": "Aserrar tablas",
+      "machine": "sawmill",
+      "time": 5.0,
+      "inputs": { "wood_log": 2 },
+      "outputs": { "plank": 3 }
+    },
+    "make_pallet": {
+      "name": "Armar pallet",
+      "machine": "planer",
+      "time": 7.0,
+      "inputs": { "plank": 4 },
+      "outputs": { "pallet": 1 }
+    },
+    "refine_fuel": {
+      "name": "Refinar combustible",
+      "machine": "refinery",
+      "time": 6.0,
+      "inputs": { "oil": 3 },
+      "outputs": { "fuel": 2 }
+    },
     "smelt_iron": {
       "name": "Fundir hierro",
       "machine": "smelter",

@@ -103,10 +103,25 @@ func start_delete() -> void:
 	_ghost.visible = false
 	EventBus.build_mode_changed.emit(true, "delete")
 
+# --- Estado del sistema de construcción -------------------------------------
+## ¿Hay una herramienta de construcción activa? (cualquier modo != SELECT).
+func is_building() -> bool:
+	return mode != Mode.SELECT
+
 # --- Input ------------------------------------------------------------------
 func _unhandled_input(event: InputEvent) -> void:
+	# ESC: sólo cancela la construcción si HAY una activa; si no, deja que la UI
+	# lo gestione (cerrar menú/panel). Así ESC nunca hace dos cosas a la vez.
 	if event.is_action_pressed("ui_cancel"):
-		_reset_to_select()
+		if is_building():
+			_reset_to_select()
+			get_viewport().set_input_as_handled()
+		return
+	# Clic derecho: cancela la construcción en curso.
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if is_building():
+			_reset_to_select()
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		if mode == Mode.MACHINE or mode == Mode.BUILDING:
@@ -206,6 +221,10 @@ func _origin_cell() -> Vector2i:
 	return center_cell - Vector2i(int(size.x / 2.0), int(size.y / 2.0))
 
 func _try_place() -> void:
+	if mode == Mode.MACHINE and GameManager.specialization and not GameManager.specialization.is_machine_available(current_id):
+		var req: String = GameManager.specialization.exclusive_branch(current_id)
+		EventBus.notify.emit("Requiere la rama %s (elegila en Tecnología)" % GameManager.specialization.branch_name(req), "warning")
+		return
 	if GameManager.progression and not GameManager.progression.is_unlocked(current_id):
 		EventBus.notify.emit("Se desbloquea en nivel %d de empresa" % GameManager.progression.required_level(current_id), "warning")
 		return

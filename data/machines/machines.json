@@ -20,6 +20,33 @@
       "base_speed": 1.0,
       "recipes": ["smelt_iron", "smelt_copper", "recycle_scrap"]
     },
+    "sawmill": {
+      "name": "Aserradero",
+      "category": "processing",
+      "size": [3, 3],
+      "cost": 2500,
+      "power": 25,
+      "base_speed": 1.0,
+      "recipes": ["cut_planks"]
+    },
+    "planer": {
+      "name": "Cepilladora",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 2600,
+      "power": 22,
+      "base_speed": 1.0,
+      "recipes": ["make_pallet"]
+    },
+    "refinery": {
+      "name": "Refineria",
+      "category": "processing",
+      "size": [3, 2],
+      "cost": 3000,
+      "power": 35,
+      "base_speed": 1.0,
+      "recipes": ["refine_fuel"]
+    },
     "press": {
       "name": "Prensa",
       "category": "manufacturing",

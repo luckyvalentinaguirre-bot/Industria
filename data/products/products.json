@@ -2,6 +2,8 @@
   "_comment": "Industria V1 - componentes intermedios y productos finales.",
   "components": {
     "hand_tool":       { "name": "Herramienta manual",    "category": "components", "unit": "u", "base_price": 22.0 },
+    "plank":           { "name": "Tabla de madera",       "category": "components", "unit": "u", "base_price": 9.0 },
+    "pallet":          { "name": "Pallet",                "category": "components", "unit": "u", "base_price": 26.0 },
     "metal_plate":     { "name": "Placa metalica",        "category": "components", "unit": "u", "base_price": 30.0 },
     "copper_part":     { "name": "Componente de cobre",   "category": "components", "unit": "u", "base_price": 40.0 },
     "industrial_part": { "name": "Pieza industrial",      "category": "components", "unit": "u", "base_price": 55.0 }

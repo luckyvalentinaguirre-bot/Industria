@@ -22,6 +22,7 @@ func _ready() -> void:
 	EventBus.worker_hired.connect(_on_worker_hired)
 	EventBus.machine_placed.connect(_on_machine_placed)
 	EventBus.factory_expanded.connect(_on_expanded)
+	EventBus.branch_chosen.connect(func(_id, _n): _complete("choose_branch"))
 	EventBus.day_passed.connect(func(_d): _check_long_term())
 	EventBus.game_started.connect(_on_game_started)
 	EventBus.game_loaded.connect(_on_game_started)
@@ -40,9 +41,10 @@ func _define_objectives() -> void:
 		{"id": "craft", "title": "Fabricá tu primera herramienta", "hint": "Comprá chatarra en 💰 Economía; el banco la convierte en herramientas para vender.", "done": false, "reward": 800, "long": false},
 		{"id": "sell", "title": "Vendé tu primer lote", "hint": "Abrí 💰 Economía → Vender y convertí tus herramientas en dinero.", "done": false, "reward": 1000, "long": false},
 		{"id": "cash6k", "title": "Reuní $6.000 de capital", "hint": "Producí y vendé para financiar tu primera máquina industrial.", "done": false, "reward": 1500, "long": false, "target": 6000, "progress": 0, "money": true},
-		{"id": "level2", "title": "Alcanzá Nivel 2 (Pequeño productor)", "hint": "Sumá valor y producción: al subir de nivel se desbloquean las máquinas industriales.", "done": false, "reward": 2000, "long": false},
-		{"id": "first_machine", "title": "Construí tu primera máquina industrial", "hint": "Ya desbloqueada: colocá una Fundición o Prensa desde 🏗 Construcción. ¡Un gran salto!", "done": false, "reward": 2500, "long": false},
-		{"id": "iron50", "title": "Producí 50 lingotes de hierro", "hint": "Comprá mineral y conectá una cinta desde un almacén hacia la fundición.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
+		{"id": "level2", "title": "Alcanzá Nivel 2 (Pequeño productor)", "hint": "Sumá valor y producción: al subir de nivel elegís tu rama y se desbloquean máquinas.", "done": false, "reward": 2000, "long": false},
+		{"id": "choose_branch", "title": "Elegí tu rama industrial", "hint": "En 🔬 Tecnología elegí Metalurgia, Madera o Energía: definirá tu fábrica.", "done": false, "reward": 1500, "long": false},
+		{"id": "first_machine", "title": "Construí tu primera máquina industrial", "hint": "Colocá una máquina de tu rama desde 🏗 Construcción. ¡Un gran salto!", "done": false, "reward": 2500, "long": false},
+		{"id": "produce50", "title": "Producí 50 unidades industriales", "hint": "Comprá materia prima y conectá una cinta hacia tu máquina de producción.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
 		{"id": "contract", "title": "Cumplí tu primer contrato", "hint": "En 📋 Contratos aceptá un pedido y entregá lo solicitado a tiempo.", "done": false, "reward": 2500, "long": false},
 		{"id": "hire", "title": "Contratá a tu primer trabajador", "hint": "En 👷 Personal contratá un operario: aumenta la productividad de la fábrica.", "done": false, "reward": 1500, "long": false},
 		{"id": "line", "title": "Montá una segunda máquina industrial", "hint": "Encadená máquinas con cintas para formar tu primera línea de producción.", "done": false, "reward": 2500, "long": false},
@@ -136,8 +138,9 @@ func completed_count() -> int:
 func _on_produced(item_id: String, qty: int) -> void:
 	if item_id == "hand_tool":
 		_complete("craft")
-	elif item_id == "iron_ingot":
-		_advance("iron50", qty)
+	# El producto insignia depende de la rama elegida (metal/madera/energía).
+	if GameManager.specialization and GameManager.specialization.signature_products().has(item_id):
+		_advance("produce50", qty)
 	_check_long_term()
 
 func _on_transaction(category: String, _amount: float, is_income: bool) -> void:

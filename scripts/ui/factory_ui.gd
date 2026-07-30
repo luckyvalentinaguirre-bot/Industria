@@ -6,7 +6,9 @@ extends PanelContainer
 ## BuildController; incluye herramientas de cinta, selección y eliminación.
 
 const ICONS := {
+	"workbench": "🔨",
 	"smelter": "🔥", "press": "🛠", "assembler": "🦾",
+	"sawmill": "🪚", "planer": "🪵", "refinery": "🛢",
 	"small_storage": "📦", "large_storage": "🏬",
 	"splitter": "🔀", "merger": "🔗", "filter": "🧲",
 	"generator": "🔌", "substation": "⚡", "workshop": "🔧",
@@ -25,8 +27,9 @@ func _ready() -> void:
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_box)
 	_build(_box)
-	# Reconstruye el menú al subir de nivel (se desbloquean construcciones).
+	# Reconstruye el catálogo al subir de nivel o elegir rama (nuevos desbloqueos).
 	EventBus.company_level_changed.connect(func(_l, _n): _rebuild())
+	EventBus.branch_chosen.connect(func(_id, _n): _rebuild())
 
 func _rebuild() -> void:
 	for c in _box.get_children():
@@ -131,8 +134,16 @@ func _building_card(bid: String) -> Button:
 	_apply_lock(b, bid, String(d.get("name", bid)))
 	return b
 
-## Bloquea la tarjeta si la construcción aún no está desbloqueada por nivel.
+## Bloquea la tarjeta si la construcción no está disponible por nivel o por rama.
 func _apply_lock(b: Button, id: String, name: String) -> void:
+	# Rama industrial: máquinas exclusivas requieren haber elegido esa rama.
+	var spec := GameManager.specialization
+	if spec and not spec.is_machine_available(id):
+		var req: String = spec.exclusive_branch(id)
+		b.disabled = true
+		b.text = "🔒 " + b.text
+		b.tooltip_text = "%s\n\n🔒 Requiere la rama %s %s (elegila en 🔬 Tecnología)" % [name, spec.branch_icon(req), spec.branch_name(req)]
+		return
 	if GameManager.progression and not GameManager.progression.is_unlocked(id):
 		var lvl: int = GameManager.progression.required_level(id)
 		b.disabled = true

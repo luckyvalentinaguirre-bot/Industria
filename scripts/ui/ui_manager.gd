@@ -26,6 +26,10 @@ var _mode_lbl: Label
 var _tutorial_banner: PanelContainer
 var _tutorial_label: Label
 
+# Ayuda contextual del modo construcción.
+var _build_help: PanelContainer
+var _build_help_title: Label
+
 # Rastreador compacto de objetivo actual (discreto, un solo objetivo).
 var _obj_tracker: PanelContainer
 var _obj_title: Label
@@ -65,6 +69,7 @@ func _build_ui() -> void:
 	_build_bottom_bar()
 	_build_tutorial()
 	_build_objective_tracker()
+	_build_build_help()
 	_build_toasts()
 	_connect_signals()
 	_refresh_hud()
@@ -393,7 +398,16 @@ func _connect_signals() -> void:
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
 	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.tutorial_finished.connect(_on_tutorial_finished)
-	EventBus.company_level_changed.connect(func(_l, _n): _refresh_hud())
+	EventBus.company_level_changed.connect(_on_level_changed)
+	EventBus.branch_chosen.connect(func(_id, _n): _refresh_hud(); _refresh_upgrades())
+
+var _branch_prompted: bool = false
+func _on_level_changed(level: int, _name: String) -> void:
+	_refresh_hud()
+	# Al llegar a Nivel 2 se ofrece elegir la rama industrial (spec §9).
+	if level >= 2 and not _branch_prompted and not GameManager.specialization.has_chosen():
+		_branch_prompted = true
+		_show_branch_choice()
 
 func _on_objectives_updated() -> void:
 	_refresh_objective_tracker()
@@ -431,7 +445,70 @@ func _on_money_changed(_m: float) -> void:
 		tw.tween_property(_money_lbl, "modulate", Color(1, 1, 1), 0.4)
 
 func _on_build_mode(active: bool, kind: String) -> void:
-	_mode_lbl.text = ("🔨 Construyendo: " + kind + "  (Esc para salir, R rota)") if active else ""
+	_mode_lbl.text = "🔨 Construyendo" if active else ""
+	_update_build_help(active, kind)
+
+# --- Ayuda contextual del modo construcción (sólo mientras construyo) --------
+func _build_build_help() -> void:
+	_build_help = UITheme.make_panel(UITheme.BG)
+	_build_help.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_build_help.offset_bottom = -18
+	_build_help.offset_left = -230
+	_build_help.offset_right = 230
+	_build_help.visible = false
+	root.add_child(_build_help)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	_build_help.add_child(v)
+	_build_help_title = UITheme.make_label("", 14, UITheme.ACCENT)
+	_build_help_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(_build_help_title)
+	var hint := UITheme.make_label("🖱 Izq: Construir    R: Rotar    ESC / Clic der.: Cancelar", 12, UITheme.TEXT)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(hint)
+
+func _update_build_help(active: bool, kind: String) -> void:
+	if _build_help == null:
+		return
+	_build_help.visible = active
+	if active:
+		_build_help_title.text = "🔨 %s" % _build_kind_label(kind)
+
+func _build_kind_label(kind: String) -> String:
+	if kind.begins_with("machine:"):
+		return GameManager.recipes.machine_name(kind.trim_prefix("machine:"))
+	if kind.begins_with("building:"):
+		var bid := kind.trim_prefix("building:")
+		return String(_all_buildings_def().get(bid, {}).get("name", bid))
+	match kind:
+		"conveyor": return "Cinta transportadora"
+		"delete": return "Eliminar (clic sobre una construcción)"
+	return kind
+
+func _all_buildings_def() -> Dictionary:
+	var path := "res://data/buildings/buildings.json"
+	if not FileAccess.file_exists(path):
+		return {}
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return data.get("buildings", {}) if data is Dictionary else {}
+
+## ESC/entrada global de UI: cierra menú o panel SÓLO si no estoy construyendo
+## (si construyo, el BuildController ya cancela primero). Evita conflictos §42.
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	if GameManager.world and ("build_controller" in GameManager.world) \
+			and GameManager.world.build_controller and GameManager.world.build_controller.is_building():
+		return   # el BuildController cancela la construcción; no tocamos la UI
+	if menu_panel and menu_panel.visible:
+		menu_panel.visible = false
+		get_viewport().set_input_as_handled()
+		return
+	for p in _right_panels:
+		if p.visible:
+			p.visible = false
+			get_viewport().set_input_as_handled()
+			return
 
 # --- Panel de contratos -----------------------------------------------------
 func _make_contracts_panel() -> PanelContainer:
@@ -607,10 +684,12 @@ func _refresh_upgrades() -> void:
 		return
 	for c in box.get_children():
 		c.queue_free()
-	box.add_child(UITheme.make_title("Investigación y Mejoras"))
-	box.add_child(UITheme.make_label("Invierte para optimizar toda la fábrica.", 12))
+	box.add_child(UITheme.make_title("Tecnología"))
+	box.add_child(_branch_block())
+	box.add_child(UITheme.hsep())
 	box.add_child(_expansion_block())
 	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("Mejoras — optimizan toda la fábrica.", 12, UITheme.ACCENT))
 	var um: Node = GameManager.upgrades
 	for id in um.defs.keys():
 		var d: Dictionary = um.defs[id]
@@ -640,6 +719,29 @@ func _refresh_upgrades() -> void:
 func _on_buy_upgrade(id: String) -> void:
 	GameManager.upgrades.buy(id)
 	_refresh_upgrades()
+
+## Bloque de rama industrial (spec §8): elegir/ver la especialización.
+func _branch_block() -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	v.add_child(UITheme.make_label("🏭 RAMA INDUSTRIAL", 12, UITheme.ACCENT))
+	var spec := GameManager.specialization
+	if spec.has_chosen():
+		v.add_child(UITheme.make_label("%s %s (+25%% a tus máquinas)" % [spec.branch_icon(), spec.branch_name()], 13, UITheme.ACCENT2))
+		return v
+	if GameState.company_level < 2:
+		v.add_child(UITheme.make_label("Se elige al alcanzar el Nivel 2.", 12, UITheme.MUTED))
+		return v
+	v.add_child(UITheme.make_label("Elegí tu especialización:", 12))
+	for id in spec.BRANCHES.keys():
+		var b: Dictionary = spec.BRANCHES[id]
+		var btn := UITheme.make_button("%s  %s" % [b["icon"], b["name"]])
+		btn.tooltip_text = String(b["tagline"])
+		btn.pressed.connect(func():
+			spec.choose(String(id))
+			_refresh_upgrades())
+		v.add_child(btn)
+	return v
 
 ## Bloque de ampliación de terreno (spec §6/§18): meta económica de crecimiento.
 func _expansion_block() -> VBoxContainer:
@@ -757,3 +859,35 @@ func _show_intro() -> void:
 func _free_node(n: Node) -> void:
 	if is_instance_valid(n):
 		n.queue_free()
+
+# --- Elección de rama industrial (spec §8, §9) ------------------------------
+func _show_branch_choice() -> void:
+	var panel := UITheme.make_panel(UITheme.BG)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -320
+	panel.offset_right = 320
+	panel.offset_top = -220
+	panel.offset_bottom = 220
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	panel.add_child(v)
+	v.add_child(UITheme.make_title("ELEGÍ TU CAMINO INDUSTRIAL"))
+	v.add_child(UITheme.make_label("Tu rama define máquinas, recetas y contratos. Da +25% a tus máquinas.\nPodés especializarte sin bloquear del todo las demás industrias.", 12, UITheme.MUTED))
+	v.add_child(UITheme.hsep())
+	var spec := GameManager.specialization
+	for id in spec.BRANCHES.keys():
+		var b: Dictionary = spec.BRANCHES[id]
+		var btn := UITheme.make_button("%s  %s" % [b["icon"], b["name"]])
+		btn.custom_minimum_size = Vector2(0, 44)
+		btn.add_theme_font_size_override("font_size", 16)
+		btn.tooltip_text = String(b["tagline"])
+		btn.pressed.connect(func():
+			spec.choose(String(id))
+			_free_node(panel))
+		v.add_child(btn)
+		v.add_child(UITheme.make_label(String(b["tagline"]), 11, UITheme.MUTED))
+	v.add_child(UITheme.hsep())
+	var later := UITheme.make_button("Elegir más tarde (en 🔬 Tecnología)")
+	later.pressed.connect(_free_node.bind(panel))
+	v.add_child(later)
+	root.add_child(panel)

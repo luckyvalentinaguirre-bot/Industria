@@ -170,7 +170,11 @@ func _effective_speed() -> float:
 	var upg := 1.0
 	if GameManager.upgrades:
 		upg = GameManager.upgrades.machine_speed_mult()
-	return base_speed * condition_factor * (1.0 + op) * upg * level_speed_mult()
+	# Bonus de especialización: las máquinas de tu rama industrial rinden más.
+	var branch := 1.0
+	if GameManager.specialization:
+		branch = GameManager.specialization.machine_bonus(machine_id)
+	return base_speed * condition_factor * (1.0 + op) * upg * level_speed_mult() * branch
 
 ## Consumo eléctrico efectivo (mejoras globales + nivel de la máquina).
 func effective_power_draw() -> float:
