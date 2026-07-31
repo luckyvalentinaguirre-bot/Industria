@@ -21,6 +21,15 @@ func _on_minute(_d: int, _h: int, _m: int) -> void:
 	rate_per_min = _minute_counter.duplicate()
 	_minute_counter.clear()
 
+## Capacidad de producción POTENCIAL de un producto (u/min), sumando todas las
+## máquinas que lo fabrican. La usa el chequeo de capacidad de los contratos.
+func capacity_for(product: String) -> float:
+	var r := 0.0
+	if GameManager.machines:
+		for m in GameManager.machines.machines:
+			r += m.output_rate(product)
+	return r
+
 func running_machines() -> int:
 	var n := 0
 	for m in GameManager.machines.machines:

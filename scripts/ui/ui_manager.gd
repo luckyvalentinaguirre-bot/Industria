@@ -482,6 +482,7 @@ func _on_objectives_updated() -> void:
 # --- Hitos: banner breve "NUEVO DESBLOQUEO" (spec §5, §7) --------------------
 const _MILESTONES := {
 	"first_machine": "Producción industrial habilitada",
+	"automate": "Automatización: la fábrica se alimenta sola",
 	"line": "Primera línea de producción",
 	"expand": "Terreno ampliado",
 	"contract": "Primer contrato cumplido",
@@ -664,6 +665,19 @@ func _offer_row(c: Contract) -> VBoxContainer:
 	v.add_child(UITheme.make_label(info, 12))
 	var terms := "⏱ Bonus antes de plazo +%s   ·   ⚠ Penalización %s" % [Fmt.money(c.bonus), Fmt.money(c.penalty)]
 	v.add_child(UITheme.make_label(terms, 11, UITheme.MUTED))
+	# Chequeo de capacidad: ¿tu fábrica llega? (spec §7: decisión real).
+	var f: Dictionary = GameManager.contracts.feasibility(c)
+	var verdict := ""
+	var vcol := UITheme.ACCENT2
+	if bool(f["feasible"]):
+		verdict = "✅ Tu capacidad alcanza (%.0f u/min, en stock %d)" % [float(f["rate"]), int(f["stock"])]
+	else:
+		verdict = "⚠ Falta capacidad: necesitás ~%.0f u/min, producís %.0f (¿otra máquina o automatizar?)" % [float(f["needed"]), float(f["rate"])]
+		vcol = UITheme.WARN
+	var vl := UITheme.make_label(verdict, 11, vcol)
+	vl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vl.custom_minimum_size = Vector2(320, 0)
+	v.add_child(vl)
 	var row := HBoxContainer.new()
 	var acc := UITheme.make_button("Aceptar")
 	acc.pressed.connect(GameManager.contracts.accept.bind(c))
@@ -702,7 +716,9 @@ func _refresh_workers() -> void:
 	box.add_child(UITheme.make_label("Contratar:", 13, UITheme.ACCENT))
 	for type_id in GameManager.workers.types.keys():
 		var def: Dictionary = GameManager.workers.types[type_id]
-		var b := UITheme.make_button("%s — %s/día" % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0))])
+		var eff := _worker_effect(String(def.get("specialty", "")))
+		var b := UITheme.make_button("%s — %s/día  ·  %s" % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff])
+		b.tooltip_text = "%s\nSalario diario: %s\nEfecto: %s\nContratación: medio mes de salario." % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff]
 		b.pressed.connect(GameManager.workers.hire.bind(String(type_id), true))
 		box.add_child(b)
 	box.add_child(UITheme.hsep())
@@ -714,6 +730,14 @@ func _refresh_workers() -> void:
 		fire.pressed.connect(GameManager.workers.fire.bind(w))
 		row.add_child(fire)
 		box.add_child(row)
+
+func _worker_effect(specialty: String) -> String:
+	match specialty:
+		"production": return "+6% producción"
+		"maintenance": return "reparaciones más baratas"
+		"quality": return "+3% calidad"
+		"logistics": return "+ logística"
+		_: return "personal"
 
 func _find_box(panel: PanelContainer) -> VBoxContainer:
 	for child in panel.get_children():
@@ -945,10 +969,10 @@ func _on_game_won() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	banner.add_child(v)
-	v.add_child(UITheme.make_label("¡INDUSTRIA SALVADA!", 28, UITheme.ACCENT2))
-	v.add_child(UITheme.make_label("Saldaste la deuda y la empresa es rentable.", 15))
-	v.add_child(UITheme.make_label("Puedes seguir jugando y expandiendo la fábrica.", 13, UITheme.TEXT))
-	var close := UITheme.make_button("Continuar")
+	v.add_child(UITheme.make_label("🏢 COMPLEJO INDUSTRIAL", 26, UITheme.ACCENT2))
+	v.add_child(UITheme.make_label("Convertiste un terreno vacío en el mayor complejo industrial de la región.", 14))
+	v.add_child(UITheme.make_label("Modo libre: seguí expandiendo, optimizando y cumpliendo contratos…\no empezá una nueva partida y probá otra rama industrial.", 13, UITheme.TEXT))
+	var close := UITheme.make_button("Seguir jugando")
 	close.pressed.connect(banner.queue_free)
 	v.add_child(close)
 	root.add_child(banner)

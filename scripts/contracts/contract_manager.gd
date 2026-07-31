@@ -8,10 +8,11 @@ extends Node
 const OFFER_REFRESH_DAYS := 2
 const MAX_OFFERS := 5
 
-const TYPES := ["facil", "grande", "urgente", "rentable", "especial"]
+const TYPES := ["facil", "grande", "urgente", "rentable", "especial", "volumen"]
 const TYPE_LABELS := {
 	"facil": "🟢 Fácil", "grande": "📦 Grande", "urgente": "⏱ Urgente",
-	"rentable": "💎 Rentable", "especial": "⭐ Especial", "normal": "Contrato",
+	"rentable": "💎 Rentable", "especial": "⭐ Especial", "volumen": "🏭 Volumen",
+	"normal": "Contrato",
 }
 const CLIENTS := ["Construcciones Delta", "Metalúrgica Andes", "Ensambladora Rivas",
 	"Talleres Sur", "Industrias Kappa", "Logística Omega", "Fábrica Zeta"]
@@ -76,6 +77,9 @@ func _gen_typed(type: String) -> Contract:
 		"especial":
 			product = "simple_motor"; unit = _unit_value(product)
 			amount = randi_range(20, 50); pay_mult = 1.55; pen_mult = 0.5; deadline = randi_range(8, 12); rep = 8
+		"volumen":
+			# Gran pedido: obliga a ampliar capacidad (¿otra máquina? ¿automatizar?).
+			amount = randi_range(400, 800); pay_mult = 1.4; pen_mult = 0.45; deadline = randi_range(5, 8); rep = 10
 	c.product = product
 	c.amount = amount
 	c.payment = round(unit * amount * pay_mult / 100.0) * 100.0
@@ -103,6 +107,18 @@ func _unit_value(product: String) -> float:
 	if GameManager.market:
 		return GameManager.market.current_price(product)
 	return ItemDB.base_price(product)
+
+## ¿Puede la fábrica cumplir el contrato a tiempo con su capacidad actual?
+## Devuelve {feasible, rate (u/min actual), needed (u/min requerido), stock}.
+## Es la información que convierte cada oferta en una DECISIÓN (spec §7).
+func feasibility(c: Contract) -> Dictionary:
+	var stock: int = GameManager.storage.count(c.product) if GameManager.storage else 0
+	var rate: float = GameManager.production.capacity_for(c.product) if GameManager.production else 0.0
+	# Minutos reales hasta el plazo (los días de juego pasan en tiempo real).
+	var real_min: float = maxf(0.1, c.deadline_days * 1440.0 / TimeManager.GAME_MINUTES_PER_REAL_SECOND / 60.0)
+	var needed: float = maxf(0.0, (float(c.amount) - float(stock)) / real_min)
+	var feasible: bool = stock >= c.amount or rate >= needed - 0.01
+	return { "feasible": feasible, "rate": rate, "needed": needed, "stock": stock }
 
 func type_label(c: Contract) -> String:
 	return TYPE_LABELS.get(c.type, "Contrato")

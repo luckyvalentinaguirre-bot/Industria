@@ -118,10 +118,23 @@ func _machine_card(mid: String) -> Button:
 	var rec_names: Array = []
 	for r in recs:
 		rec_names.append(GameManager.recipes.recipe_name(String(r)))
-	var tip := "Tamaño %d×%d · %d kW\nFabrica: %s" % [int(size[0]), int(size[1]), int(d.get("power", 0)), ", ".join(rec_names)]
+	var rate := _machine_rate(d, recs)
+	var tip := "Tamaño %d×%d  ·  ⚡ %d kW  ·  📈 ~%.0f u/min\nFabrica: %s" % [int(size[0]), int(size[1]), int(d.get("power", 0)), rate, ", ".join(rec_names)]
 	var b := _card(ICONS.get(mid, "⚙"), String(d.get("name", mid)), int(d.get("cost", 0)), tip, _on_place_machine.bind(mid))
 	_apply_lock(b, mid, String(d.get("name", mid)))
 	return b
+
+## Producción estimada (u/min) de una máquina con su primera receta, a velocidad
+## base — sirve para comparar máquinas al construir (spec §17).
+func _machine_rate(d: Dictionary, recs: Array) -> float:
+	if recs.is_empty():
+		return 0.0
+	var rid := String(recs[0])
+	var t: float = maxf(0.5, GameManager.recipes.recipe_time(rid))
+	var total := 0
+	for v in GameManager.recipes.recipe_outputs(rid).values():
+		total += int(v)
+	return float(total) / t * float(d.get("base_speed", 1.0)) * 60.0
 
 func _building_card(bid: String) -> Button:
 	var d: Dictionary = _all_buildings().get(bid, {})

@@ -17,7 +17,7 @@ var _started: bool = false
 ## Reputación extra por hitos (spec §5): cada objetivo importante da prestigio.
 const REP_REWARD := {
 	"sell": 2, "contract": 3, "choose_branch": 2, "first_machine": 4,
-	"level2": 3, "produce50": 3, "line": 5, "expand": 5, "top": 15,
+	"automate": 4, "level2": 3, "produce50": 3, "line": 5, "expand": 5, "top": 15,
 }
 
 func _ready() -> void:
@@ -28,6 +28,7 @@ func _ready() -> void:
 	EventBus.worker_hired.connect(_on_worker_hired)
 	EventBus.machine_placed.connect(_on_machine_placed)
 	EventBus.factory_expanded.connect(_on_expanded)
+	EventBus.conveyor_placed.connect(func(_c): _complete("automate"))
 	EventBus.branch_chosen.connect(func(_id, _n): _complete("choose_branch"))
 	EventBus.day_passed.connect(func(_d): _check_long_term())
 	EventBus.game_started.connect(_on_game_started)
@@ -50,7 +51,8 @@ func _define_objectives() -> void:
 		{"id": "level2", "title": "Alcanzá Nivel 2 (Pequeño productor)", "hint": "Sumá valor y producción: al subir de nivel elegís tu rama y se desbloquean máquinas.", "done": false, "reward": 2000, "long": false},
 		{"id": "choose_branch", "title": "Elegí tu rama industrial", "hint": "En 🔬 Tecnología elegí Metalurgia, Madera o Energía: definirá tu fábrica.", "done": false, "reward": 1500, "long": false},
 		{"id": "first_machine", "title": "Construí tu primera máquina industrial", "hint": "Colocá una máquina de tu rama desde 🏗 Construcción. ¡Un gran salto!", "done": false, "reward": 2500, "long": false},
-		{"id": "produce50", "title": "Producí 50 unidades industriales", "hint": "Comprá materia prima y conectá una cinta hacia tu máquina de producción.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
+		{"id": "automate", "title": "Automatizá: conectá una cinta transportadora", "hint": "🏗 Construcción → Cinta. Conectá un almacén a tu máquina para que se alimente sola.", "done": false, "reward": 2000, "long": false},
+		{"id": "produce50", "title": "Producí 50 unidades industriales", "hint": "Con la cinta alimentando la máquina, dejá que produzca tu producto insignia.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
 		{"id": "contract", "title": "Cumplí tu primer contrato", "hint": "En 📋 Contratos aceptá un pedido y entregá lo solicitado a tiempo.", "done": false, "reward": 2500, "long": false},
 		{"id": "hire", "title": "Contratá a tu primer trabajador", "hint": "En 👷 Personal contratá un operario: aumenta la productividad de la fábrica.", "done": false, "reward": 1500, "long": false},
 		{"id": "line", "title": "Montá una segunda máquina industrial", "hint": "Encadená máquinas con cintas para formar tu primera línea de producción.", "done": false, "reward": 2500, "long": false},

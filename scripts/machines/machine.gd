@@ -224,6 +224,16 @@ func production_per_min() -> float:
 		return 0.0
 	return float(total) / cycle_time() * _effective_speed() * 60.0
 
+## Producción POTENCIAL de un ítem concreto (u/min reales), si estuviera
+## alimentada. Base para el chequeo de capacidad de los contratos (spec §7).
+func output_rate(item_id: String) -> float:
+	if recipe_id == "" or not enabled:
+		return 0.0
+	var outs := current_outputs()
+	if not outs.has(item_id) or cycle_time() <= 0.0:
+		return 0.0
+	return float(outs[item_id]) / cycle_time() * _effective_speed() * 60.0
+
 func _output_has_room(outputs: Dictionary) -> bool:
 	var needed := 0
 	for v in outputs.values():

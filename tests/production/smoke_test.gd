@@ -30,6 +30,8 @@ func _ready() -> void:
 	_test_objectives()
 	_test_specialization()
 	_test_machine_models()
+	_test_contract_capacity()
+	_test_automation_objective()
 	_test_growth()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -250,6 +252,28 @@ func _test_machine_models() -> void:
 		if not is_instance_valid(m) or m.get_child_count() == 0:
 			ok = false
 	_check("Modelos: todas las máquinas de rama instancian su modelo 3D", ok)
+
+func _test_contract_capacity() -> void:
+	# El chequeo de capacidad debe distinguir un pedido inviable de uno viable.
+	var big := Contract.new()
+	big.product = "metal_plate"; big.amount = 5000; big.deadline_days = 2
+	var f1: Dictionary = GameManager.contracts.feasibility(big)
+	_check("Capacidad: gran pedido sin producción se marca inviable", not f1["feasible"] and f1["needed"] > 0.0)
+	# Con una prensa produciendo placas, un pedido modesto es viable por ritmo.
+	var press: Machine = GameManager.machines.create_machine("press", Vector2i(36, 30))
+	press.set_recipe("press_plate")
+	press.set_condition(100.0)
+	var c2 := Contract.new()
+	c2.product = "metal_plate"; c2.amount = 50; c2.deadline_days = 6
+	var f2: Dictionary = GameManager.contracts.feasibility(c2)
+	_check("Capacidad: con producción suficiente el pedido es viable", f2["feasible"] and f2["rate"] > 0.0)
+	# El generador de contratos conoce el tipo 'volumen' (gran cantidad).
+	var cv: Contract = GameManager.contracts._gen_typed("volumen")
+	_check("Contratos: 'volumen' pide gran cantidad (%d)" % cv.amount, cv.amount >= 400)
+
+func _test_automation_objective() -> void:
+	EventBus.conveyor_placed.emit(null)
+	_check("Objetivos: conectar una cinta cumple 'automatizá'", _obj_done("automate"))
 
 func _test_growth() -> void:
 	# Crecimiento visual por nivel: los builders de estructuras/clusters deben

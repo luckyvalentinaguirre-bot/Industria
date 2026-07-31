@@ -34,7 +34,7 @@
       "machine": "brick_kiln",
       "time": 5.0,
       "inputs": { "clay": 2 },
-      "outputs": { "brick": 3 }
+      "outputs": { "brick": 5 }
     },
     "make_block": {
       "name": "Fabricar bloque",
