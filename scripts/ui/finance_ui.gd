@@ -4,10 +4,10 @@ extends PanelContainer
 ## Muestra ingresos/gastos/ganancias/deuda, permite pagar deuda y operar el
 ## mercado (comprar materias primas a proveedores y vender productos).
 
-const RAW_ITEMS := ["scrap", "iron_ore", "copper_ore", "wood_log", "oil", "chemicals"]
-const SELL_ITEMS := ["hand_tool", "plank", "pallet", "fuel", "metal_plate", "copper_part",
-	"industrial_part", "metal_piece", "industrial_comp", "simple_motor",
-	"iron_ingot", "copper_ingot", "recycled_metal"]
+const RAW_ITEMS := ["scrap", "iron_ore", "copper_ore", "wood_log", "clay", "nutrients", "oil", "chemicals"]
+const SELL_ITEMS := ["hand_tool", "plank", "pallet", "brick", "block", "regulated_goods",
+	"fuel", "metal_plate", "copper_part", "industrial_part", "metal_piece",
+	"industrial_comp", "simple_motor", "iron_ingot", "copper_ingot", "recycled_metal"]
 
 var _summary_lbl: Label
 var _debt_spin: SpinBox

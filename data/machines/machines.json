@@ -47,6 +47,33 @@
       "base_speed": 1.0,
       "recipes": ["refine_fuel"]
     },
+    "brick_kiln": {
+      "name": "Horno de ladrillos",
+      "category": "processing",
+      "size": [3, 2],
+      "cost": 2400,
+      "power": 28,
+      "base_speed": 1.0,
+      "recipes": ["fire_brick"]
+    },
+    "block_press": {
+      "name": "Prensa de bloques",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 2600,
+      "power": 24,
+      "base_speed": 1.0,
+      "recipes": ["make_block"]
+    },
+    "grow_module": {
+      "name": "Modulo de cultivo",
+      "category": "manufacturing",
+      "size": [3, 3],
+      "cost": 3500,
+      "power": 30,
+      "base_speed": 1.0,
+      "recipes": ["grow_regulated"]
+    },
     "press": {
       "name": "Prensa",
       "category": "manufacturing",

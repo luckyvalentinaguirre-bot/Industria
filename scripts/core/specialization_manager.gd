@@ -31,6 +31,18 @@ const BRANCHES := {
 		"machines": ["refinery", "generator", "substation"],
 		"signature": ["fuel"],
 	},
+	"construction": {
+		"name": "Construcción", "icon": "🏗",
+		"tagline": "Materiales y estructuras. Contratos grandes y estables.",
+		"machines": ["brick_kiln", "block_press", "assembler"],
+		"signature": ["brick", "block"],
+	},
+	"regulated": {
+		"name": "Cultivo regulado", "icon": "🌿",
+		"tagline": "Alto beneficio y alto riesgo: mercado inestable, penalizaciones duras.",
+		"machines": ["grow_module"],
+		"signature": ["regulated_goods"],
+	},
 }
 
 ## Máquinas EXCLUSIVAS de una rama (requieren haberla elegido). El resto son
@@ -39,6 +51,9 @@ const EXCLUSIVE := {
 	"sawmill": "wood",
 	"planer": "wood",
 	"refinery": "energy",
+	"brick_kiln": "construction",
+	"block_press": "construction",
+	"grow_module": "regulated",
 }
 
 func current() -> String:

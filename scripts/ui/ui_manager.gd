@@ -399,7 +399,8 @@ func _connect_signals() -> void:
 	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.tutorial_finished.connect(_on_tutorial_finished)
 	EventBus.company_level_changed.connect(_on_level_changed)
-	EventBus.branch_chosen.connect(func(_id, _n): _refresh_hud(); _refresh_upgrades())
+	EventBus.branch_chosen.connect(_on_branch_chosen)
+	EventBus.objective_completed.connect(_on_objective_completed)
 
 var _branch_prompted: bool = false
 func _on_level_changed(level: int, _name: String) -> void:
@@ -413,6 +414,49 @@ func _on_objectives_updated() -> void:
 	_refresh_objective_tracker()
 	_refresh_objectives()
 
+# --- Hitos: banner breve "NUEVO DESBLOQUEO" (spec §5, §7) --------------------
+const _MILESTONES := {
+	"first_machine": "Producción industrial habilitada",
+	"line": "Primera línea de producción",
+	"expand": "Terreno ampliado",
+	"contract": "Primer contrato cumplido",
+	"hire": "Primer trabajador contratado",
+	"top": "¡Complejo industrial!",
+}
+
+func _on_branch_chosen(id: String, name: String) -> void:
+	_refresh_hud()
+	_refresh_upgrades()
+	_milestone_banner("NUEVA RAMA INDUSTRIAL", "%s %s  ·  +25%% a tus máquinas" % [GameManager.specialization.branch_icon(id), name])
+
+func _on_objective_completed(id: String, _title: String) -> void:
+	if _MILESTONES.has(id):
+		_milestone_banner("NUEVO HITO", String(_MILESTONES[id]))
+
+func _milestone_banner(title: String, subtitle: String) -> void:
+	var panel := UITheme.make_panel(UITheme.BG)
+	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	panel.offset_top = 96
+	panel.offset_left = -220
+	panel.offset_right = 220
+	panel.modulate.a = 0.0
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	panel.add_child(v)
+	var t := UITheme.make_label("━━  %s  ━━" % title, 12, UITheme.ACCENT)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var s := UITheme.make_label(subtitle, 16, UITheme.ACCENT2)
+	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(s)
+	root.add_child(panel)
+	# Aparece, se mantiene y se desvanece (elegante, no bloquea el juego).
+	var tw := create_tween()
+	tw.tween_property(panel, "modulate:a", 1.0, 0.3)
+	tw.tween_interval(2.6)
+	tw.tween_property(panel, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(_free_node.bind(panel))
+
 func _refresh_hud() -> void:
 	if _money_lbl == null:
 		return
@@ -420,7 +464,10 @@ func _refresh_hud() -> void:
 	if _value_lbl: _value_lbl.text = "🏭 " + Fmt.money(_factory_value())
 	if _debt_lbl: _debt_lbl.text = "🏦 " + Fmt.money(GameState.debt)
 	if _rep_lbl: _rep_lbl.text = "⭐ %d" % GameState.reputation
-	_level_lbl.text = "🏢 N%d · %s" % [GameState.company_level, GameManager.progression.level_name()]
+	var brand := ""
+	if GameManager.specialization and GameManager.specialization.has_chosen():
+		brand = " " + GameManager.specialization.branch_icon()
+	_level_lbl.text = "🏢 N%d · %s%s" % [GameState.company_level, GameManager.progression.level_name(), brand]
 	_clock_lbl.text = "📅 " + TimeManager.get_clock_string()
 	var ps: Dictionary = GameManager.power.get_status()
 	var cons: float = ps["consumption"]

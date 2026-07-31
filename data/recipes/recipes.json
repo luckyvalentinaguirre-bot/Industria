@@ -29,6 +29,27 @@
       "inputs": { "oil": 3 },
       "outputs": { "fuel": 2 }
     },
+    "fire_brick": {
+      "name": "Cocer ladrillos",
+      "machine": "brick_kiln",
+      "time": 5.0,
+      "inputs": { "clay": 2 },
+      "outputs": { "brick": 3 }
+    },
+    "make_block": {
+      "name": "Fabricar bloque",
+      "machine": "block_press",
+      "time": 6.0,
+      "inputs": { "brick": 4 },
+      "outputs": { "block": 1 }
+    },
+    "grow_regulated": {
+      "name": "Cultivo regulado",
+      "machine": "grow_module",
+      "time": 9.0,
+      "inputs": { "nutrients": 3 },
+      "outputs": { "regulated_goods": 1 }
+    },
     "smelt_iron": {
       "name": "Fundir hierro",
       "machine": "smelter",

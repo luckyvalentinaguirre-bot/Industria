@@ -16,7 +16,7 @@ const TYPE_LABELS := {
 const CLIENTS := ["Construcciones Delta", "Metalúrgica Andes", "Ensambladora Rivas",
 	"Talleres Sur", "Industrias Kappa", "Logística Omega", "Fábrica Zeta"]
 const PRODUCTS := ["metal_plate", "copper_part", "industrial_part",
-	"metal_piece", "industrial_comp"]
+	"metal_piece", "industrial_comp", "plank", "pallet", "brick", "block", "fuel"]
 
 var templates: Array = []
 var offers: Array = []            # Array[Contract] disponibles
@@ -53,7 +53,7 @@ func _gen_typed(type: String) -> Contract:
 	c.type = type
 	c.id = "%s_%d" % [type, _seq]
 	c.client = CLIENTS[randi() % CLIENTS.size()]
-	var product: String = PRODUCTS[randi() % PRODUCTS.size()]
+	var product: String = _pick_product()
 	var unit: float = _unit_value(product)
 	var amount := 100
 	var pay_mult := 1.2
@@ -83,6 +83,15 @@ func _gen_typed(type: String) -> Contract:
 	c.deadline_days = deadline
 	c.reputation = rep
 	return c
+
+## Elige un producto para el contrato, sesgado hacia el producto insignia de la
+## rama industrial elegida (spec §20: los contratos refuerzan tu identidad).
+func _pick_product() -> String:
+	var pool: Array = PRODUCTS.duplicate()
+	if GameManager.specialization and GameManager.specialization.has_chosen():
+		for s in GameManager.specialization.signature_products():
+			pool.append(s); pool.append(s); pool.append(s)   # triple peso
+	return String(pool[randi() % pool.size()])
 
 func _unit_value(product: String) -> float:
 	if GameManager.market:

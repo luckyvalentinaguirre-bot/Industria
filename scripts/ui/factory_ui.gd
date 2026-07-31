@@ -9,6 +9,7 @@ const ICONS := {
 	"workbench": "🔨",
 	"smelter": "🔥", "press": "🛠", "assembler": "🦾",
 	"sawmill": "🪚", "planer": "🪵", "refinery": "🛢",
+	"brick_kiln": "🧱", "block_press": "🏗", "grow_module": "🌿",
 	"small_storage": "📦", "large_storage": "🏬",
 	"splitter": "🔀", "merger": "🔗", "filter": "🧲",
 	"generator": "🔌", "substation": "⚡", "workshop": "🔧",
