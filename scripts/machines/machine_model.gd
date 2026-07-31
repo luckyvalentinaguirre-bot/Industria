@@ -52,8 +52,14 @@ func build(p_id: String, p_def: Dictionary, p_grid: Vector2i) -> void:
 
 	match machine_id:
 		"smelter": _build_smelter(w, d, mats)
-		"press": _build_press(w, d, mats)
+		"press", "block_press": _build_press(w, d, mats)
 		"assembler": _build_assembler(w, d, mats)
+		"workbench": _build_workbench(w, d, mats)
+		"sawmill": _build_sawmill(w, d, mats)
+		"planer": _build_planer(w, d, mats)
+		"refinery": _build_refinery(w, d, mats)
+		"brick_kiln": _build_kiln(w, d, mats)
+		"grow_module": _build_grow(w, d, mats)
 		_: _build_generic(w, d, mats)
 
 	_add_industrial_detail(w, d, mats)
@@ -197,6 +203,151 @@ func _build_assembler(w: float, d: float, mats: Dictionary) -> void:
 	_running_particles = _make_steam()
 	_running_particles.position = Vector3(0, 2.3, 0.3)
 	add_child(_running_particles)
+
+# --- BANCO DE TRABAJO (etapa manual): mesa baja con torno y estante ----------
+func _build_workbench(w: float, d: float, mats: Dictionary) -> void:
+	var steel: Material = mats["steel"]
+	var dark: Material = mats["dark"]
+	# Tablero y patas.
+	IndKit.box(self, Vector3(w * 0.8, 0.12, d * 0.6), Vector3(0, 0.95, 0), mats["housing"])
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			IndKit.box(self, Vector3(0.12, 0.9, 0.12), Vector3(sx * w * 0.32, 0.5, sz * d * 0.22), dark)
+	# Torno de banco.
+	IndKit.box(self, Vector3(0.3, 0.25, 0.3), Vector3(-w * 0.22, 1.15, 0), dark)
+	IndKit.cyl(self, 0.06, 0.06, 0.3, Vector3(-w * 0.22, 1.2, 0.2), steel).rotation_degrees = Vector3(90, 0, 0)
+	# Estante de herramientas (panel vertical con "herramientas").
+	IndKit.box(self, Vector3(w * 0.8, 0.7, 0.06), Vector3(0, 1.55, -d * 0.28), dark)
+	for i in range(4):
+		IndKit.box(self, Vector3(0.05, 0.35, 0.05), Vector3(-w * 0.3 + i * w * 0.2, 1.5, -d * 0.26), steel)
+	# Lámpara de trabajo emisiva.
+	IndKit.box(self, Vector3(0.4, 0.06, 0.2), Vector3(w * 0.2, 1.7, 0), IndKit.emissive(Color(1, 0.95, 0.8), 1.2))
+
+# --- ASERRADERO (madera): sierra circular giratoria + tronco -----------------
+func _build_sawmill(w: float, d: float, mats: Dictionary) -> void:
+	var steel: Material = mats["steel"]
+	var dark: Material = mats["dark"]
+	var wood := IndKit.housing(Color(0.55, 0.38, 0.2))
+	# Bancada y mesa de corte.
+	IndKit.box(self, Vector3(w * 0.85, 0.9, d * 0.7), Vector3(0, 0.6, 0), mats["housing"])
+	IndKit.box(self, Vector3(w * 0.9, 0.12, d * 0.5), Vector3(0, 1.1, 0), dark)
+	# Tronco de entrada.
+	IndKit.cyl(self, 0.35, 0.35, w * 0.5, Vector3(-w * 0.25, 1.3, 0), wood).rotation_degrees = Vector3(0, 0, 90)
+	# Tablas de salida apiladas.
+	for i in range(3):
+		IndKit.box(self, Vector3(w * 0.5, 0.06, 0.35), Vector3(w * 0.28, 1.18 + i * 0.09, 0), wood)
+	# Carcasa del motor + campana de aspiración de aserrín.
+	IndKit.box(self, Vector3(0.7, 0.6, 0.7), Vector3(w * 0.3, 0.7, -d * 0.28), dark)
+	# Hoja de sierra circular (disco fino) que gira.
+	_anim_primary = Node3D.new()
+	_anim_primary.position = Vector3(0, 1.5, 0)
+	add_child(_anim_primary)
+	var blade := IndKit.cyl(_anim_primary, w * 0.32, w * 0.32, 0.05, Vector3.ZERO, steel)
+	blade.rotation_degrees = Vector3(90, 0, 0)
+	for i in range(8):
+		var ang := TAU * i / 8.0
+		IndKit.box(_anim_primary, Vector3(0.08, 0.08, 0.06), Vector3(cos(ang) * w * 0.3, sin(ang) * w * 0.3, 0), dark)
+	_anim_kind = "saw"
+	_control_panel(Vector3(w * 0.36, 1.0, d * 0.3), mats)
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(0, 1.6, 0)
+	add_child(_running_particles)
+
+# --- CEPILLADORA (madera): tambor rotativo bajo una campana ------------------
+func _build_planer(w: float, d: float, mats: Dictionary) -> void:
+	var dark: Material = mats["dark"]
+	IndKit.box(self, Vector3(w * 0.85, 1.1, d * 0.8), Vector3(0, 0.75, 0), mats["housing"])
+	IndKit.box(self, Vector3(w * 0.9, 0.5, d * 0.4), Vector3(0, 1.5, 0), dark)   # campana
+	# Cinta de tablas de entrada/salida.
+	var wood := IndKit.housing(Color(0.55, 0.38, 0.2))
+	IndKit.box(self, Vector3(w * 0.5, 0.05, 0.4), Vector3(-w * 0.4, 1.05, 0), wood)
+	IndKit.box(self, Vector3(w * 0.5, 0.05, 0.4), Vector3(w * 0.4, 1.05, 0), wood)
+	# Tambor de cuchillas rotativo.
+	_anim_primary = Node3D.new()
+	_anim_primary.position = Vector3(0, 1.15, 0)
+	add_child(_anim_primary)
+	var drum := IndKit.cyl(_anim_primary, 0.22, 0.22, w * 0.5, Vector3.ZERO, IndKit.steel())
+	drum.rotation_degrees = Vector3(0, 0, 90)
+	_anim_kind = "saw"
+	_control_panel(Vector3(w * 0.36, 1.1, d * 0.34), mats)
+
+# --- REFINERÍA (energía): columna de destilación + tanques + antorcha --------
+func _build_refinery(w: float, d: float, mats: Dictionary) -> void:
+	var steel: Material = mats["steel"]
+	var dark: Material = mats["dark"]
+	# Columna alta.
+	IndKit.cyl(self, w * 0.16, w * 0.18, 6.0, Vector3(-w * 0.15, 3.0, 0), steel)
+	for i in range(6):
+		IndKit.cyl(self, w * 0.19, w * 0.19, 0.1, Vector3(-w * 0.15, 0.8 + i * 0.9, 0), dark)
+	IndKit.cyl(self, w * 0.02, w * 0.16, 0.5, Vector3(-w * 0.15, 6.2, 0), steel)
+	# Tanques horizontales.
+	for sz in [-1, 1]:
+		var t := IndKit.cyl(self, 0.6, 0.6, w * 0.4, Vector3(w * 0.25, 1.0, sz * d * 0.22), steel)
+		t.rotation_degrees = Vector3(90, 0, 0)
+	# Tubería que sube por la columna.
+	IndKit.pipe(self, Vector3(w * 0.25, 1.0, 0), Vector3(-w * 0.15, 2.5, 0), 0.14, dark)
+	# Antorcha (llama emisiva) en lo alto.
+	_glow_mat = IndKit.emissive(Color(1.0, 0.5, 0.15), 2.0)
+	IndKit.cyl(self, 0.12, 0.16, 1.4, Vector3(w * 0.3, 4.2, -d * 0.28), dark)
+	IndKit.cyl(self, 0.02, 0.18, 0.6, Vector3(w * 0.3, 5.1, -d * 0.28), _glow_mat)
+	_glow_light = _omni(Vector3(w * 0.3, 5.2, -d * 0.28), Color(1.0, 0.55, 0.15), 5.0, 2.0)
+	add_child(_glow_light)
+	_anim_kind = ""
+	_control_panel(Vector3(w * 0.28, 1.1, d * 0.32), mats)
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(-w * 0.15, 6.4, 0)
+	add_child(_running_particles)
+
+# --- HORNO DE LADRILLOS (construcción): horno abovedado con boca ardiente -----
+func _build_kiln(w: float, d: float, mats: Dictionary) -> void:
+	var dark: Material = mats["dark"]
+	var brick := IndKit.housing(Color(0.55, 0.28, 0.2))
+	# Cuerpo del horno.
+	IndKit.box(self, Vector3(w * 0.8, 2.2, d * 0.8), Vector3(0, 1.3, 0), brick)
+	# Bóveda superior.
+	IndKit.cyl(self, w * 0.1, w * 0.42, 0.7, Vector3(0, 2.6, 0), brick)
+	# Boca del horno incandescente.
+	_glow_mat = IndKit.emissive(Color(1.0, 0.5, 0.12), 2.0)
+	IndKit.box(self, Vector3(w * 0.4, 0.7, 0.15), Vector3(0, 0.9, d * 0.4), _glow_mat)
+	_glow_light = _omni(Vector3(0, 0.9, d * 0.45), Color(1.0, 0.5, 0.12), 4.5, 1.8)
+	add_child(_glow_light)
+	# Chimenea.
+	IndKit.cyl(self, 0.3, 0.34, 2.2, Vector3(w * 0.28, 3.4, -d * 0.26), dark)
+	# Pila de ladrillos de salida.
+	for i in range(3):
+		IndKit.box(self, Vector3(0.5, 0.16, 0.7), Vector3(-w * 0.42, 0.3 + i * 0.18, d * 0.2), brick)
+	_anim_kind = ""
+	_control_panel(Vector3(w * 0.3, 1.1, d * 0.42), mats)
+	_running_particles = _make_steam()
+	_running_particles.position = Vector3(w * 0.28, 4.5, -d * 0.26)
+	add_child(_running_particles)
+
+# --- MÓDULO DE CULTIVO (regulado): invernadero cerrado con brillo verde -------
+func _build_grow(w: float, d: float, mats: Dictionary) -> void:
+	var dark: Material = mats["dark"]
+	var glass := IndKit.glass()
+	# Base y estructura.
+	IndKit.box(self, Vector3(w * 0.9, 0.5, d * 0.9), Vector3(0, 0.25, 0), mats["concrete"])
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			IndKit.box(self, Vector3(0.12, 2.4, 0.12), Vector3(sx * w * 0.4, 1.4, sz * d * 0.4), dark)
+	# Cerramiento de vidrio.
+	for sx in [-1, 1]:
+		IndKit.box(self, Vector3(0.06, 2.2, d * 0.85), Vector3(sx * w * 0.42, 1.5, 0), glass)
+	for sz in [-1, 1]:
+		IndKit.box(self, Vector3(w * 0.85, 2.2, 0.06), Vector3(0, 1.5, sz * d * 0.42), glass)
+	# Techo.
+	IndKit.box(self, Vector3(w * 0.88, 0.1, d * 0.88), Vector3(0, 2.65, 0), dark)
+	# Bandejas de cultivo con brillo verde (abstracto).
+	_glow_mat = IndKit.emissive(Color(0.3, 0.85, 0.35), 1.2)
+	for i in range(3):
+		IndKit.box(self, Vector3(w * 0.7, 0.1, 0.5), Vector3(0, 0.7 + i * 0.6, -d * 0.15), _glow_mat)
+	# Luces de cultivo cenitales.
+	IndKit.box(self, Vector3(w * 0.7, 0.08, d * 0.6), Vector3(0, 2.5, 0), IndKit.emissive(Color(0.7, 0.5, 0.9), 1.0))
+	_glow_light = _omni(Vector3(0, 1.6, 0), Color(0.4, 0.9, 0.5), 4.0, 1.2)
+	add_child(_glow_light)
+	_anim_kind = ""
+	_control_panel(Vector3(w * 0.3, 1.1, d * 0.44), mats)
 
 func _build_generic(w: float, d: float, mats: Dictionary) -> void:
 	IndKit.box(self, Vector3(w * 0.82, 2.2, d * 0.82), Vector3(0, 1.4, 0), mats["housing"])
@@ -450,3 +601,6 @@ func _process(delta: float) -> void:
 		"fan":
 			if _anim_primary and running:
 				_anim_primary.rotate_y(delta * 6.0)
+		"saw":
+			if _anim_primary and running:
+				_anim_primary.rotate_z(delta * 12.0)

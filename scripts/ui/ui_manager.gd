@@ -291,43 +291,108 @@ func _build_bottom_bar() -> void:
 		if not active and build_panel:
 			build_panel.visible = false)
 
+var _menu_box: VBoxContainer
+
 func _build_menu_panel() -> void:
 	menu_panel = UITheme.make_panel(UITheme.BG)
 	menu_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	menu_panel.offset_left = 8
 	menu_panel.offset_top = 58           # justo debajo de la barra superior
-	menu_panel.custom_minimum_size = Vector2(240, 0)
+	menu_panel.custom_minimum_size = Vector2(250, 0)
 	menu_panel.visible = false
 	root.add_child(menu_panel)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 3)
-	menu_panel.add_child(v)
-	v.add_child(UITheme.make_title("INDUSTRIA"))
-	_menu_item(v, "🏭  Fábrica (construir)", _on_construction)
-	_menu_item(v, "📦  Producción", _on_storage)
-	_menu_item(v, "🚚  Logística", _on_automation)
-	_menu_item(v, "👷  Personal", _on_workers)
-	_menu_item(v, "💰  Economía", _on_finance)
-	_menu_item(v, "📈  Mercado", _on_finance)
-	_menu_item(v, "🔬  Tecnología", _on_upgrades)
-	_menu_item(v, "📋  Contratos", _on_contracts)
-	_menu_item(v, "🏆  Objetivos", _on_objectives)
-	_menu_item(v, "📊  Progreso", _on_objectives)
-	_menu_item(v, "💾  Guardar", _on_save)
-	_menu_item(v, "⚙  Ajustes", _on_config)
+	_menu_box = VBoxContainer.new()
+	_menu_box.add_theme_constant_override("separation", 3)
+	menu_panel.add_child(_menu_box)
+	_render_menu_root()
 
-func _menu_item(v: VBoxContainer, text: String, cb: Callable) -> void:
+## Menú principal: centro de navegación con submenús por categoría (spec §27/§28).
+func _render_menu_root() -> void:
+	_clear_menu()
+	_menu_box.add_child(UITheme.make_title("INDUSTRIA"))
+	_menu_cat("🏭  Fábrica", "Fábrica", [
+		["🏗  Construcción", _on_construction],
+		["🗺  Expansión de terreno", _on_upgrades],
+		["ℹ  Información de la empresa", _on_factory_info],
+	])
+	_menu_cat("⚙  Producción", "Producción", [
+		["📦  Almacén / Materiales", _on_storage],
+		["🏭  Máquinas (seleccioná una)", _on_machines_help],
+		["🚚  Logística / Reglas", _on_automation],
+	])
+	_menu_act("👷  Personal", _on_workers)
+	_menu_cat("💰  Economía", "Economía", [
+		["💵  Finanzas", _on_finance],
+		["📈  Mercado", _on_finance],
+	])
+	_menu_act("🔬  Tecnología", _on_upgrades)
+	_menu_cat("📋  Contratos", "Contratos", [
+		["📥  Disponibles y activos", _on_contracts],
+	])
+	_menu_act("🎯  Objetivos / Progreso", _on_objectives)
+	_menu_act("💾  Guardar", _on_save)
+	_menu_act("⚙  Ajustes", _on_config)
+
+func _render_submenu(title: String, items: Array) -> void:
+	_clear_menu()
+	var back := UITheme.make_button("‹  Volver")
+	back.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	back.custom_minimum_size = Vector2(0, 30)
+	back.pressed.connect(_render_menu_root)
+	_menu_box.add_child(back)
+	_menu_box.add_child(UITheme.make_label(title.to_upper(), 12, UITheme.ACCENT))
+	for it in items:
+		var label: String = it[0]
+		var cb: Callable = it[1]
+		_menu_leaf(label, cb)
+
+func _clear_menu() -> void:
+	for c in _menu_box.get_children():
+		c.queue_free()
+
+## Categoría que abre un submenú (no cierra el menú).
+func _menu_cat(text: String, title: String, items: Array) -> void:
+	var b := UITheme.make_button(text + "   ›")
+	b.custom_minimum_size = Vector2(0, 32)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.pressed.connect(func(): _render_submenu(title, items))
+	_menu_box.add_child(b)
+
+## Acción directa de nivel raíz (cierra el menú y ejecuta).
+func _menu_act(text: String, cb: Callable) -> void:
 	var b := UITheme.make_button(text)
 	b.custom_minimum_size = Vector2(0, 32)
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.pressed.connect(func():
 		menu_panel.visible = false
 		cb.call())
-	v.add_child(b)
+	_menu_box.add_child(b)
+
+## Hoja de un submenú (cierra el menú y ejecuta).
+func _menu_leaf(text: String, cb: Callable) -> void:
+	var b := UITheme.make_button(text)
+	b.custom_minimum_size = Vector2(0, 30)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.pressed.connect(func():
+		menu_panel.visible = false
+		cb.call())
+	_menu_box.add_child(b)
+
+func _on_factory_info() -> void:
+	var machines: int = GameManager.machines.count() if GameManager.machines else 0
+	var brand: String = GameManager.specialization.branch_name() if GameManager.specialization.has_chosen() else "sin elegir"
+	EventBus.notify.emit("%s · Nivel %d (%s) · Rama: %s · %d máquinas · Valor %s" % [
+		GameState.company_name, GameState.company_level, GameManager.progression.level_name(),
+		brand, machines, Fmt.money(_factory_value())], "info")
+
+func _on_machines_help() -> void:
+	EventBus.notify.emit("Seleccioná una máquina en el mundo para ver y ajustar su panel.", "info")
 
 func _toggle_menu() -> void:
 	if menu_panel:
 		menu_panel.visible = not menu_panel.visible
+		if menu_panel.visible:
+			_render_menu_root()   # siempre abre en el nivel raíz
 
 func _on_construction() -> void:
 	if build_panel:
@@ -736,32 +801,49 @@ func _refresh_upgrades() -> void:
 	box.add_child(UITheme.hsep())
 	box.add_child(_expansion_block())
 	box.add_child(UITheme.hsep())
-	box.add_child(UITheme.make_label("Mejoras — optimizan toda la fábrica.", 12, UITheme.ACCENT))
+	box.add_child(UITheme.make_label("🔬 ÁRBOL TECNOLÓGICO", 12, UITheme.ACCENT))
+	box.add_child(UITheme.make_label("✅ adquirida   🔓 disponible   🔒 bloqueada", 10, UITheme.MUTED))
 	var um: Node = GameManager.upgrades
+	# Construye el árbol a partir del campo "requires" de cada mejora.
+	var children: Dictionary = {}
+	var roots: Array = []
 	for id in um.defs.keys():
-		var d: Dictionary = um.defs[id]
-		var v := VBoxContainer.new()
-		var owned: bool = um.is_owned(id)
-		var avail: bool = um.is_available(id)
-		var title_color := UITheme.ACCENT2 if owned else (UITheme.TEXT if avail else Color(0.5, 0.5, 0.55))
-		v.add_child(UITheme.make_label(String(d.get("name", id)), 14, title_color))
-		var desc := UITheme.make_label(String(d.get("description", "")), 11)
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc.custom_minimum_size = Vector2(300, 0)
-		v.add_child(desc)
-		if owned:
-			v.add_child(UITheme.make_label("✅ Adquirida", 12, UITheme.ACCENT2))
-		elif avail:
-			var b := UITheme.make_button("Comprar (%s)" % Fmt.money(um.cost(id)))
-			b.disabled = not GameManager.economy.can_afford(um.cost(id))
-			b.pressed.connect(_on_buy_upgrade.bind(String(id)))
-			v.add_child(b)
+		var req := String(um.defs[id].get("requires", ""))
+		if req == "":
+			roots.append(id)
 		else:
-			var req := String(d.get("requires", ""))
-			var req_name := String(um.defs.get(req, {}).get("name", req))
-			v.add_child(UITheme.make_label("🔒 Requiere: %s" % req_name, 11, UITheme.WARN))
-		v.add_child(UITheme.hsep())
-		box.add_child(v)
+			if not children.has(req):
+				children[req] = []
+			children[req].append(id)
+	for r in roots:
+		_tech_node(box, um, String(r), children, 0)
+
+## Renderiza un nodo del árbol tecnológico y sus hijos (recursivo, con sangría).
+func _tech_node(box: VBoxContainer, um: Node, id: String, children: Dictionary, depth: int) -> void:
+	var d: Dictionary = um.defs[id]
+	var owned: bool = um.is_owned(id)
+	var avail: bool = um.is_available(id)
+	var icon := "✅" if owned else ("🔓" if avail else "🔒")
+	var col := UITheme.ACCENT2 if owned else (UITheme.TEXT if avail else Color(0.5, 0.5, 0.55))
+	var pad := ""
+	for i in range(depth):
+		pad += "   "
+	var connector := (pad + "└─ ") if depth > 0 else ""
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 1)
+	v.add_child(UITheme.make_label("%s%s %s" % [connector, icon, String(d.get("name", id))], 13, col))
+	var desc := UITheme.make_label(pad + "   " + String(d.get("description", "")), 10, UITheme.MUTED)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size = Vector2(300, 0)
+	v.add_child(desc)
+	if avail and not owned:
+		var b := UITheme.make_button("Investigar (%s)" % Fmt.money(um.cost(id)))
+		b.disabled = not GameManager.economy.can_afford(um.cost(id))
+		b.pressed.connect(_on_buy_upgrade.bind(id))
+		v.add_child(b)
+	box.add_child(v)
+	for ch in children.get(id, []):
+		_tech_node(box, um, String(ch), children, depth + 1)
 
 func _on_buy_upgrade(id: String) -> void:
 	GameManager.upgrades.buy(id)

@@ -29,6 +29,7 @@ func _ready() -> void:
 	_test_vehicles()
 	_test_objectives()
 	_test_specialization()
+	_test_machine_models()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -233,6 +234,19 @@ func _test_specialization() -> void:
 	_check("Rama: bonus de producción a las máquinas de la rama", spec.machine_bonus("sawmill") > 1.0)
 	_check("Rama: sin bonus a máquinas de otra rama", is_equal_approx(spec.machine_bonus("smelter"), 1.0))
 	_check("Rama: no se puede reelegir una vez fijada", not spec.choose("metal"))
+
+func _test_machine_models() -> void:
+	# Cada máquina (incluidas las nuevas por rama) debe construir su modelo 3D
+	# sin errores y quedar como nodo válido en el mundo.
+	var ids := ["workbench", "sawmill", "planer", "refinery", "brick_kiln", "block_press", "grow_module"]
+	var ok := true
+	var col := 34
+	for id in ids:
+		var m: Machine = GameManager.machines.create_machine(id, Vector2i(col, 34))
+		col += 4
+		if not is_instance_valid(m) or m.get_child_count() == 0:
+			ok = false
+	_check("Modelos: todas las máquinas de rama instancian su modelo 3D", ok)
 
 func _test_save_load() -> void:
 	var ok_save: bool = GameManager.save.save_game()
