@@ -238,6 +238,9 @@ func _produce_cycle(inputs: Dictionary, outputs: Dictionary) -> void:
 		var n := int(outputs[item_id])
 		output_buffer.add(item_id, n)
 		EventBus.item_produced.emit(item_id, n)
+	# Destello de "producto terminado" (feedback visual barato, sin _process).
+	if _model:
+		_model.pulse()
 	# Desgaste por uso (reducido por la mejora de mantenimiento preventivo).
 	var wear := WEAR_PER_CYCLE
 	if GameManager.upgrades:

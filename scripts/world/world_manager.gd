@@ -85,7 +85,107 @@ func _on_level_ambient(level: int, _name: String) -> void:
 	if target > _ambient_workers:
 		GameManager.workers.spawn_ambient(target - _ambient_workers)
 		_ambient_workers = target
+	# El PROPIO ESPACIO crece: estructuras diseñadas por nivel (spec §6/§12).
+	for lv in range(_ambient_level + 1, level + 1):
+		_grow_structures(lv)
 	_ambient_level = level
+
+# --- Crecimiento visual del espacio por nivel (composición con intención) ----
+var _growth_root: Node3D
+var _grown: Dictionary = {}
+
+func _growth_node() -> Node3D:
+	if _growth_root == null or not is_instance_valid(_growth_root):
+		_growth_root = Node3D.new()
+		_growth_root.name = "GrowthProps"
+		add_child(_growth_root)
+	return _growth_root
+
+func _grow_structures(level: int) -> void:
+	if _grown.has(level):
+		return
+	_grown[level] = true
+	var root := _growth_node()
+	var branch: String = GameManager.specialization.current() if GameManager.specialization else ""
+	match level:
+		2:
+			# Oficina/administración + primera zona de materiales de tu rama.
+			_office(root, Vector3(18, 0, 18))
+			_branch_cluster(root, Vector3(14, 0, 16), branch)
+		3:
+			# Zona de almacenamiento (contenedores / pila propia de la rama).
+			if branch == "wood":
+				_log_pile(root, Vector3(-18, 0, 18))
+			else:
+				_container_stack(root, Vector3(-19, 0, 17))
+			_branch_cluster(root, Vector3(-14, 0, 14), branch)
+		4:
+			# Estructuras grandes: torre-grúa y más materiales.
+			_gantry_tower(root, Vector3(18, 0, -17))
+			_branch_cluster(root, Vector3(14, 0, -14), branch)
+		5:
+			# Complejo consolidado: más volumen y una zona pesada.
+			_container_stack(root, Vector3(-19, 0, -18))
+			_branch_cluster(root, Vector3(-14, 0, -14), branch)
+
+## Pequeña oficina con ventanas iluminadas (zona administrativa, spec §7).
+func _office(parent: Node3D, base: Vector3) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var wall := _simple(Color(0.5, 0.52, 0.55), 0.8, 0.1)
+	var roof := _simple(Color(0.3, 0.32, 0.35), 0.7, 0.2)
+	_pbox(node, Vector3(5, 3, 4), Vector3(0, 1.5, 0), wall)
+	_pbox(node, Vector3(5.4, 0.3, 4.4), Vector3(0, 3.15, 0), roof)
+	_pbox(node, Vector3(1.2, 2.0, 0.1), Vector3(0, 1.0, 2.05), roof)           # puerta
+	var win := IndKit.emissive(Color(0.6, 0.8, 1.0), 0.7)
+	_pbox(node, Vector3(1.0, 1.0, 0.08), Vector3(-1.5, 1.9, 2.06), win)
+	_pbox(node, Vector3(1.0, 1.0, 0.08), Vector3(1.5, 1.9, 2.06), win)
+	# Cartel de la empresa.
+	_pbox(node, Vector3(3.0, 0.6, 0.1), Vector3(0, 3.6, 1.5), IndKit.emissive(Color(0.92, 0.63, 0.20), 0.9))
+
+## Pila de troncos (identidad maderera).
+func _log_pile(parent: Node3D, base: Vector3) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	var wood := IndKit.housing(Color(0.55, 0.38, 0.2))
+	for row in range(3):
+		var n := 4 - row
+		for i in range(n):
+			var log := _pcyl(node, 0.35, 0.35, 5.0, Vector3(-0.75 * n * 0.5 + i * 0.75, 0.4 + row * 0.65, 0), wood)
+			log.rotation_degrees = Vector3(0, 0, 90)
+
+## Cluster de materiales con identidad de cada rama (spec §7/§8).
+func _branch_cluster(parent: Node3D, base: Vector3, branch: String) -> void:
+	var node := Node3D.new()
+	node.position = base
+	parent.add_child(node)
+	match branch:
+		"wood":
+			var pallet := IndKit.housing(Color(0.55, 0.38, 0.2))
+			for i in range(3):
+				_pbox(node, Vector3(1.4, 0.2, 1.2), Vector3(i * 0.2, 0.15 + i * 0.25, i * 0.15), pallet)
+		"metal":
+			var steel := IndKit.steel()
+			for sx in [-1, 1]:
+				_pcyl(node, 0.7, 0.7, 1.2, Vector3(sx * 0.9, 0.6, 0), steel).rotation_degrees = Vector3(90, 0, 0)
+			_pbox(node, Vector3(2.4, 1.6, 1.0), Vector3(0, 0.8, -1.6), IndKit.housing(Color(0.4, 0.42, 0.46)))
+		"construction":
+			var block := IndKit.housing(Color(0.6, 0.58, 0.54))
+			for r in range(2):
+				for i in range(3):
+					_pbox(node, Vector3(0.9, 0.45, 0.9), Vector3(i * 1.0, 0.25 + r * 0.5, 0), block)
+		"energy":
+			var dark := IndKit.dark_metal()
+			for i in range(2):
+				_pcyl(node, 0.6, 0.6, 0.7, Vector3(i * 1.4, 0.35, 0), dark)   # bobinas de cable
+			_pbox(node, Vector3(1.2, 1.4, 1.0), Vector3(0.7, 0.7, -1.4), IndKit.housing(Color(0.7, 0.6, 0.2)))
+		_:
+			var crate := IndKit.housing(Color(0.45, 0.33, 0.19))
+			for i in range(4):
+				var s := 0.9
+				_pbox(node, Vector3(s, s, s), Vector3((i % 2) * 1.0, 0.45 + (i / 2) * 0.9, (i / 2) * 0.2), crate)
 
 ## Arranque DESDE CERO (spec §2, §3): terreno vacío, sin máquinas ni edificios.
 ## Sólo un pequeño lote de chatarra para que el jugador fabrique su primer

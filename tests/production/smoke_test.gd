@@ -30,6 +30,7 @@ func _ready() -> void:
 	_test_objectives()
 	_test_specialization()
 	_test_machine_models()
+	_test_growth()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -249,6 +250,22 @@ func _test_machine_models() -> void:
 		if not is_instance_valid(m) or m.get_child_count() == 0:
 			ok = false
 	_check("Modelos: todas las máquinas de rama instancian su modelo 3D", ok)
+
+func _test_growth() -> void:
+	# Crecimiento visual por nivel: los builders de estructuras/clusters deben
+	# generar geometría para todas las ramas sin errores. Se instancia el
+	# WorldManager como nodo HUÉRFANO (no entra al árbol → no dispara _ready).
+	var WM: GDScript = load("res://scripts/world/world_manager.gd")
+	var wm: Node3D = WM.new()
+	var saved_branch: String = GameState.industry_branch
+	for b in ["metal", "wood", "energy", "construction", "regulated", ""]:
+		GameState.industry_branch = b
+		wm._grown.clear()
+		for lv in [2, 3, 4, 5]:
+			wm._grow_structures(lv)
+	GameState.industry_branch = saved_branch
+	_check("Crecimiento: estructuras y clusters por nivel/rama se generan sin error", wm._growth_node().get_child_count() > 0)
+	wm.free()
 
 func _test_save_load() -> void:
 	var ok_save: bool = GameManager.save.save_game()

@@ -14,6 +14,12 @@ var objectives: Array = []         # [{id, title, done, reward, long, target, pr
 var won: bool = false
 var _started: bool = false
 
+## Reputación extra por hitos (spec §5): cada objetivo importante da prestigio.
+const REP_REWARD := {
+	"sell": 2, "contract": 3, "choose_branch": 2, "first_machine": 4,
+	"level2": 3, "produce50": 3, "line": 5, "expand": 5, "top": 15,
+}
+
 func _ready() -> void:
 	_define_objectives()
 	EventBus.item_produced.connect(_on_produced)
@@ -121,9 +127,15 @@ func _complete(id: String) -> void:
 	if reward > 0 and GameManager.economy:
 		GameManager.economy.earn(reward, "misc")
 		EventBus.objective_reward.emit("%s: +%s" % [o["title"], Fmt.money(reward)])
+	# Reputación por hito.
+	var rep: int = int(REP_REWARD.get(id, 0))
+	if rep > 0:
+		GameState.reputation = clampi(GameState.reputation + rep, 0, 100)
+		EventBus.reputation_changed.emit(GameState.reputation)
 	EventBus.objective_completed.emit(id, o["title"])
 	EventBus.objectives_updated.emit()
-	EventBus.notify.emit("Objetivo cumplido: %s (+%s)" % [o["title"], Fmt.money(reward)], "success")
+	var rep_txt := "  ⭐+%d" % rep if rep > 0 else ""
+	EventBus.notify.emit("Objetivo cumplido: %s (+%s)%s" % [o["title"], Fmt.money(reward), rep_txt], "success")
 	if id == "top":
 		_win()
 

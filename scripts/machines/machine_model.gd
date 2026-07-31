@@ -576,6 +576,18 @@ func _reset_anim_pose() -> void:
 			if _anim_secondary:
 				_anim_secondary.rotation.x = 0.15
 
+## Destello breve al completar un ciclo de producción (feedback "salió un
+## producto"). Es un tween de una sola vez: sin coste por frame (spec §2/§9/§17).
+func pulse() -> void:
+	if _status_light == null:
+		return
+	var m := _status_light.material_override as StandardMaterial3D
+	if m == null:
+		return
+	m.emission_energy_multiplier = 5.5
+	var tw := create_tween()
+	tw.tween_property(m, "emission_energy_multiplier", 2.0, 0.4)
+
 func _process(delta: float) -> void:
 	if TimeManager.time_scale <= 0.0:
 		return   # pausa real: las máquinas dejan de animarse
