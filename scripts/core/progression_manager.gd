@@ -92,3 +92,19 @@ func required_level(id: String) -> int:
 
 func is_unlocked(id: String) -> bool:
 	return GameState.company_level >= required_level(id)
+
+## Requisitos para alcanzar el PRÓXIMO nivel, con el progreso actual, para la
+## "meta de mediano plazo" del panel de Progreso (spec §8/§9). {} si estás al máximo.
+func next_requirement() -> Dictionary:
+	var lvl: int = GameState.company_level
+	if lvl >= LEVELS.size():
+		return {}   # ya en el nivel máximo (modo libre)
+	var req: Dictionary = LEVELS[lvl]   # LEVELS[lvl] = requisitos del nivel lvl+1
+	var machines: int = GameManager.machines.count() if GameManager.machines else 0
+	return {
+		"name": String(req["name"]),
+		"level": lvl + 1,
+		"value": [factory_value(), float(req["value"])],
+		"machines": [machines, int(req["machines"])],
+		"contracts": [GameState.contracts_completed, int(req["contracts"])],
+	}

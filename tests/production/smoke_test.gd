@@ -31,7 +31,9 @@ func _ready() -> void:
 	_test_specialization()
 	_test_machine_models()
 	_test_contract_capacity()
+	_test_client_program()
 	_test_automation_objective()
+	_test_balance()
 	_test_growth()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -271,9 +273,90 @@ func _test_contract_capacity() -> void:
 	var cv: Contract = GameManager.contracts._gen_typed("volumen")
 	_check("Contratos: 'volumen' pide gran cantidad (%d)" % cv.amount, cv.amount >= 400)
 
+func _test_client_program() -> void:
+	var cm := GameManager.contracts
+	cm.program = {}
+	GameState.company_level = 3
+	cm._start_program()
+	var p1: Contract = _find_program_offer(cm)
+	_check("Programa: se ofrece la Fase 1", p1 != null and p1.program_phase == 1)
+	if p1 == null:
+		return
+	# Completar la fase 1 debe ofrecer la fase 2.
+	GameManager.storage.deposit(p1.product, p1.amount + 10)
+	cm.accept(p1)
+	cm._on_minute(0, 0, 0)
+	_check("Programa: la Fase 1 completada abre la Fase 2", int(cm.program.get("phase", 0)) == 2)
+	# Completar hasta la última fase cierra el programa (gran recompensa).
+	for _i in range(2):
+		var pn: Contract = _find_program_offer(cm)
+		if pn == null:
+			break
+		GameManager.storage.deposit(pn.product, pn.amount + 10)
+		cm.accept(pn)
+		cm._on_minute(0, 0, 0)
+	_check("Programa: se completan las 3 fases y el programa se cierra", cm.program.is_empty())
+
+func _find_program_offer(cm) -> Contract:
+	for c in cm.offers:
+		if c.program_phase > 0:
+			return c
+	return null
+
 func _test_automation_objective() -> void:
 	EventBus.conveyor_placed.emit(null)
 	_check("Objetivos: conectar una cinta cumple 'automatizá'", _obj_done("automate"))
+
+## Economía teórica de una máquina con su receta principal (a velocidad base):
+## margen $/min, ROI (min) y producción u/min. Sirve de guarda de balance (§5).
+func _econ(machine_id: String) -> Dictionary:
+	var d: Dictionary = GameManager.recipes.get_machine_def(machine_id)
+	var recs: Array = d.get("recipes", [])
+	if recs.is_empty():
+		return {}
+	var r: Dictionary = GameManager.recipes.get_recipe(String(recs[0]))
+	var t: float = maxf(0.5, float(r.get("time", 5.0)))
+	var speed: float = float(d.get("base_speed", 1.0))
+	var cycles_min: float = 60.0 / t * speed
+	var rev := 0.0
+	var out_units := 0
+	for id in r.get("outputs", {}).keys():
+		rev += ItemDB.base_price(id) * int(r["outputs"][id])
+		out_units += int(r["outputs"][id])
+	var incost := 0.0
+	for id in r.get("inputs", {}).keys():
+		incost += ItemDB.base_price(id) * int(r["inputs"][id])
+	var energy_min: float = float(d.get("power", 0.0)) / 60.0 * 0.18
+	# Valor AGREGADO por el paso (no se penaliza "comprar" el intermedio que en
+	# realidad se produjo aguas arriba): valor de salida − valor de entrada.
+	var va_cycle: float = rev - incost
+	var va_min: float = va_cycle * cycles_min - energy_min
+	var cost: float = float(d.get("cost", 0))
+	return { "va_cycle": va_cycle, "va_min": va_min, "roi": cost / maxf(0.01, va_min), "prod": out_units * cycles_min }
+
+func _test_balance() -> void:
+	var ids := ["workbench", "smelter", "press", "assembler", "sawmill", "planer",
+		"refinery", "brick_kiln", "block_press", "grow_module"]
+	var value_adding := true
+	var roi_ok := true
+	var worst := 1e18
+	var best := -1e18
+	for id in ids:
+		var e := _econ(id)
+		if e.is_empty():
+			continue
+		print("  BALANCE %s: va %.1f/ciclo · %.0f $/min · ROI %.1f min · %.1f u/min" % [id, e["va_cycle"], e["va_min"], e["roi"], e["prod"]])
+		if float(e["va_cycle"]) <= 0.0:
+			value_adding = false   # un paso que destruye valor: nadie lo construiría
+		if float(e["roi"]) < 0.5 or float(e["roi"]) > 120.0:
+			roi_ok = false
+		worst = minf(worst, float(e["va_min"]))
+		best = maxf(best, float(e["va_min"]))
+	_check("Balance: cada paso agrega valor (salida > entrada)", value_adding)
+	_check("Balance: ROI de todas las máquinas en rango sano (0.5–120 min)", roi_ok)
+	# Ninguna rama debe rendir absurdamente más que otra por máquina (dominancia).
+	var ratio: float = best / maxf(1.0, worst)
+	_check("Balance: sin rama dominante (mejor/peor $/min < 3x, =%.1f)" % ratio, ratio < 3.0)
 
 func _test_growth() -> void:
 	# Crecimiento visual por nivel: los builders de estructuras/clusters deben

@@ -17,6 +17,9 @@ class_name Contract
 @export var reputation: int = 0
 ## Bonificación extra si se completa antes del plazo (spec §6/§23).
 @export var bonus: float = 0.0
+## Programa de cliente de varias fases (spec §6/§7). 0 = contrato suelto.
+@export var program_phase: int = 0
+@export var program_total: int = 0
 
 # Estado dinámico
 @export var accepted: bool = false
@@ -38,7 +41,7 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id, "type": type, "client": client, "product": product, "amount": amount,
 		"payment": payment, "deadline_days": deadline_days, "penalty": penalty,
-		"reputation": reputation, "bonus": bonus, "accepted": accepted, "deadline_day": deadline_day,
+		"reputation": reputation, "bonus": bonus, "program_phase": program_phase, "program_total": program_total, "accepted": accepted, "deadline_day": deadline_day,
 		"delivered": delivered, "completed": completed, "failed": failed,
 	}
 
@@ -54,6 +57,8 @@ static func from_dict(d: Dictionary) -> Contract:
 	c.penalty = float(d.get("penalty", 0.0))
 	c.reputation = int(d.get("reputation", 0))
 	c.bonus = float(d.get("bonus", 0.0))
+	c.program_phase = int(d.get("program_phase", 0))
+	c.program_total = int(d.get("program_total", 0))
 	c.accepted = bool(d.get("accepted", false))
 	c.deadline_day = int(d.get("deadline_day", 0))
 	c.delivered = int(d.get("delivered", 0))

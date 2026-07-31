@@ -480,6 +480,14 @@ func _on_objectives_updated() -> void:
 	_refresh_objectives()
 
 # --- Hitos: banner breve "NUEVO DESBLOQUEO" (spec §5, §7) --------------------
+const _TECH_BRANCH_LABELS := {
+	"produccion": "⚙  PRODUCCIÓN — velocidad (a costa de energía)",
+	"eficiencia": "⚡  EFICIENCIA — menos consumo y desgaste",
+	"logistica": "🚚  LOGÍSTICA — transporte y líneas largas",
+	"capacidad": "📦  CAPACIDAD — almacenamiento",
+	"comercial": "💰  COMERCIAL — mejor precio de venta",
+}
+
 const _MILESTONES := {
 	"first_machine": "Producción industrial habilitada",
 	"automate": "Automatización: la fábrica se alimenta sola",
@@ -660,7 +668,10 @@ func _offer_row(c: Contract) -> VBoxContainer:
 	var v := VBoxContainer.new()
 	var tag: String = GameManager.contracts.type_label(c)
 	var tcol := UITheme.WARN if c.type == "urgente" else (UITheme.ACCENT2 if c.type == "rentable" else UITheme.ACCENT)
-	v.add_child(UITheme.make_label("%s · %s" % [tag, c.client], 13, tcol))
+	var head := "%s · %s" % [tag, c.client]
+	if c.program_phase > 0:
+		head += "  (Fase %d/%d)" % [c.program_phase, c.program_total]
+	v.add_child(UITheme.make_label(head, 13, tcol))
 	var info := "%d× %s · Paga %s · Plazo %d días" % [c.amount, ItemDB.display_name(c.product), Fmt.money(c.payment), c.deadline_days]
 	v.add_child(UITheme.make_label(info, 12))
 	var terms := "⏱ Bonus antes de plazo +%s   ·   ⚠ Penalización %s" % [Fmt.money(c.bonus), Fmt.money(c.penalty)]
@@ -772,6 +783,15 @@ func _refresh_objectives() -> void:
 		c.queue_free()
 	box.add_child(UITheme.make_title("Objetivos"))
 	box.add_child(UITheme.make_label("Nivel de empresa: %s (N%d)" % [GameManager.progression.level_name(), GameState.company_level], 12, UITheme.ACCENT2))
+	# Meta de mediano plazo: requisitos para el próximo nivel (spec §8/§9).
+	var nr: Dictionary = GameManager.progression.next_requirement()
+	if not nr.is_empty():
+		box.add_child(UITheme.make_label("🏁 META: llegar a Nivel %d (%s)" % [int(nr["level"]), nr["name"]], 12, UITheme.ACCENT))
+		box.add_child(_req_row("Valor de fábrica", nr["value"][0], nr["value"][1], true))
+		box.add_child(_req_row("Máquinas", nr["machines"][0], nr["machines"][1], false))
+		box.add_child(_req_row("Contratos completados", nr["contracts"][0], nr["contracts"][1], false))
+	else:
+		box.add_child(UITheme.make_label("🏢 Nivel máximo — modo libre.", 12, UITheme.ACCENT2))
 	# Objetivo actual destacado con su pista (qué hacer y por qué).
 	var cur: Dictionary = GameManager.objectives.current()
 	if not cur.is_empty():
@@ -799,6 +819,15 @@ func _refresh_objectives() -> void:
 	var done: int = GameManager.objectives.completed_count()
 	box.add_child(UITheme.hsep())
 	box.add_child(UITheme.make_label("Progreso: %d / %d" % [done, GameManager.objectives.objectives.size()], 13, UITheme.ACCENT))
+
+## Fila de requisito con marca ✓/⬜ y progreso, para la meta de nivel.
+func _req_row(label: String, cur: float, need: float, money: bool) -> Label:
+	var done: bool = cur >= need
+	var cur_s: String = Fmt.money(cur) if money else str(int(cur))
+	var need_s: String = Fmt.money(need) if money else str(int(need))
+	var mark := "✅" if done else "⬜"
+	return UITheme.make_label("%s %s: %s / %s" % [mark, label, cur_s, need_s], 12,
+		UITheme.ACCENT2 if done else UITheme.TEXT)
 
 func _objective_row(o: Dictionary) -> Label:
 	var mark := "✅" if o["done"] else "⬜"
@@ -841,7 +870,12 @@ func _refresh_upgrades() -> void:
 			if not children.has(req):
 				children[req] = []
 			children[req].append(id)
+	var last_branch := ""
 	for r in roots:
+		var br := String(um.defs[r].get("branch", ""))
+		if br != last_branch:
+			last_branch = br
+			box.add_child(UITheme.make_label(_TECH_BRANCH_LABELS.get(br, br.to_upper()), 12, UITheme.ACCENT))
 		_tech_node(box, um, String(r), children, 0)
 
 ## Renderiza un nodo del árbol tecnológico y sus hijos (recursivo, con sangría).

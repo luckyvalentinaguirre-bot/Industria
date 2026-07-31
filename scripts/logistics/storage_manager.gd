@@ -19,7 +19,14 @@ func _recompute_capacity() -> void:
 	for b in _storage_buildings:
 		if is_instance_valid(b):
 			cap += int(b.get_meta("capacity", 0))
+	# Tecnología de la rama Capacidad multiplica el almacenamiento total.
+	if GameManager.upgrades:
+		cap = int(round(cap * GameManager.upgrades.storage_mult()))
 	stock.capacity = cap
+
+## Recalcula la capacidad (p.ej. tras comprar una tecnología de almacenamiento).
+func refresh_capacity() -> void:
+	_recompute_capacity()
 
 func register_storage(building: Node, capacity: int) -> void:
 	building.set_meta("capacity", capacity)

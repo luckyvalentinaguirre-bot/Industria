@@ -2,11 +2,11 @@
   "_comment": "Industria V1 - componentes intermedios y productos finales.",
   "components": {
     "hand_tool":       { "name": "Herramienta manual",    "category": "components", "unit": "u", "base_price": 22.0 },
-    "plank":           { "name": "Tabla de madera",       "category": "components", "unit": "u", "base_price": 9.0 },
-    "pallet":          { "name": "Pallet",                "category": "components", "unit": "u", "base_price": 26.0 },
-    "brick":           { "name": "Ladrillo",              "category": "components", "unit": "u", "base_price": 7.0 },
-    "block":           { "name": "Bloque estructural",    "category": "components", "unit": "u", "base_price": 20.0 },
-    "regulated_goods": { "name": "Producto regulado",     "category": "regulated",  "unit": "u", "base_price": 60.0 },
+    "plank":           { "name": "Tabla de madera",       "category": "components", "unit": "u", "base_price": 6.0 },
+    "pallet":          { "name": "Pallet",                "category": "components", "unit": "u", "base_price": 34.0 },
+    "brick":           { "name": "Ladrillo",              "category": "components", "unit": "u", "base_price": 4.0 },
+    "block":           { "name": "Bloque estructural",    "category": "components", "unit": "u", "base_price": 30.0 },
+    "regulated_goods": { "name": "Producto regulado",     "category": "regulated",  "unit": "u", "base_price": 54.0 },
     "metal_plate":     { "name": "Placa metalica",        "category": "components", "unit": "u", "base_price": 30.0 },
     "copper_part":     { "name": "Componente de cobre",   "category": "components", "unit": "u", "base_price": 40.0 },
     "industrial_part": { "name": "Pieza industrial",      "category": "components", "unit": "u", "base_price": 55.0 }

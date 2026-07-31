@@ -11,7 +11,7 @@
     "chemicals":   { "name": "Productos quimicos",  "category": "chemicals","unit": "L",  "base_price": 9.0 }
   },
   "processed": {
-    "iron_ingot":     { "name": "Lingote de hierro",         "category": "metals",    "unit": "u", "base_price": 12.0 },
+    "iron_ingot":     { "name": "Lingote de hierro",         "category": "metals",    "unit": "u", "base_price": 18.0 },
     "copper_ingot":   { "name": "Lingote de cobre",          "category": "metals",    "unit": "u", "base_price": 18.0 },
     "recycled_metal": { "name": "Metal reciclado",           "category": "metals",    "unit": "u", "base_price": 8.0 },
     "fuel":           { "name": "Combustible",               "category": "energy",    "unit": "L", "base_price": 14.0 },

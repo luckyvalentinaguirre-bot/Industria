@@ -7,6 +7,10 @@ extends Node
 
 const PRICE_MIN_FACTOR := 0.55
 const PRICE_MAX_FACTOR := 1.9
+## Volatilidad del paseo aleatorio diario por defecto y por ítem (spec §3):
+## el cultivo regulado tiene un mercado mucho más inestable (riesgo/recompensa).
+const DEFAULT_VOLATILITY := 0.09
+const VOLATILITY := { "regulated_goods": 0.24, "nutrients": 0.16 }
 
 var suppliers: Dictionary = {}
 var _pending: Array = []   # [{item_id, qty, arrive_day, supplier}]
@@ -49,8 +53,10 @@ func _fluctuate_prices() -> void:
 			continue
 		prev_prices[id] = prices[id]
 		var p := float(prices[id])
-		# Paseo aleatorio con reversión a la media (precio base).
-		p *= 1.0 + randf_range(-0.09, 0.09)
+		# Paseo aleatorio con reversión a la media (precio base). El cultivo
+		# regulado oscila mucho más: hay que elegir cuándo vender (riesgo).
+		var vol: float = float(VOLATILITY.get(id, DEFAULT_VOLATILITY))
+		p *= 1.0 + randf_range(-vol, vol)
 		p = lerpf(p, base, 0.14)
 		# Sesgo de demanda por eventos.
 		if demand_bias.has(id):

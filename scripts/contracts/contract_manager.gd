@@ -12,7 +12,7 @@ const TYPES := ["facil", "grande", "urgente", "rentable", "especial", "volumen"]
 const TYPE_LABELS := {
 	"facil": "🟢 Fácil", "grande": "📦 Grande", "urgente": "⏱ Urgente",
 	"rentable": "💎 Rentable", "especial": "⭐ Especial", "volumen": "🏭 Volumen",
-	"normal": "Contrato",
+	"programa": "🤝 Programa", "normal": "Contrato",
 }
 const CLIENTS := ["Construcciones Delta", "Metalúrgica Andes", "Ensambladora Rivas",
 	"Talleres Sur", "Industrias Kappa", "Logística Omega", "Fábrica Zeta"]
@@ -24,6 +24,11 @@ var offers: Array = []            # Array[Contract] disponibles
 var active: Array = []            # Array[Contract] aceptados
 var _last_refresh_day: int = 0
 var _seq: int = 0
+
+## Programa de cliente de mediano plazo (spec §6/§7): fases escalonadas del
+## mismo cliente por tu producto insignia. {} = sin programa activo.
+const PROGRAM_PHASES := 3
+var program: Dictionary = {}      # {client, product, phase}
 
 func _ready() -> void:
 	templates = _load_templates()
@@ -148,6 +153,9 @@ func accept(c: Contract) -> void:
 
 func decline(c: Contract) -> void:
 	offers.erase(c)
+	# Rechazar una fase abandona el programa (podrá reaparecer más adelante).
+	if c.program_phase > 0:
+		program = {}
 
 # --- Cumplimiento -----------------------------------------------------------
 func _on_minute(_d: int, _h: int, _m: int) -> void:
@@ -175,6 +183,9 @@ func _complete(c: Contract) -> void:
 	if early:
 		GameManager.economy.earn(c.bonus, "sales")
 	_add_reputation(c.reputation)
+	# Programa de cliente: avanzar a la siguiente fase (o gran recompensa final).
+	if c.program_phase > 0:
+		_advance_program(c)
 	EventBus.contract_completed.emit(c)
 	if early:
 		EventBus.notify.emit("¡Contrato cumplido antes de plazo! %s pagó %s (+bonus %s)" % [c.client, Fmt.money(c.payment), Fmt.money(c.bonus)], "success")
@@ -189,6 +200,8 @@ func _fail(c: Contract) -> void:
 		GameManager.storage.deposit(c.product, c.delivered)
 	GameManager.economy.force_spend(c.penalty, "contract_penalty")
 	_add_reputation(-c.reputation - 3)
+	if c.program_phase > 0:
+		program = {}   # se cae el programa al incumplir una fase
 	EventBus.contract_failed.emit(c)
 	EventBus.notify.emit("Contrato incumplido con %s. Penalización %s" % [c.client, Fmt.money(c.penalty)], "error")
 
@@ -208,6 +221,57 @@ func _on_day(day: int) -> void:
 		var c := _gen_typed(TYPES[randi() % TYPES.size()])
 		offers.append(c)
 		EventBus.contract_offered.emit(c)
+	# Programa de cliente: se ofrece a partir de Fabricante (N3) si no hay uno.
+	if program.is_empty() and GameState.company_level >= 3 and randf() < 0.5:
+		_start_program()
+
+# --- Programa de cliente (mediano plazo) ------------------------------------
+func _start_program() -> void:
+	var product := _pick_product()
+	if GameManager.specialization and GameManager.specialization.has_chosen():
+		var sig: Array = GameManager.specialization.signature_products()
+		if not sig.is_empty():
+			product = String(sig[randi() % sig.size()])
+	program = { "client": CLIENTS[randi() % CLIENTS.size()], "product": product, "phase": 1 }
+	_offer_program_contract()
+
+func _offer_program_contract() -> void:
+	if program.is_empty() or offers.size() >= MAX_OFFERS + 1:
+		return
+	var phase: int = int(program["phase"])
+	var product: String = String(program["product"])
+	var unit: float = _unit_value(product)
+	_seq += 1
+	var c := Contract.new()
+	c.type = "programa"
+	c.id = "prog_%d" % _seq
+	c.client = String(program["client"])
+	c.product = product
+	c.amount = 120 * phase                     # escala con cada fase
+	c.payment = round(unit * c.amount * (1.35 + phase * 0.05) / 100.0) * 100.0
+	c.penalty = round(c.payment * 0.35 / 100.0) * 100.0
+	c.bonus = round(c.payment * 0.3 / 100.0) * 100.0
+	c.deadline_days = 5 + phase
+	c.reputation = 6 + phase * 3
+	c.program_phase = phase
+	c.program_total = PROGRAM_PHASES
+	offers.append(c)
+	EventBus.contract_offered.emit(c)
+	EventBus.notify.emit("%s propone un programa: Fase %d/%d (%d× %s)" % [c.client, phase, PROGRAM_PHASES, c.amount, ItemDB.display_name(product)], "info")
+
+## Avanza el programa al completar una fase; la última da una gran recompensa.
+func _advance_program(c: Contract) -> void:
+	if program.is_empty() or int(program.get("phase", 0)) != c.program_phase:
+		return
+	if c.program_phase >= PROGRAM_PHASES:
+		var reward: float = c.payment * 1.5
+		GameManager.economy.earn(reward, "sales")
+		_add_reputation(15)
+		EventBus.notify.emit("¡Programa de %s completado! Bonificación final %s y +15 reputación." % [c.client, Fmt.money(reward)], "success")
+		program = {}
+	else:
+		program["phase"] = c.program_phase + 1
+		_offer_program_contract()
 
 # --- Serialización ----------------------------------------------------------
 func to_dict() -> Dictionary:
@@ -217,7 +281,7 @@ func to_dict() -> Dictionary:
 	var act: Array = []
 	for c in active:
 		act.append(c.to_dict())
-	return { "offers": off, "active": act, "last_refresh": _last_refresh_day }
+	return { "offers": off, "active": act, "last_refresh": _last_refresh_day, "program": program.duplicate() }
 
 func from_dict(data: Dictionary) -> void:
 	offers.clear()
@@ -227,3 +291,4 @@ func from_dict(data: Dictionary) -> void:
 	for d in data.get("active", []):
 		active.append(Contract.from_dict(d))
 	_last_refresh_day = int(data.get("last_refresh", 0))
+	program = (data.get("program", {}) as Dictionary).duplicate()

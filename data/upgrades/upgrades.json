@@ -1,54 +1,119 @@
 {
-  "_comment": "Industria - mejoras globales de la empresa. effect.type: machine_speed | power_draw | wear | conveyor_speed | sell. value = multiplicador aplicado. requires = id previo necesario.",
+  "_comment": "Industria - tecnologia por RAMAS de estilo con trade-offs. 'branch' agrupa; 'effects' es una lista de {type,value} (type: machine_speed|power_draw|wear|conveyor_speed|sell|storage). value = multiplicador. 'requires' = id previo.",
   "upgrades": {
+    "tuned_machines": {
+      "name": "Línea acelerada",
+      "branch": "produccion",
+      "description": "+20% velocidad de producción, pero +8% de consumo eléctrico.",
+      "cost": 6000,
+      "effects": [
+        { "type": "machine_speed", "value": 1.2 },
+        { "type": "power_draw", "value": 1.08 }
+      ],
+      "requires": ""
+    },
+    "tuned_machines_2": {
+      "name": "Línea de alta velocidad",
+      "branch": "produccion",
+      "description": "+25% velocidad, pero +12% consumo y +15% desgaste. Para fábricas con energía de sobra.",
+      "cost": 16000,
+      "effects": [
+        { "type": "machine_speed", "value": 1.25 },
+        { "type": "power_draw", "value": 1.12 },
+        { "type": "wear", "value": 1.15 }
+      ],
+      "requires": "tuned_machines"
+    },
     "efficient_motors": {
       "name": "Motores eficientes",
-      "description": "Reduce un 15% el consumo eléctrico de todas las máquinas.",
+      "branch": "eficiencia",
+      "description": "-18% consumo eléctrico, pero -4% velocidad. Fábricas frugales.",
       "cost": 6000,
-      "effect": { "type": "power_draw", "value": 0.85 },
+      "effects": [
+        { "type": "power_draw", "value": 0.82 },
+        { "type": "machine_speed", "value": 0.96 }
+      ],
       "requires": ""
     },
     "efficient_motors_2": {
-      "name": "Motores eficientes II",
-      "description": "Reduce un 15% adicional el consumo eléctrico.",
+      "name": "Optimización energética",
+      "branch": "eficiencia",
+      "description": "-18% consumo eléctrico adicional. Ideal si vendés tu excedente.",
       "cost": 14000,
-      "effect": { "type": "power_draw", "value": 0.85 },
+      "effects": [
+        { "type": "power_draw", "value": 0.82 }
+      ],
       "requires": "efficient_motors"
     },
     "preventive_maintenance": {
       "name": "Mantenimiento preventivo",
-      "description": "Las máquinas se desgastan un 30% más lento.",
+      "branch": "eficiencia",
+      "description": "Las máquinas se desgastan un 35% más lento (menos reparaciones).",
       "cost": 7000,
-      "effect": { "type": "wear", "value": 0.7 },
+      "effects": [
+        { "type": "wear", "value": 0.65 }
+      ],
       "requires": ""
-    },
-    "tuned_machines": {
-      "name": "Máquinas ajustadas",
-      "description": "Aumenta un 20% la velocidad de producción.",
-      "cost": 9000,
-      "effect": { "type": "machine_speed", "value": 1.2 },
-      "requires": ""
-    },
-    "tuned_machines_2": {
-      "name": "Máquinas ajustadas II",
-      "description": "Aumenta un 20% adicional la velocidad de producción.",
-      "cost": 20000,
-      "effect": { "type": "machine_speed", "value": 1.2 },
-      "requires": "tuned_machines"
     },
     "fast_belts": {
       "name": "Cintas rápidas",
+      "branch": "logistica",
       "description": "Las cintas transportan un 40% más rápido.",
       "cost": 5000,
-      "effect": { "type": "conveyor_speed", "value": 1.4 },
+      "effects": [
+        { "type": "conveyor_speed", "value": 1.4 }
+      ],
       "requires": ""
+    },
+    "logistics_network": {
+      "name": "Red logística avanzada",
+      "branch": "logistica",
+      "description": "+40% adicional de velocidad de transporte: líneas largas sin cuellos de botella.",
+      "cost": 12000,
+      "effects": [
+        { "type": "conveyor_speed", "value": 1.4 }
+      ],
+      "requires": "fast_belts"
+    },
+    "expanded_storage": {
+      "name": "Almacenes ampliados",
+      "branch": "capacidad",
+      "description": "+50% de capacidad de almacenamiento. Necesario para grandes contratos.",
+      "cost": 6000,
+      "effects": [
+        { "type": "storage", "value": 1.5 }
+      ],
+      "requires": ""
+    },
+    "mega_buffers": {
+      "name": "Grandes buffers",
+      "branch": "capacidad",
+      "description": "+60% adicional de almacenamiento: sostiene varias líneas en paralelo.",
+      "cost": 15000,
+      "effects": [
+        { "type": "storage", "value": 1.6 }
+      ],
+      "requires": "expanded_storage"
     },
     "sales_network": {
       "name": "Red comercial",
-      "description": "Mejora un 12% el precio de venta de los productos.",
+      "branch": "comercial",
+      "description": "Mejora un 12% el precio de venta de todos los productos.",
       "cost": 11000,
-      "effect": { "type": "sell", "value": 1.12 },
+      "effects": [
+        { "type": "sell", "value": 1.12 }
+      ],
       "requires": ""
+    },
+    "trade_deals": {
+      "name": "Acuerdos comerciales",
+      "branch": "comercial",
+      "description": "+12% adicional al precio de venta. Estilo enfocado en margen.",
+      "cost": 22000,
+      "effects": [
+        { "type": "sell", "value": 1.12 }
+      ],
+      "requires": "sales_network"
     }
   }
 }
