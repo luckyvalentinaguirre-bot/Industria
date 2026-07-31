@@ -26,7 +26,7 @@
       "size": [3, 3],
       "cost": 2500,
       "power": 25,
-      "base_speed": 1.0,
+      "base_speed": 1.35,
       "recipes": ["cut_planks"]
     },
     "planer": {
@@ -35,7 +35,7 @@
       "size": [2, 2],
       "cost": 2600,
       "power": 22,
-      "base_speed": 1.0,
+      "base_speed": 1.35,
       "recipes": ["make_pallet"]
     },
     "refinery": {
@@ -53,7 +53,7 @@
       "size": [3, 2],
       "cost": 2400,
       "power": 28,
-      "base_speed": 1.0,
+      "base_speed": 1.1,
       "recipes": ["fire_brick"]
     },
     "block_press": {
@@ -62,7 +62,7 @@
       "size": [2, 2],
       "cost": 2600,
       "power": 24,
-      "base_speed": 1.0,
+      "base_speed": 1.1,
       "recipes": ["make_block"]
     },
     "grow_module": {

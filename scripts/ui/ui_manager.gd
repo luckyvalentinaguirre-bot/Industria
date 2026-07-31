@@ -660,8 +660,10 @@ func _offer_row(c: Contract) -> VBoxContainer:
 	var tag: String = GameManager.contracts.type_label(c)
 	var tcol := UITheme.WARN if c.type == "urgente" else (UITheme.ACCENT2 if c.type == "rentable" else UITheme.ACCENT)
 	v.add_child(UITheme.make_label("%s · %s" % [tag, c.client], 13, tcol))
-	var info := "%d× %s · Paga %s · Plazo %d días · Penal. %s" % [c.amount, ItemDB.display_name(c.product), Fmt.money(c.payment), c.deadline_days, Fmt.money(c.penalty)]
+	var info := "%d× %s · Paga %s · Plazo %d días" % [c.amount, ItemDB.display_name(c.product), Fmt.money(c.payment), c.deadline_days]
 	v.add_child(UITheme.make_label(info, 12))
+	var terms := "⏱ Bonus antes de plazo +%s   ·   ⚠ Penalización %s" % [Fmt.money(c.bonus), Fmt.money(c.penalty)]
+	v.add_child(UITheme.make_label(terms, 11, UITheme.MUTED))
 	var row := HBoxContainer.new()
 	var acc := UITheme.make_button("Aceptar")
 	acc.pressed.connect(GameManager.contracts.accept.bind(c))

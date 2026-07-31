@@ -82,6 +82,12 @@ func _gen_typed(type: String) -> Contract:
 	c.penalty = round(unit * amount * pen_mult / 100.0) * 100.0
 	c.deadline_days = deadline
 	c.reputation = rep
+	# Bonus por entrega temprana (spec §6/§23): premia tener capacidad de sobra.
+	# El cultivo regulado paga bonus mayor (alto riesgo/alta recompensa).
+	var bonus_mult := 0.35 if type == "rentable" else 0.25
+	if c.product == "regulated_goods":
+		bonus_mult = 0.5
+	c.bonus = round(c.payment * bonus_mult / 100.0) * 100.0
 	return c
 
 ## Elige un producto para el contrato, sesgado hacia el producto insignia de la
@@ -148,9 +154,16 @@ func _complete(c: Contract) -> void:
 	active.erase(c)
 	GameState.contracts_completed += 1
 	GameManager.economy.earn(c.payment, "sales")
+	# Bonus si se entregó ANTES del último día del plazo (planificar capacidad).
+	var early: bool = c.bonus > 0.0 and GameState.day < c.deadline_day
+	if early:
+		GameManager.economy.earn(c.bonus, "sales")
 	_add_reputation(c.reputation)
 	EventBus.contract_completed.emit(c)
-	EventBus.notify.emit("¡Contrato cumplido! %s pagó %s" % [c.client, Fmt.money(c.payment)], "success")
+	if early:
+		EventBus.notify.emit("¡Contrato cumplido antes de plazo! %s pagó %s (+bonus %s)" % [c.client, Fmt.money(c.payment), Fmt.money(c.bonus)], "success")
+	else:
+		EventBus.notify.emit("¡Contrato cumplido! %s pagó %s" % [c.client, Fmt.money(c.payment)], "success")
 
 func _fail(c: Contract) -> void:
 	c.failed = true

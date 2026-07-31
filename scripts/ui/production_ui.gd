@@ -12,6 +12,7 @@ var _status: Label
 var _recipe_opt: OptionButton
 var _priority_opt: OptionButton
 var _cycle_bar: ProgressBar
+var _flow_lbl: Label
 var _in_lbl: Label
 var _out_lbl: Label
 var _power_lbl: Label
@@ -69,6 +70,11 @@ func _rebuild() -> void:
 	# Estado destacado.
 	_status = UITheme.make_label("", 16)
 	_box.add_child(_status)
+	# Flujo de producción: ENTRADA → máquina → SALIDA (spec §8).
+	_flow_lbl = UITheme.make_label("", 13, UITheme.ACCENT2)
+	_flow_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_flow_lbl.custom_minimum_size = Vector2(300, 0)
+	_box.add_child(_flow_lbl)
 	_box.add_child(UITheme.hsep())
 
 	# Receta.
@@ -167,6 +173,8 @@ func _refresh() -> void:
 	if _title:
 		_title.text = machine.display_name()
 
+	if _flow_lbl:
+		_flow_lbl.text = _flow_text()
 	if _cycle_bar:
 		_cycle_bar.value = 0.0 if machine.cycle_time() <= 0.0 else clampf(machine.progress / machine.cycle_time() * 100.0, 0, 100)
 	_in_lbl.text = _buffer_text(machine.input_buffer)
@@ -190,6 +198,20 @@ func _refresh() -> void:
 func _on_upgrade() -> void:
 	if machine and machine.upgrade():
 		_refresh()
+
+## Cadena visual "insumos → máquina → productos" según la receta activa.
+func _flow_text() -> String:
+	if machine == null or machine.recipe_id == "":
+		return "Sin receta seleccionada"
+	var ins: Array = []
+	for id in machine.current_inputs().keys():
+		ins.append("%s ×%d" % [ItemDB.display_name(id), int(machine.current_inputs()[id])])
+	var outs: Array = []
+	for id in machine.current_outputs().keys():
+		outs.append("%s ×%d" % [ItemDB.display_name(id), int(machine.current_outputs()[id])])
+	var in_txt := "  ·  ".join(ins) if not ins.is_empty() else "—"
+	var out_txt := "  ·  ".join(outs) if not outs.is_empty() else "—"
+	return "%s  →  ⚙ %s  →  %s" % [in_txt, String(machine.def.get("name", "")), out_txt]
 
 func _buffer_text(inv: Inventory) -> String:
 	var items := inv.provide_peek()

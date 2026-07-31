@@ -115,7 +115,7 @@ func _test_power_overload() -> void:
 func _test_contract_flow() -> void:
 	var c := Contract.new()
 	c.id = "test"; c.client = "Test SA"; c.product = "metal_plate"
-	c.amount = 5; c.payment = 1000.0; c.deadline_days = 5; c.reputation = 2
+	c.amount = 5; c.payment = 1000.0; c.deadline_days = 5; c.reputation = 2; c.bonus = 500.0
 	GameManager.contracts.offers.append(c)
 	GameManager.storage.deposit("metal_plate", 20)
 	var money_before: float = GameState.money
@@ -123,6 +123,8 @@ func _test_contract_flow() -> void:
 	GameManager.contracts._on_minute(0, 0, 0)  # dispara entrega
 	_check("Contratos: el contrato se completó al haber stock", c.completed)
 	_check("Contratos: el cliente pagó el contrato", GameState.money > money_before)
+	# Entregado bien antes del plazo → cobra pago + bonus.
+	_check("Contratos: bonus por entrega temprana", GameState.money >= money_before + c.payment + c.bonus - 1.0)
 
 func _test_logistics_relay() -> void:
 	# Unificador: acepta y entrega desde su buffer interno.

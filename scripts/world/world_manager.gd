@@ -70,14 +70,22 @@ func _emit_world_ready() -> void:
 	EventBus.company_level_changed.connect(_on_level_ambient)
 	EventBus.world_ready.emit()
 
-var _ambient_spawned: bool = false
+var _ambient_level: int = 0
+var _ambient_workers: int = 0
 func _on_level_ambient(level: int, _name: String) -> void:
-	if _ambient_spawned or level < 2:
+	# La fábrica se ve MÁS VIVA a medida que crece (spec §12), pero con tope para
+	# no penalizar el rendimiento (spec §24/§25): pocos trabajadores/vehículos.
+	if level <= _ambient_level or level < 2:
 		return
-	_ambient_spawned = true
-	# Poca vida ambiental, proporcional al crecimiento (rendimiento, spec §24/§25).
-	GameManager.vehicles.spawn_ambient()
-	GameManager.workers.spawn_ambient(2)
+	if _ambient_level < 2:
+		GameManager.vehicles.spawn_ambient()   # carretilla patrullando desde N2
+	if level >= 4:
+		GameManager.vehicles.spawn_ambient()   # más tránsito en fábricas grandes
+	var target: int = clampi(level, 2, 6)       # 2 operarios en N2 … hasta 6 en N6
+	if target > _ambient_workers:
+		GameManager.workers.spawn_ambient(target - _ambient_workers)
+		_ambient_workers = target
+	_ambient_level = level
 
 ## Arranque DESDE CERO (spec §2, §3): terreno vacío, sin máquinas ni edificios.
 ## Sólo un pequeño lote de chatarra para que el jugador fabrique su primer

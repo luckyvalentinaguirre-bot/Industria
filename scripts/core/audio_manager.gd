@@ -70,6 +70,11 @@ func _connect_signals() -> void:
 	EventBus.delivery_arrived.connect(func(_i, _q): play("confirm"))
 	EventBus.machine_placed.connect(func(_m): play("thud"))
 	EventBus.building_placed.connect(func(_b): play("thud"))
+	# Hitos de progresión: refuerzo sonoro discreto (spec §16/§17).
+	EventBus.company_level_changed.connect(func(l, _n): if l >= 2: play("success"))
+	EventBus.branch_chosen.connect(func(_i, _n): play("success"))
+	EventBus.objective_completed.connect(func(_i, _t): play("confirm"))
+	EventBus.factory_expanded.connect(func(_s): play("confirm"))
 	EventBus.notify.connect(_on_notify)
 	EventBus.minute_passed.connect(_on_minute)
 
