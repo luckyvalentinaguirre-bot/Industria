@@ -8,10 +8,33 @@ class_name Worker
 
 var type_id: String = "operator"
 var worker_name: String = "Operario"
-var salary: float = 90.0
+var salary: float = 400.0
 var specialty: String = "production"
 var productivity: float = 1.0
 var experience: float = 0.0
+
+## Habilidades individuales (0.2..1.0 → 1..5 estrellas). Cada trabajador es único
+## y su rendimiento en la máquina asignada depende de estas skills (spec §5/§6).
+var skills: Dictionary = {
+	"production": 0.6, "logistics": 0.6, "maintenance": 0.6, "speed": 0.6, "quality": 0.6,
+}
+var trait_name: String = ""            # rasgo/característica ("Veterano", "Rápido"…)
+## uid de la máquina a la que está asignado (0 = sin asignar, spec §7/§8).
+var assigned_uid: int = 0
+
+const SKILL_KEYS := ["production", "logistics", "maintenance", "speed", "quality"]
+
+## Estrellas 1..5 de una skill, para la UI.
+func star(skill: String) -> int:
+	return clampi(int(round(float(skills.get(skill, 0.5)) * 5.0)), 1, 5)
+
+## Bonus de velocidad que aporta a SU máquina (producción + velocidad → hasta +45%).
+func speed_bonus() -> float:
+	return (float(skills.get("production", 0.5)) * 0.5 + float(skills.get("speed", 0.5)) * 0.5) * 0.45
+
+## Bonus de calidad que aporta a SU máquina (hasta +0.18).
+func quality_bonus_self() -> float:
+	return float(skills.get("quality", 0.5)) * 0.18
 
 var _speed: float = 2.2
 var _target: Vector3
@@ -39,9 +62,16 @@ static func _mat(key: String, color: Color, rough: float, emissive: bool = false
 func setup(id: String, def: Dictionary) -> void:
 	type_id = id
 	worker_name = String(def.get("name", id))
-	salary = float(def.get("salary", 90.0))
+	salary = float(def.get("salary", 400.0))
 	specialty = String(def.get("specialty", "production"))
 	productivity = float(def.get("base_productivity", 1.0))
+	trait_name = String(def.get("trait", ""))
+	experience = float(def.get("experience", 0.0))
+	if def.has("skills"):
+		var s: Dictionary = def["skills"]
+		for k in SKILL_KEYS:
+			if s.has(k):
+				skills[k] = float(s[k])
 	_build_visual()
 
 func _process(delta: float) -> void:
@@ -142,4 +172,8 @@ func _specialty_color() -> Color:
 		_: return Color(0.6, 0.6, 0.6)
 
 func to_dict() -> Dictionary:
-	return { "type_id": type_id, "experience": experience }
+	return {
+		"type_id": type_id, "name": worker_name, "salary": salary,
+		"specialty": specialty, "trait": trait_name, "experience": experience,
+		"skills": skills.duplicate(), "assigned_uid": assigned_uid,
+	}

@@ -202,9 +202,15 @@ func _auto_supply_tick(inputs: Dictionary) -> void:
 func _effective_speed() -> float:
 	# La condición degrada la velocidad; el operador y las mejoras la aumentan.
 	var condition_factor: float = lerpf(0.45, 1.0, clampf(condition / 100.0, 0.0, 1.0))
+	# El trabajador ASIGNADO a esta máquina aporta su bono de skills + experiencia.
 	var op := 0.0
+	var exp_mult := 1.0
 	if GameManager.workers:
-		op = GameManager.workers.operator_bonus()
+		var w = GameManager.workers.worker_for_machine(uid)
+		if w:
+			op = w.speed_bonus()
+			if GameManager.skills:
+				exp_mult = GameManager.skills.experience_multiplier(w)
 	var upg := 1.0
 	if GameManager.upgrades:
 		upg = GameManager.upgrades.machine_speed_mult()
@@ -212,7 +218,7 @@ func _effective_speed() -> float:
 	var branch := 1.0
 	if GameManager.specialization:
 		branch = GameManager.specialization.machine_bonus(machine_id)
-	return base_speed * condition_factor * (1.0 + op) * upg * level_speed_mult() * branch
+	return base_speed * condition_factor * (1.0 + op) * exp_mult * upg * level_speed_mult() * branch
 
 ## Consumo eléctrico efectivo (mejoras globales + nivel de la máquina).
 func effective_power_draw() -> float:

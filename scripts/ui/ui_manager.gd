@@ -466,6 +466,8 @@ func _connect_signals() -> void:
 	EventBus.contract_failed.connect(func(_c): _refresh_contracts())
 	EventBus.worker_hired.connect(func(_w): _refresh_workers())
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
+	EventBus.candidates_changed.connect(_refresh_workers)
+	EventBus.staff_updated.connect(_refresh_workers)
 	EventBus.objectives_updated.connect(_on_objectives_updated)
 	EventBus.game_won.connect(_on_game_won)
 	EventBus.week_summary.connect(_show_week_summary)
@@ -725,7 +727,7 @@ func _make_workers_panel() -> PanelContainer:
 	return p
 
 func _refresh_workers() -> void:
-	if workers_panel == null:
+	if workers_panel == null or not workers_panel.visible:
 		return
 	var box := _find_box(workers_panel)
 	if box == null:
@@ -735,27 +737,83 @@ func _refresh_workers() -> void:
 	box.add_child(UITheme.make_title("Personal"))
 	var wm: Node = GameManager.workers
 	var full: bool = wm.at_capacity()
-	box.add_child(UITheme.make_label("Cupo: %d / %d empleados (según nivel de empresa)" % [wm.workers.size(), wm.max_employees()], 13, UITheme.WARN if full else UITheme.ACCENT2))
-	if full:
-		box.add_child(UITheme.make_label("Límite alcanzado. Subí el nivel de tu fábrica para contratar más.", 11, UITheme.WARN))
-	box.add_child(UITheme.make_label("Contratar (salario SEMANAL):", 13, UITheme.ACCENT))
-	for type_id in wm.types.keys():
-		var def: Dictionary = wm.types[type_id]
-		var eff := _worker_effect(String(def.get("specialty", "")))
-		var b := UITheme.make_button("%s — %s/sem  ·  %s" % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff])
-		b.tooltip_text = "%s\nSalario semanal: %s\nEfecto: %s\nContratación: media semana de salario." % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff]
-		b.disabled = full
-		b.pressed.connect(GameManager.workers.hire.bind(String(type_id), true))
-		box.add_child(b)
+	box.add_child(UITheme.make_label("Cupo: %d / %d empleados · Salarios: %s/semana" % [wm.workers.size(), wm.max_employees(), Fmt.money(wm.weekly_salary_total())], 13, UITheme.WARN if full else UITheme.ACCENT2))
+	# --- Mercado laboral (candidatos) ---
 	box.add_child(UITheme.hsep())
-	box.add_child(UITheme.make_label("Plantilla (%d) — Salarios: %s/semana" % [GameManager.workers.workers.size(), Fmt.money(GameManager.workers.weekly_salary_total())], 12, UITheme.ACCENT2))
-	for w in GameManager.workers.workers:
-		var row := HBoxContainer.new()
-		row.add_child(UITheme.make_label("%s (exp %d)" % [w.worker_name, int(w.experience)], 12))
-		var fire := UITheme.make_button("Despedir")
-		fire.pressed.connect(GameManager.workers.fire.bind(w))
-		row.add_child(fire)
-		box.add_child(row)
+	box.add_child(UITheme.make_label("🧑‍💼 MERCADO LABORAL (cambia cada semana)", 12, UITheme.ACCENT))
+	if full:
+		box.add_child(UITheme.make_label("Límite alcanzado: subí el nivel de tu fábrica para contratar más.", 11, UITheme.WARN))
+	for i in wm.candidates.size():
+		box.add_child(_candidate_card(i, wm.candidates[i], full))
+	# --- Plantilla actual ---
+	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("👥 TU PLANTILLA", 12, UITheme.ACCENT2))
+	if wm.workers.is_empty():
+		box.add_child(UITheme.make_label("Todavía no tenés empleados. Al principio trabajás vos.", 11, UITheme.MUTED))
+	for w in wm.workers:
+		box.add_child(_worker_card(w))
+
+func _stars(w, skill: String) -> String:
+	var n: int = w.star(skill)
+	return "★".repeat(n) + "☆".repeat(5 - n)
+
+func _skill_block(w) -> String:
+	return "Prod %s  Vel %s\nCal %s  Log %s  Mant %s" % [
+		_stars(w, "production"), _stars(w, "speed"), _stars(w, "quality"),
+		_stars(w, "logistics"), _stars(w, "maintenance")]
+
+func _candidate_card(index: int, c: Dictionary, full: bool) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 1)
+	var role := String(GameManager.workers.types.get(c.get("type_id", ""), {}).get("name", c.get("type_id", "")))
+	var tr := String(c.get("trait", ""))
+	var head := "👤 %s — %s%s" % [c.get("name", "?"), role, ("  «%s»" % tr) if tr != "" else ""]
+	v.add_child(UITheme.make_label(head, 13, UITheme.TEXT))
+	# Estrellas a partir del dict de skills.
+	var sk: Dictionary = c.get("skills", {})
+	var line := "Prod %s  Vel %s  Cal %s" % [_star_str(sk.get("production", 0.5)), _star_str(sk.get("speed", 0.5)), _star_str(sk.get("quality", 0.5))]
+	v.add_child(UITheme.make_label(line, 11, UITheme.MUTED))
+	var row := HBoxContainer.new()
+	row.add_child(UITheme.make_label("%s/sem" % Fmt.money(c.get("salary", 0)), 12, UITheme.ACCENT))
+	var hire_btn := UITheme.make_button("Contratar")
+	hire_btn.disabled = full or not GameManager.economy.can_afford(float(c.get("salary", 400)) * 0.5)
+	hire_btn.pressed.connect(func(): GameManager.workers.hire_candidate(index, true))
+	row.add_child(hire_btn)
+	v.add_child(row)
+	v.add_child(UITheme.hsep())
+	return v
+
+func _star_str(v: float) -> String:
+	var n: int = clampi(int(round(v * 5.0)), 1, 5)
+	return "★".repeat(n) + "☆".repeat(5 - n)
+
+func _worker_card(w) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 1)
+	var tr := ("  «%s»" % w.trait_name) if w.trait_name != "" else ""
+	v.add_child(UITheme.make_label("👤 %s%s  ·  %s/sem  ·  exp %d" % [w.worker_name, tr, Fmt.money(w.salary), int(w.experience)], 12, UITheme.TEXT))
+	var sl := UITheme.make_label(_skill_block(w), 11, UITheme.MUTED)
+	v.add_child(sl)
+	# Asignación a máquina (dropdown: sin asignar + máquinas).
+	var row := HBoxContainer.new()
+	row.add_child(UITheme.make_label("Trabaja en:", 11))
+	var opt := OptionButton.new()
+	opt.add_item("Sin asignar", 0)
+	var idmap: Array = [0]
+	if GameManager.machines:
+		for m in GameManager.machines.machines:
+			opt.add_item(m.display_name(), m.uid)
+			idmap.append(m.uid)
+			if w.assigned_uid == m.uid:
+				opt.select(idmap.size() - 1)
+	opt.item_selected.connect(func(idx: int): GameManager.workers.assign(w, int(idmap[idx])); _refresh_workers())
+	row.add_child(opt)
+	var fire := UITheme.make_button("Despedir")
+	fire.pressed.connect(func(): GameManager.workers.fire(w); _refresh_workers())
+	row.add_child(fire)
+	v.add_child(row)
+	v.add_child(UITheme.hsep())
+	return v
 
 func _worker_effect(specialty: String) -> String:
 	match specialty:

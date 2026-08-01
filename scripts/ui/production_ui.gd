@@ -240,12 +240,22 @@ func _on_stop_batch() -> void:
 func _on_toggle_operator() -> void:
 	if machine == null:
 		return
-	if machine.staffed:
-		machine.set_staffed(false)
-	elif GameManager.workers.operators_free() > 0:
-		machine.set_staffed(true)
+	var wm: Node = GameManager.workers
+	var assigned = wm.worker_for_machine(machine.uid)
+	if assigned:
+		wm.assign(assigned, 0)   # liberar al trabajador
 	else:
-		EventBus.notify.emit("No hay operarios libres. Contratá un Operario en 👷 Personal.", "warning")
+		# Asigna el trabajador SIN ASIGNAR con mejor bono de velocidad.
+		var best = null
+		var best_v := -1.0
+		for w in wm.unassigned_workers():
+			if w.speed_bonus() > best_v:
+				best_v = w.speed_bonus()
+				best = w
+		if best:
+			wm.assign(best, machine.uid)
+		else:
+			EventBus.notify.emit("No hay trabajadores libres. Contratá o liberá a alguien en 👷 Personal.", "warning")
 	_refresh()
 
 ## Actualiza la sección de orden de producción (lote / operario / automático).
@@ -258,15 +268,18 @@ func _refresh_order() -> void:
 		_op_btn.visible = false
 		return
 	_op_btn.visible = true
-	if machine.staffed:
-		_order_lbl.text = "👷 Operario asignado — producción continua."
-		_op_btn.text = "Quitar operario"
+	var wm: Node = GameManager.workers
+	var assigned = wm.worker_for_machine(machine.uid)
+	if assigned:
+		_order_lbl.text = "👷 %s trabajando aquí (+%d%% velocidad, calidad %d★). Producción continua." % [
+			assigned.worker_name, int(assigned.speed_bonus() * 100.0), assigned.star("quality")]
+		_op_btn.text = "Quitar trabajador"
 	elif machine.batch_remaining > 0:
-		_order_lbl.text = "▶ Lote en curso: %d ciclos restantes." % machine.batch_remaining
-		_op_btn.text = "Asignar operario (libres: %d)" % GameManager.workers.operators_free()
+		_order_lbl.text = "▶ Lote en curso: %d ciclos restantes (sin trabajador)." % machine.batch_remaining
+		_op_btn.text = "Asignar trabajador (libres: %d)" % wm.operators_free()
 	else:
-		_order_lbl.text = "⏸ Sin producir. Dale un lote (trabajás vos) o asigná un operario."
-		_op_btn.text = "Asignar operario (libres: %d)" % GameManager.workers.operators_free()
+		_order_lbl.text = "⏸ Sin producir. Dale un lote (trabajás vos) o asigná un trabajador."
+		_op_btn.text = "Asignar trabajador (libres: %d)" % wm.operators_free()
 
 ## Cadena visual "insumos → máquina → productos" según la receta activa.
 func _flow_text() -> String:

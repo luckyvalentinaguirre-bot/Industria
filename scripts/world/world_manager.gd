@@ -406,8 +406,49 @@ func _setup_props() -> void:
 	# Carretera de acceso + línea eléctrica que alimenta la fábrica.
 	_setup_infrastructure(props, ext)
 
+	# Ciudad alrededor de la parcela: manzanas con ventanas y calles (spec §1/§2).
+	_setup_city(props, ext)
 	# Horizonte industrial de fondo (más allá del muro) para dar profundidad.
 	_setup_skyline(props, ext)
+
+# --- Ciudad circundante (barata: geometría estática, sin sombras, spec §1/§19) ---
+func _setup_city(parent: Node3D, ext: float) -> void:
+	var node := Node3D.new()
+	node.name = "City"
+	parent.add_child(node)
+	# Calles: dos avenidas anchas que rodean/cruzan más allá del muro.
+	var asphalt := _simple(Color(0.1, 0.1, 0.11), 0.9, 0.0)
+	for axis in [0, 1]:
+		var road := MeshInstance3D.new()
+		var rbm := BoxMesh.new()
+		rbm.size = Vector3(ext * 5.0, 0.04, 6.0) if axis == 0 else Vector3(6.0, 0.04, ext * 5.0)
+		road.mesh = rbm
+		road.position = Vector3(0, -0.02, ext + 8.0) if axis == 0 else Vector3(ext + 8.0, -0.02, 0)
+		road.material_override = asphalt
+		road.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(road)
+	# Manzanas de edificios con bandas de ventanas emisivas (cálidas = ciudad viva).
+	var wall_mat := _simple(Color(0.34, 0.35, 0.4), 0.85, 0.1)
+	var wall_mat2 := _simple(Color(0.42, 0.4, 0.38), 0.85, 0.1)
+	var win_mat := IndKit.emissive(Color(1.0, 0.85, 0.55), 0.9)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var count := 16
+	for i in range(count):
+		var ang := TAU * i / count + rng.randf_range(-0.1, 0.1)
+		var r := ext * rng.randf_range(1.18, 1.45)
+		var pos := Vector3(cos(ang) * r, 0, sin(ang) * r)
+		var w := rng.randf_range(6.0, 11.0)
+		var d := rng.randf_range(6.0, 11.0)
+		var h := rng.randf_range(9.0, 22.0)
+		var body := _pbox(node, Vector3(w, h, d), pos + Vector3(0, h * 0.5, 0), wall_mat if i % 2 == 0 else wall_mat2)
+		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Bandas horizontales de ventanas en la cara que mira a la parcela.
+		var face_z: float = -signf(sin(ang)) * (d * 0.5 + 0.05)
+		var floors := int(h / 3.0)
+		for f in range(1, floors):
+			var band := _pbox(node, Vector3(w * 0.82, 0.6, 0.08), pos + Vector3(0, f * 3.0, face_z), win_mat)
+			band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 # --- Ambientación industrial (Etapa 3): infraestructura con propósito --------
 func _setup_ambient(parent: Node3D, ext: float) -> void:

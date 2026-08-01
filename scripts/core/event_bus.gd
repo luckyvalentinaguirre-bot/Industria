@@ -79,6 +79,9 @@ signal contract_failed(contract: Resource)
 # --- Trabajadores -----------------------------------------------------------
 signal worker_hired(worker: Node)
 signal worker_fired(worker: Node)
+## Cambió el mercado laboral (candidatos) o una asignación de personal (spec §4/§7).
+signal candidates_changed()
+signal staff_updated()
 
 # --- Automatización ---------------------------------------------------------
 signal rule_added(rule: Dictionary)

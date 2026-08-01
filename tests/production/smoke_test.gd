@@ -34,6 +34,7 @@ func _ready() -> void:
 	_test_contract_capacity()
 	_test_client_program()
 	_test_workers_system()
+	_test_personnel()
 	_test_week_summary()
 	_test_automation_objective()
 	_test_balance()
@@ -108,14 +109,14 @@ func _test_production_orders() -> void:
 	_tick(20.0)
 	_check("Órdenes: con operario la producción es continua", m.output_buffer.count("iron_ingot") > 2)
 	m.set_staffed(false)
-	# Presupuesto de operarios: cada operario libera-atiende una máquina.
+	# Asignación: asignar un trabajador a la máquina consume un libre y la atiende.
 	for w in GameManager.workers.workers.duplicate():
 		GameManager.workers.fire(w)
-	GameManager.workers.hire("operator", false)
+	var op: Worker = GameManager.workers.hire("operator", false)
 	var free_before: int = GameManager.workers.operators_free()
-	m.set_staffed(true)
-	_check("Órdenes: asignar operario reduce los operarios libres", GameManager.workers.operators_free() == free_before - 1)
-	m.set_staffed(false)
+	GameManager.workers.assign(op, m.uid)
+	_check("Órdenes: asignar un trabajador reduce los libres y atiende la máquina", GameManager.workers.operators_free() == free_before - 1 and m.staffed)
+	GameManager.workers.assign(op, 0)
 	for w in GameManager.workers.workers.duplicate():
 		GameManager.workers.fire(w)
 	# Libera la energía: las máquinas acumuladas de tests previos comparten los
@@ -388,6 +389,43 @@ func _test_workers_system() -> void:
 		wm.fire(w)
 
 var _salary_paid: float = 0.0
+
+func _test_personnel() -> void:
+	var wm := GameManager.workers
+	for w in wm.workers.duplicate():
+		wm.fire(w)
+	# Mercado laboral: hay candidatos, cada uno con skills y salario propios.
+	wm.refresh_candidates()
+	_check("Personal: hay candidatos en el mercado laboral", wm.candidates.size() == wm.CANDIDATE_COUNT)
+	var c0: Dictionary = wm.candidates[0]
+	_check("Personal: los candidatos tienen skills y salario", c0.has("skills") and float(c0.get("salary", 0)) >= 300.0)
+	# Renovar el mercado trae caras nuevas (y no falla).
+	var before_names := []
+	for c in wm.candidates:
+		before_names.append(c.get("name"))
+	wm.refresh_candidates()
+	_check("Personal: el mercado se renueva", wm.candidates.size() == wm.CANDIDATE_COUNT)
+	# Contratar un candidato (cupo alto, con dinero).
+	GameState.company_level = 5
+	GameState.money = 100000.0
+	var n_before: int = wm.workers.size()
+	var hired: Worker = wm.hire_candidate(0, true)
+	_check("Personal: se contrata un candidato del mercado", hired != null and wm.workers.size() == n_before + 1)
+	# Asignar a una máquina: la atiende y aplica su bono de velocidad.
+	var mac: Machine = GameManager.machines.create_machine("smelter", Vector2i(10, 34))
+	mac.set_recipe("smelt_iron")
+	wm.assign(hired, mac.uid)
+	_check("Personal: asignar atiende la máquina (producción continua)", mac.staffed and wm.worker_for_machine(mac.uid) == hired)
+	_check("Personal: la máquina aplica el bono de velocidad del trabajador", mac._effective_speed() > mac.base_speed * 0.99)
+	# Experiencia: sólo crece si está asignado.
+	var xp0: float = hired.experience
+	GameManager.skills._on_day(1)
+	_check("Personal: el trabajador asignado gana experiencia", hired.experience > xp0)
+	# Liberar y despedir.
+	wm.assign(hired, 0)
+	_check("Personal: liberar deja la máquina sin atender", not mac.staffed and wm.unassigned_workers().has(hired))
+	for w in wm.workers.duplicate():
+		wm.fire(w)
 
 var _week_data: Dictionary = {}
 func _test_week_summary() -> void:
