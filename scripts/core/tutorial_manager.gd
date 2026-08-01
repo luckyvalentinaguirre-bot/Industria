@@ -9,7 +9,7 @@ extends Node
 
 const STEPS := [
 	{ "id": "workbench", "text": "Abrí ☰ MENÚ → 🏭 Fábrica y construí tu Banco de trabajo (tu primer puesto).", "reward": 500 },
-	{ "id": "craft", "text": "Comprá chatarra en 💰 Economía; el banco fabricará tu primera herramienta.", "reward": 800 },
+	{ "id": "craft", "text": "Comprá chatarra en 💰 Economía, seleccioná el banco y pulsá ▶ Producir un lote: VOS ponés a trabajar la máquina.", "reward": 800 },
 	{ "id": "sell", "text": "Vendé tus herramientas en 💰 Economía → Vender para conseguir tus primeros ingresos.", "reward": 800 },
 ]
 

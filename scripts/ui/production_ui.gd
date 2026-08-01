@@ -12,6 +12,8 @@ var _status: Label
 var _recipe_opt: OptionButton
 var _priority_opt: OptionButton
 var _cycle_bar: ProgressBar
+var _order_lbl: Label
+var _op_btn: Button
 var _flow_lbl: Label
 var _in_lbl: Label
 var _out_lbl: Label
@@ -99,6 +101,28 @@ func _rebuild() -> void:
 	_cycle_bar.custom_minimum_size = Vector2(0, 16)
 	_box.add_child(_cycle_bar)
 
+	# ORDEN DE PRODUCCIÓN: lote manual (vos trabajás) u operario (continuo).
+	_section("Orden de producción")
+	_order_lbl = UITheme.make_label("", 12)
+	_order_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_order_lbl.custom_minimum_size = Vector2(300, 0)
+	_box.add_child(_order_lbl)
+	var brow := HBoxContainer.new()
+	brow.add_theme_constant_override("separation", 6)
+	var b10 := UITheme.make_button("▶ Producir ×10")
+	b10.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b10.pressed.connect(_on_batch.bind(10))
+	var b50 := UITheme.make_button("×50")
+	b50.pressed.connect(_on_batch.bind(50))
+	var bstop := UITheme.make_button("⏹")
+	bstop.tooltip_text = "Detener el lote actual"
+	bstop.pressed.connect(_on_stop_batch)
+	brow.add_child(b10); brow.add_child(b50); brow.add_child(bstop)
+	_box.add_child(brow)
+	_op_btn = UITheme.make_button("")
+	_op_btn.pressed.connect(_on_toggle_operator)
+	_box.add_child(_op_btn)
+
 	# Entrada / Salida.
 	var io := HBoxContainer.new()
 	io.add_theme_constant_override("separation", 12)
@@ -178,6 +202,7 @@ func _refresh() -> void:
 
 	if _flow_lbl:
 		_flow_lbl.text = _flow_text()
+	_refresh_order()
 	if _cycle_bar:
 		_cycle_bar.value = 0.0 if machine.cycle_time() <= 0.0 else clampf(machine.progress / machine.cycle_time() * 100.0, 0, 100)
 	_in_lbl.text = _buffer_text(machine.input_buffer)
@@ -201,6 +226,47 @@ func _refresh() -> void:
 func _on_upgrade() -> void:
 	if machine and machine.upgrade():
 		_refresh()
+
+func _on_batch(n: int) -> void:
+	if machine:
+		machine.queue_batch(n)
+		_refresh()
+
+func _on_stop_batch() -> void:
+	if machine:
+		machine.clear_batch()
+		_refresh()
+
+func _on_toggle_operator() -> void:
+	if machine == null:
+		return
+	if machine.staffed:
+		machine.set_staffed(false)
+	elif GameManager.workers.operators_free() > 0:
+		machine.set_staffed(true)
+	else:
+		EventBus.notify.emit("No hay operarios libres. Contratá un Operario en 👷 Personal.", "warning")
+	_refresh()
+
+## Actualiza la sección de orden de producción (lote / operario / automático).
+func _refresh_order() -> void:
+	if _order_lbl == null or machine == null:
+		return
+	var auto: bool = GameManager.upgrades and GameManager.upgrades.full_auto()
+	if auto:
+		_order_lbl.text = "🤖 Automatización total: produce sola."
+		_op_btn.visible = false
+		return
+	_op_btn.visible = true
+	if machine.staffed:
+		_order_lbl.text = "👷 Operario asignado — producción continua."
+		_op_btn.text = "Quitar operario"
+	elif machine.batch_remaining > 0:
+		_order_lbl.text = "▶ Lote en curso: %d ciclos restantes." % machine.batch_remaining
+		_op_btn.text = "Asignar operario (libres: %d)" % GameManager.workers.operators_free()
+	else:
+		_order_lbl.text = "⏸ Sin producir. Dale un lote (trabajás vos) o asigná un operario."
+		_op_btn.text = "Asignar operario (libres: %d)" % GameManager.workers.operators_free()
 
 ## Cadena visual "insumos → máquina → productos" según la receta activa.
 func _flow_text() -> String:

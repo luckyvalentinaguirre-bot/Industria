@@ -1041,9 +1041,9 @@ func _show_intro() -> void:
 	var text := "Tenés un terreno vacío y un pequeño capital. Tu objetivo: convertirlo en una gran industria, desde cero.\n\n" \
 		+ "Primeros pasos:\n" \
 		+ "1. Abrí ☰ MENÚ (arriba a la izquierda) → 🏭 Fábrica y construí tu Banco de trabajo.\n" \
-		+ "2. Comprá chatarra en 💰 Economía. El banco la convierte en herramientas.\n" \
+		+ "2. Comprá chatarra en 💰 Economía, seleccioná el banco y pulsá ▶ Producir (VOS trabajás).\n" \
 		+ "3. Vendé tus herramientas para conseguir tus primeros ingresos.\n" \
-		+ "4. Crecé, subí de nivel y desbloqueá tu primera máquina industrial.\n\n" \
+		+ "4. Crecé, contratá un operario para que produzca solo y automatizá con cintas.\n\n" \
 		+ "Cámara: WASD/bordes mover · Q/E rotar · rueda zoom.\n" \
 		+ "Construcción: R rota · Esc cancela.  ·  Velocidad: ⏸ ▶ ▶▶ ▶▶▶ arriba a la derecha.\n" \
 		+ "Seguí el objetivo 🎯 arriba en el centro: siempre te dice qué hacer."

@@ -7,7 +7,7 @@ class_name Machine
 ## prioridad. El modelo 3D es un placeholder generado por código, preparado
 ## para sustituirse por el asset definitivo sin tocar la lógica.
 
-enum State { RUNNING, NO_MATERIALS, NO_POWER, BLOCKED, MAINTENANCE, BROKEN, DISABLED, IDLE }
+enum State { RUNNING, NO_MATERIALS, NO_POWER, BLOCKED, MAINTENANCE, BROKEN, DISABLED, IDLE, AWAITING }
 
 const STATE_NAMES := {
 	State.RUNNING: "Funcionando",
@@ -18,6 +18,7 @@ const STATE_NAMES := {
 	State.BROKEN: "Averiada",
 	State.DISABLED: "Desactivada",
 	State.IDLE: "Sin receta",
+	State.AWAITING: "Esperando orden",
 }
 const PRIORITY_NAMES := ["Baja", "Normal", "Alta", "Crítica"]
 
@@ -36,6 +37,12 @@ var uid: int = 0
 var recipe_id: String = ""
 var enabled: bool = true
 var priority: int = 1            # 0 Baja .. 3 Crítica
+## Producción manual vs delegada (spec: MANUAL → OPERARIO → AUTOMATIZADO):
+## una máquina sólo produce si tiene una ORDEN: un lote pendiente (el jugador la
+## puso a trabajar) o un operario asignado (producción continua). La tecnología
+## de automatización total puede liberar de ambos requisitos.
+var staffed: bool = false        # operario asignado → producción continua
+var batch_remaining: int = 0     # ciclos de lote pendientes (trabajo manual)
 var power_draw: float = 0.0
 var base_speed: float = 1.0
 var level: int = 1               # nivel de mejora (I..III)
@@ -118,6 +125,12 @@ func _compute_and_progress(delta: float) -> int:
 		return State.BROKEN
 	if recipe_id == "":
 		return State.IDLE
+	# Sin orden de producción (ni lote ni operario ni automatización total): la
+	# máquina espera a que el jugador la ponga a trabajar. Este es el núcleo del
+	# progreso MANUAL → OPERARIO → AUTOMATIZADO.
+	if not _has_run_order():
+		progress = 0.0
+		return State.AWAITING
 	if not powered:
 		progress = 0.0
 		return State.NO_POWER
@@ -141,6 +154,31 @@ func _compute_and_progress(delta: float) -> int:
 		progress -= cycle_time()
 		_produce_cycle(inputs, outputs)
 	return State.RUNNING
+
+# --- Órdenes de producción (manual / operario / automatización) -------------
+## ¿La máquina tiene permiso para producir ahora?
+func _has_run_order() -> bool:
+	if staffed or batch_remaining > 0:
+		return true
+	return GameManager.upgrades != null and GameManager.upgrades.full_auto()
+
+## El jugador pone la máquina a trabajar un LOTE de n ciclos (trabajo manual).
+func queue_batch(n: int) -> void:
+	batch_remaining = max(0, batch_remaining) + n
+	_on_tick(0.0)   # reevaluar estado de inmediato
+
+func clear_batch() -> void:
+	batch_remaining = 0
+	_on_tick(0.0)
+
+## Asigna/retira un operario (producción continua). No valida presupuesto aquí;
+## lo hace quien llama (UI) consultando WorkerManager.operators_free().
+func set_staffed(v: bool) -> void:
+	staffed = v
+	_on_tick(0.0)
+
+## Trabajo manual autónomo del jugador: el banco de trabajo puede recibir un
+## "lote infinito" barato al inicio. (No usado por defecto; disponible para UI.)
 
 ## Tira insumos del almacén central (hasta ~4 ciclos en buffer) y vacía la salida
 ## al almacén. Sólo para máquinas manuales (auto_supply).
@@ -248,6 +286,9 @@ func _produce_cycle(inputs: Dictionary, outputs: Dictionary) -> void:
 		var n := int(outputs[item_id])
 		output_buffer.add(item_id, n)
 		EventBus.item_produced.emit(item_id, n)
+	# Consume un ciclo del lote manual (si no hay operario/automatización).
+	if batch_remaining > 0 and not staffed:
+		batch_remaining -= 1
 	# Destello de "producto terminado" (feedback visual barato, sin _process).
 	if _model:
 		_model.pulse()
@@ -323,6 +364,8 @@ func to_dict() -> Dictionary:
 		"level": level,
 		"condition": condition,
 		"progress": progress,
+		"staffed": staffed,
+		"batch": batch_remaining,
 		"input": input_buffer.to_dict(),
 		"output": output_buffer.to_dict(),
 	}
@@ -335,6 +378,8 @@ func apply_dict(data: Dictionary) -> void:
 	level = int(data.get("level", 1))
 	condition = float(data.get("condition", 100.0))
 	progress = float(data.get("progress", 0.0))
+	staffed = bool(data.get("staffed", false))
+	batch_remaining = int(data.get("batch", 0))
 	if data.has("input"):
 		input_buffer.from_dict(data["input"])
 	if data.has("output"):

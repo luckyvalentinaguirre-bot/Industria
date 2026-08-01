@@ -16,6 +16,7 @@ func _ready() -> void:
 	_setup_world_refs()
 	_test_production()
 	_test_workbench_manual()
+	_test_production_orders()
 	_test_conveyor()
 	_test_economy_sell()
 	_test_power_overload()
@@ -70,6 +71,7 @@ func _test_production() -> void:
 	m.input_buffer.add("iron_ore", 10)
 	m.set_condition(100.0)
 	m.powered = true
+	m.staffed = true   # con operario produce de forma continua (nuevo sistema)
 	_tick(20.0)  # 20s: a 6s/ciclo con 2 ore/ciclo → ~3 lingotes
 	var ingots: int = m.output_buffer.count("iron_ingot")
 	_check("Producción: la fundición fabricó lingotes de hierro (%d)" % ingots, ingots >= 2)
@@ -82,10 +84,56 @@ func _test_workbench_manual() -> void:
 	var wb: Machine = GameManager.machines.create_machine("workbench", Vector2i(30, 2))
 	wb.set_condition(100.0)
 	wb.powered = true
+	wb.queue_batch(100)   # el jugador le da una orden de lote (trabajo manual)
 	_tick(30.0)  # 7s/ciclo, 4 chatarra→1 herramienta
 	var tools: int = GameManager.storage.count("hand_tool")
 	_check("Banco de trabajo: fabrica herramientas desde el almacén (%d)" % tools, tools >= 2)
 	_check("Banco de trabajo: consumió chatarra del almacén", GameManager.storage.count("scrap") < 40)
+
+func _test_production_orders() -> void:
+	# Núcleo del nuevo gameplay: una máquina NO produce sin una orden.
+	var m: Machine = GameManager.machines.create_machine("smelter", Vector2i(2, 30))
+	m.set_recipe("smelt_iron")
+	m.set_condition(100.0)
+	m.powered = true
+	m.input_buffer.add("iron_ore", 20)
+	_tick(15.0)
+	_check("Órdenes: sin orden la máquina NO produce (esperando)", m.output_buffer.count("iron_ingot") == 0 and m.state == Machine.State.AWAITING)
+	# Con un lote manual produce esa cantidad y luego se detiene.
+	m.queue_batch(2)
+	_tick(20.0)   # alcanza para >2 ciclos, pero el lote lo limita a 2
+	_check("Órdenes: el lote manual produce lo pedido y se detiene (%d)" % m.output_buffer.count("iron_ingot"), m.output_buffer.count("iron_ingot") == 2 and m.batch_remaining == 0)
+	# Con operario asignado produce de forma continua.
+	m.set_staffed(true)
+	_tick(20.0)
+	_check("Órdenes: con operario la producción es continua", m.output_buffer.count("iron_ingot") > 2)
+	m.set_staffed(false)
+	# Presupuesto de operarios: cada operario libera-atiende una máquina.
+	for w in GameManager.workers.workers.duplicate():
+		GameManager.workers.fire(w)
+	GameManager.workers.hire("operator", false)
+	var free_before: int = GameManager.workers.operators_free()
+	m.set_staffed(true)
+	_check("Órdenes: asignar operario reduce los operarios libres", GameManager.workers.operators_free() == free_before - 1)
+	m.set_staffed(false)
+	for w in GameManager.workers.workers.duplicate():
+		GameManager.workers.fire(w)
+	# Libera la energía: las máquinas acumuladas de tests previos comparten los
+	# 80 kW base y dejarían sin energía a las nuevas.
+	for mm in GameManager.machines.machines:
+		mm.set_enabled(false)
+	# Automatización total (tecnología): produce sin operario ni lote.
+	GameManager.upgrades.owned["automated_lines"] = true
+	GameManager.upgrades._recompute()
+	var m2: Machine = GameManager.machines.create_machine("smelter", Vector2i(6, 30))
+	m2.set_recipe("smelt_iron")
+	m2.set_condition(100.0)
+	m2.powered = true
+	m2.input_buffer.add("iron_ore", 10)
+	_tick(15.0)
+	_check("Órdenes: la automatización total produce sin operario ni lote", m2.output_buffer.count("iron_ingot") > 0)
+	GameManager.upgrades.owned.erase("automated_lines")
+	GameManager.upgrades._recompute()
 
 func _test_conveyor() -> void:
 	# Almacén con stock que alimenta una prensa vía cinta, y devuelve el producto.
@@ -95,6 +143,7 @@ func _test_conveyor() -> void:
 	press.set_recipe("press_plate")
 	press.set_condition(100.0)
 	press.powered = true
+	press.staffed = true
 	GameManager.transport.create_conveyor(store, press, false)   # ingotes → prensa
 	GameManager.transport.create_conveyor(press, store, false)   # placas → almacén
 	var before_plates: int = GameManager.storage.count("metal_plate")

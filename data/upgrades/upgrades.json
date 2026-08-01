@@ -75,6 +75,16 @@
       ],
       "requires": "fast_belts"
     },
+    "automated_lines": {
+      "name": "Líneas automatizadas",
+      "branch": "logistica",
+      "description": "Automatización total: TODAS las máquinas producen solas, sin operario ni órdenes manuales. El sueño industrial.",
+      "cost": 45000,
+      "effects": [
+        { "type": "auto_run", "value": 1.0 }
+      ],
+      "requires": "logistics_network"
+    },
     "expanded_storage": {
       "name": "Almacenes ampliados",
       "branch": "capacidad",

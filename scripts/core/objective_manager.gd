@@ -45,14 +45,14 @@ func _on_game_started() -> void:
 func _define_objectives() -> void:
 	objectives = [
 		{"id": "workbench", "title": "Instalá tu banco de trabajo", "hint": "Abrí ☰ Menú → 🏭 Fábrica y construí el Banco de trabajo: tu primer puesto de producción manual.", "done": false, "reward": 800, "long": false},
-		{"id": "craft", "title": "Fabricá tu primera herramienta", "hint": "Comprá chatarra en 💰 Economía; el banco la convierte en herramientas para vender.", "done": false, "reward": 800, "long": false},
+		{"id": "craft", "title": "Fabricá tu primera herramienta", "hint": "Comprá chatarra, seleccioná el banco y pulsá ▶ Producir. Sin operario, VOS le das la orden de trabajo (lote).", "done": false, "reward": 800, "long": false},
 		{"id": "sell", "title": "Vendé tu primer lote", "hint": "Abrí 💰 Economía → Vender y convertí tus herramientas en dinero.", "done": false, "reward": 1000, "long": false},
 		{"id": "cash6k", "title": "Reuní $6.000 de capital", "hint": "Producí y vendé para financiar tu primera máquina industrial.", "done": false, "reward": 1500, "long": false, "target": 6000, "progress": 0, "money": true},
 		{"id": "level2", "title": "Alcanzá Nivel 2 (Pequeño productor)", "hint": "Sumá valor y producción: al subir de nivel elegís tu rama y se desbloquean máquinas.", "done": false, "reward": 2000, "long": false},
 		{"id": "choose_branch", "title": "Elegí tu rama industrial", "hint": "En 🔬 Tecnología elegí Metalurgia, Madera o Energía: definirá tu fábrica.", "done": false, "reward": 1500, "long": false},
 		{"id": "first_machine", "title": "Construí tu primera máquina industrial", "hint": "Colocá una máquina de tu rama desde 🏗 Construcción. ¡Un gran salto!", "done": false, "reward": 2500, "long": false},
 		{"id": "automate", "title": "Automatizá: conectá una cinta transportadora", "hint": "🏗 Construcción → Cinta. Conectá un almacén a tu máquina para que se alimente sola.", "done": false, "reward": 2000, "long": false},
-		{"id": "produce50", "title": "Producí 50 unidades industriales", "hint": "Con la cinta alimentando la máquina, dejá que produzca tu producto insignia.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
+		{"id": "produce50", "title": "Producí 50 unidades industriales", "hint": "Dale lotes a la máquina o asigná un operario (👷) para que produzca sola de forma continua.", "done": false, "reward": 2000, "long": false, "target": 50, "progress": 0},
 		{"id": "contract", "title": "Cumplí tu primer contrato", "hint": "En 📋 Contratos aceptá un pedido y entregá lo solicitado a tiempo.", "done": false, "reward": 2500, "long": false},
 		{"id": "hire", "title": "Contratá a tu primer trabajador", "hint": "En 👷 Personal contratá un operario: aumenta la productividad de la fábrica.", "done": false, "reward": 1500, "long": false},
 		{"id": "line", "title": "Montá una segunda máquina industrial", "hint": "Encadená máquinas con cintas para formar tu primera línea de producción.", "done": false, "reward": 2500, "long": false},

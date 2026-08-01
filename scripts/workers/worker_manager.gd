@@ -90,6 +90,22 @@ func fire(w: Worker) -> void:
 	workers.erase(w)
 	EventBus.worker_fired.emit(w)
 	w.queue_free()
+	_reconcile_staffing()
+
+## Si quedan más máquinas atendidas que operarios (p.ej. tras despedir), libera
+## las que sobran para mantener el presupuesto coherente.
+func _reconcile_staffing() -> void:
+	if GameManager.machines == null:
+		return
+	var excess: int = staffed_count() - operators_total()
+	if excess <= 0:
+		return
+	for m in GameManager.machines.machines:
+		if excess <= 0:
+			break
+		if m.staffed:
+			m.set_staffed(false)
+			excess -= 1
 
 func count_specialty(spec: String) -> int:
 	var n := 0
@@ -97,6 +113,23 @@ func count_specialty(spec: String) -> int:
 		if w.specialty == spec:
 			n += 1
 	return n
+
+# --- Operarios que atienden máquinas (producción continua) ------------------
+## Operarios totales (rol producción). Cada uno puede atender UNA máquina.
+func operators_total() -> int:
+	return count_specialty("production")
+
+func staffed_count() -> int:
+	var n := 0
+	if GameManager.machines:
+		for m in GameManager.machines.machines:
+			if m.staffed:
+				n += 1
+	return n
+
+## Operarios libres para asignar a una máquina.
+func operators_free() -> int:
+	return operators_total() - staffed_count()
 
 # --- Salarios (semanales, spec §10/§15) -------------------------------------
 func weekly_salary_total() -> float:

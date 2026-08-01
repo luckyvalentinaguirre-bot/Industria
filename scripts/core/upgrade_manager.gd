@@ -18,6 +18,7 @@ var _wear: float = 1.0
 var _conveyor_speed: float = 1.0
 var _sell: float = 1.0
 var _storage: float = 1.0
+var _auto_run: bool = false
 
 func _ready() -> void:
 	defs = _load().get("upgrades", {})
@@ -61,6 +62,7 @@ func _recompute() -> void:
 	_conveyor_speed = 1.0
 	_sell = 1.0
 	_storage = 1.0
+	_auto_run = false
 	for id in owned.keys():
 		# Soporta 'effects' (lista, con trade-offs) o el 'effect' único legado.
 		var list: Array = defs.get(id, {}).get("effects", [])
@@ -75,6 +77,7 @@ func _recompute() -> void:
 				"conveyor_speed": _conveyor_speed *= v
 				"sell": _sell *= v
 				"storage": _storage *= v
+				"auto_run": _auto_run = true
 	# Aplica la capacidad de almacenamiento recalculada.
 	if GameManager.storage and GameManager.storage.has_method("refresh_capacity"):
 		GameManager.storage.refresh_capacity()
@@ -86,6 +89,8 @@ func wear_mult() -> float: return _wear
 func conveyor_speed_mult() -> float: return _conveyor_speed
 func sell_mult() -> float: return _sell
 func storage_mult() -> float: return _storage
+## Automatización total: las máquinas producen sin operario ni lote manual.
+func full_auto() -> bool: return _auto_run
 
 # --- Serialización ----------------------------------------------------------
 func to_dict() -> Dictionary:
