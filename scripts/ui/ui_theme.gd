@@ -6,30 +6,39 @@ class_name UITheme
 ## borde, botones con hover/pressed, chips del HUD) para que todo comparta la
 ## misma identidad. Mantiene las firmas usadas por los paneles existentes.
 
-const BG := Color(0.09, 0.10, 0.13, 0.96)
-const BG_SOFT := Color(0.14, 0.15, 0.18, 0.97)
-const CHIP := Color(0.13, 0.14, 0.17, 0.9)
-const ACCENT := Color(0.92, 0.63, 0.20)      # ámbar industrial
-const ACCENT2 := Color(0.40, 0.82, 0.48)     # verde (dinero/éxito)
-const TEXT := Color(0.90, 0.92, 0.94)
-const MUTED := Color(0.62, 0.65, 0.70)
-const WARN := Color(0.95, 0.75, 0.25)
-const DANGER := Color(0.92, 0.38, 0.34)
-const BORDER := Color(1, 1, 1, 0.08)
+## Paleta "industrial nocturno": base azul-carbón profunda, un único acento ámbar
+## dorado como identidad, verde para dinero/éxito y azul frío para información.
+## Alto contraste de texto para legibilidad; bordes y sombras sutiles = look premium.
+const BG := Color(0.072, 0.082, 0.105, 0.985)   # panel base (azul carbón)
+const BG_SOFT := Color(0.105, 0.120, 0.150, 0.985)
+const BG_DEEP := Color(0.045, 0.052, 0.070, 1.0) # hundidos (barras, campos)
+const CHIP := Color(0.115, 0.130, 0.165, 0.94)
+const ACCENT := Color(0.98, 0.68, 0.20)         # ámbar dorado (identidad)
+const ACCENT2 := Color(0.36, 0.84, 0.56)        # verde (dinero/éxito)
+const INFO := Color(0.44, 0.72, 1.0)            # azul frío (información)
+const TEXT := Color(0.95, 0.96, 0.98)           # casi blanco, buen contraste
+const MUTED := Color(0.60, 0.65, 0.73)
+const WARN := Color(0.98, 0.78, 0.32)
+const DANGER := Color(0.96, 0.44, 0.40)
+const BORDER := Color(1, 1, 1, 0.09)
 
 # --- Paneles ----------------------------------------------------------------
 static func panel_style(bg: Color = BG) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
-	s.set_corner_radius_all(10)
-	s.content_margin_left = 14
-	s.content_margin_right = 14
-	s.content_margin_top = 12
-	s.content_margin_bottom = 12
+	s.set_corner_radius_all(14)
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_top = 14
+	s.content_margin_bottom = 14
+	# Borde superior levemente iluminado (sensación de tarjeta con relieve).
 	s.border_color = BORDER
 	s.set_border_width_all(1)
-	s.shadow_color = Color(0, 0, 0, 0.35)
-	s.shadow_size = 6
+	s.border_width_top = 2
+	# Sombra difusa hacia abajo para separar del fondo 3D.
+	s.shadow_color = Color(0, 0, 0, 0.45)
+	s.shadow_size = 10
+	s.shadow_offset = Vector2(0, 4)
 	return s
 
 static func make_panel(bg: Color = BG) -> PanelContainer:
@@ -46,21 +55,37 @@ static func make_label(text: String, size: int = 14, color: Color = TEXT) -> Lab
 	return l
 
 static func make_title(text: String) -> Label:
-	var l := make_label(text, 18, ACCENT)
-	l.add_theme_font_size_override("font_size", 18)
+	var l := make_label(text, 20, ACCENT)
+	l.add_theme_font_size_override("font_size", 20)
 	return l
 
+## Encabezado de panel con barra de acento a la izquierda (jerarquía visual clara).
+static func header(text: String, color: Color = ACCENT) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	var bar := PanelContainer.new()
+	bar.custom_minimum_size = Vector2(4, 20)
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = color
+	bs.set_corner_radius_all(2)
+	bar.add_theme_stylebox_override("panel", bs)
+	h.add_child(bar)
+	var l := make_label(text, 18, color)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(l)
+	return h
+
 # --- Botones ----------------------------------------------------------------
-static func _btn_box(bg: Color, border: Color, radius: int = 7) -> StyleBoxFlat:
+static func _btn_box(bg: Color, border: Color, radius: int = 9) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.set_corner_radius_all(radius)
 	s.set_border_width_all(1)
 	s.border_color = border
-	s.content_margin_left = 12
-	s.content_margin_right = 12
-	s.content_margin_top = 6
-	s.content_margin_bottom = 6
+	s.content_margin_left = 14
+	s.content_margin_right = 14
+	s.content_margin_top = 8
+	s.content_margin_bottom = 8
 	return s
 
 static func _style_button(b: Button, primary: bool) -> void:
@@ -156,7 +181,7 @@ static func build_theme() -> Theme:
 	t.set_color("font_color", "Label", TEXT)
 
 	# Barra de progreso: fondo hundido + relleno ámbar redondeado.
-	var pbbg := _flat(Color(0.06, 0.07, 0.09), 6, BORDER, 1)
+	var pbbg := _flat(BG_DEEP, 6, BORDER, 1)
 	var pbfill := _flat(ACCENT, 6, Color(0, 0, 0, 0), 0)
 	t.set_stylebox("background", "ProgressBar", pbbg)
 	t.set_stylebox("fill", "ProgressBar", pbfill)
@@ -164,11 +189,11 @@ static func build_theme() -> Theme:
 	t.set_font_size("font_size", "ProgressBar", 11)
 
 	# Campo de texto.
-	var le := _flat(Color(0.06, 0.07, 0.09), 7, BORDER, 1)
+	var le := _flat(BG_DEEP, 7, BORDER, 1)
 	le.content_margin_left = 10; le.content_margin_right = 10
 	le.content_margin_top = 6; le.content_margin_bottom = 6
 	t.set_stylebox("normal", "LineEdit", le)
-	var lef := _flat(Color(0.06, 0.07, 0.09), 7, ACCENT, 1)
+	var lef := _flat(BG_DEEP, 7, ACCENT, 1)
 	lef.content_margin_left = 10; lef.content_margin_right = 10
 	lef.content_margin_top = 6; lef.content_margin_bottom = 6
 	t.set_stylebox("focus", "LineEdit", lef)
@@ -200,7 +225,7 @@ static func build_theme() -> Theme:
 		t.set_stylebox("grabber_pressed", sb, grab_hi)
 
 	# Tooltips coherentes con el resto.
-	var tip := _flat(Color(0.06, 0.07, 0.09, 0.98), 8, BORDER, 1)
+	var tip := _flat(Color(BG_DEEP, 0.98), 8, BORDER, 1)
 	tip.content_margin_left = 10; tip.content_margin_right = 10
 	tip.content_margin_top = 6; tip.content_margin_bottom = 6
 	t.set_stylebox("panel", "TooltipPanel", tip)

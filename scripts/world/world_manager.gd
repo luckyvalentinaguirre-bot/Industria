@@ -218,11 +218,15 @@ func _setup_environment() -> void:
 
 	var sky := Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.28, 0.42, 0.62)
-	sky_mat.sky_horizon_color = Color(0.62, 0.68, 0.74)
-	sky_mat.ground_bottom_color = Color(0.16, 0.17, 0.19)
-	sky_mat.ground_horizon_color = Color(0.5, 0.52, 0.55)
-	sky_mat.sun_angle_max = 30.0
+	# Cielo con más profundidad: azul intenso arriba, bruma cálida en el horizonte
+	# (armoniza con el acento ámbar de la identidad). El sol tiñe su halo.
+	sky_mat.sky_top_color = Color(0.20, 0.34, 0.58)
+	sky_mat.sky_horizon_color = Color(0.70, 0.72, 0.70)
+	sky_mat.sky_curve = 0.12
+	sky_mat.ground_bottom_color = Color(0.14, 0.15, 0.17)
+	sky_mat.ground_horizon_color = Color(0.52, 0.53, 0.55)
+	sky_mat.sun_angle_max = 24.0
+	sky_mat.sun_curve = 0.08
 	sky.sky_material = sky_mat
 	env.sky = sky
 	_sky_mat = sky_mat
@@ -231,29 +235,35 @@ func _setup_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 1.0
 
-	# Niebla sutil para dar profundidad industrial.
+	# Niebla atmosférica: da profundidad y funde el horizonte con la ciudad.
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.55, 0.58, 0.62)
-	env.fog_density = 0.004
-	env.fog_sky_affect = 0.2
+	env.fog_light_color = Color(0.56, 0.60, 0.66)
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.006
+	env.fog_sky_affect = 0.35
+	env.fog_aerial_perspective = 0.4
 
 	# Realce visual optimizado para gama media.
 	env.ssao_enabled = true
 	env.ssao_radius = 2.0
-	env.ssao_intensity = 2.2
+	env.ssao_intensity = 2.4
 	env.ssao_detail = 1.0
 	env.ssil_enabled = true
-	env.ssil_intensity = 0.5
+	env.ssil_intensity = 0.55
+	# Bloom generoso pero controlado: hace brillar ventanas, luces y metal emisivo.
 	env.glow_enabled = true
-	env.glow_intensity = 0.5
-	env.glow_bloom = 0.08
-	env.glow_hdr_threshold = 1.0
+	env.glow_intensity = 0.7
+	env.glow_strength = 1.05
+	env.glow_bloom = 0.12
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	env.glow_hdr_threshold = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_white = 6.0
+	env.tonemap_white = 8.0
+	env.tonemap_exposure = 1.05
 	env.adjustment_enabled = true
 	env.adjustment_brightness = 1.02
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 1.08
+	env.adjustment_contrast = 1.10
+	env.adjustment_saturation = 1.14
 
 	_environment.environment = env
 	_env = env
