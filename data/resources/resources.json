@@ -8,13 +8,19 @@
     "clay":        { "name": "Arcilla",             "category": "minerals", "unit": "kg", "base_price": 2.5 },
     "nutrients":   { "name": "Insumos regulados",   "category": "agro",     "unit": "u",  "base_price": 8.0 },
     "oil":         { "name": "Petroleo",            "category": "energy",   "unit": "L",  "base_price": 5.0 },
-    "chemicals":   { "name": "Productos quimicos",  "category": "chemicals","unit": "L",  "base_price": 9.0 }
+    "chemicals":   { "name": "Productos quimicos",  "category": "chemicals","unit": "L",  "base_price": 9.0 },
+    "coal":        { "name": "Carbon",              "category": "energy",   "unit": "kg", "base_price": 3.0 },
+    "sand":        { "name": "Arena",               "category": "minerals", "unit": "kg", "base_price": 2.0 },
+    "stone":       { "name": "Piedra",              "category": "minerals", "unit": "kg", "base_price": 2.5 }
   },
   "processed": {
     "iron_ingot":     { "name": "Lingote de hierro",         "category": "metals",    "unit": "u", "base_price": 18.0 },
     "copper_ingot":   { "name": "Lingote de cobre",          "category": "metals",    "unit": "u", "base_price": 18.0 },
     "recycled_metal": { "name": "Metal reciclado",           "category": "metals",    "unit": "u", "base_price": 8.0 },
     "fuel":           { "name": "Combustible",               "category": "energy",    "unit": "L", "base_price": 14.0 },
-    "processed_chem": { "name": "Material quimico procesado", "category": "chemicals", "unit": "u", "base_price": 22.0 }
+    "processed_chem": { "name": "Material quimico procesado", "category": "chemicals", "unit": "u", "base_price": 22.0 },
+    "steel":          { "name": "Acero",                     "category": "metals",    "unit": "u", "base_price": 30.0 },
+    "glass":          { "name": "Vidrio",                    "category": "materials", "unit": "u", "base_price": 10.0 },
+    "plastic":        { "name": "Plastico",                  "category": "chemicals", "unit": "u", "base_price": 16.0 }
   }
 }

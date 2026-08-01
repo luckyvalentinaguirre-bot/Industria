@@ -17,7 +17,8 @@ const TYPE_LABELS := {
 const CLIENTS := ["Construcciones Delta", "Metalúrgica Andes", "Ensambladora Rivas",
 	"Talleres Sur", "Industrias Kappa", "Logística Omega", "Fábrica Zeta"]
 const PRODUCTS := ["metal_plate", "copper_part", "industrial_part",
-	"metal_piece", "industrial_comp", "plank", "pallet", "brick", "block", "fuel"]
+	"metal_piece", "industrial_comp", "plank", "pallet", "brick", "block", "fuel",
+	"steel", "glass", "plastic", "copper_wire", "electronic_component", "machine_part"]
 
 var templates: Array = []
 var offers: Array = []            # Array[Contract] disponibles

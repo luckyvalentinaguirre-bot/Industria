@@ -18,7 +18,7 @@
       "cost": 4500,
       "power": 40,
       "base_speed": 1.0,
-      "recipes": ["smelt_iron", "smelt_copper", "recycle_scrap"]
+      "recipes": ["smelt_iron", "smelt_copper", "recycle_scrap", "smelt_steel"]
     },
     "sawmill": {
       "name": "Aserradero",
@@ -45,7 +45,7 @@
       "cost": 3000,
       "power": 35,
       "base_speed": 1.0,
-      "recipes": ["refine_fuel"]
+      "recipes": ["refine_fuel", "make_plastic"]
     },
     "brick_kiln": {
       "name": "Horno de ladrillos",
@@ -54,7 +54,7 @@
       "cost": 2400,
       "power": 28,
       "base_speed": 1.1,
-      "recipes": ["fire_brick"]
+      "recipes": ["fire_brick", "melt_glass"]
     },
     "block_press": {
       "name": "Prensa de bloques",
@@ -81,7 +81,7 @@
       "cost": 4200,
       "power": 30,
       "base_speed": 1.0,
-      "recipes": ["press_plate", "make_copper_part"]
+      "recipes": ["press_plate", "make_copper_part", "draw_wire"]
     },
     "assembler": {
       "name": "Ensambladora",
@@ -90,7 +90,7 @@
       "cost": 7500,
       "power": 55,
       "base_speed": 1.0,
-      "recipes": ["make_industrial_part", "assemble_metal_piece", "assemble_industrial_comp", "assemble_motor"]
+      "recipes": ["make_industrial_part", "assemble_metal_piece", "assemble_industrial_comp", "assemble_motor", "assemble_electronic", "assemble_machine_part"]
     }
   }
 }

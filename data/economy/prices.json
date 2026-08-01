@@ -11,21 +11,21 @@
       "price_mult": 1.0,
       "quality": 1.0,
       "delivery_days": 2,
-      "sells": ["iron_ore", "copper_ore", "scrap"]
+      "sells": ["iron_ore", "copper_ore", "scrap", "coal"]
     },
     "maderera_este": {
       "name": "Maderera del Este",
       "price_mult": 1.0,
       "quality": 1.0,
       "delivery_days": 2,
-      "sells": ["wood_log", "clay"]
+      "sells": ["wood_log", "clay", "sand", "stone"]
     },
     "insumos_express": {
       "name": "Insumos Express",
       "price_mult": 1.25,
       "quality": 1.05,
       "delivery_days": 1,
-      "sells": ["iron_ore", "copper_ore", "scrap", "wood_log", "clay", "nutrients", "oil", "chemicals"]
+      "sells": ["iron_ore", "copper_ore", "scrap", "wood_log", "clay", "nutrients", "oil", "chemicals", "coal", "sand", "stone"]
     },
     "petroquimica_sur": {
       "name": "Petroquimica Sur",

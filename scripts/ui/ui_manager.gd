@@ -1057,14 +1057,35 @@ func _refresh_storage() -> void:
 	if items.is_empty():
 		box.add_child(UITheme.make_label("(vacío)", 12))
 	else:
+		# Agrupar por categoría (§32): materias primas, procesados, componentes, finales…
+		var groups: Dictionary = {}  # categoría -> Array[id]
 		for id in items.keys():
-			var row := HBoxContainer.new()
-			var n := UITheme.make_label(ItemDB.display_name(id), 12)
-			n.custom_minimum_size = Vector2(180, 0)
-			row.add_child(n)
-			var q := UITheme.make_label(str(int(items[id])), 12, UITheme.ACCENT2)
-			row.add_child(q)
-			box.add_child(row)
+			var cat: String = ItemDB.category(id)
+			if cat == "":
+				cat = "otros"
+			if not groups.has(cat):
+				groups[cat] = []
+			groups[cat].append(id)
+		var cat_names: Dictionary = {
+			"minerals": "⛏ Minerales", "metals": "🔩 Metales", "wood": "🪵 Madera",
+			"agro": "🌱 Agro", "energy": "⚡ Energía", "chemicals": "🧪 Químicos",
+			"materials": "🧱 Materiales", "components": "🔧 Componentes",
+			"regulated": "📋 Regulados", "finished": "📦 Productos finales", "otros": "Otros",
+		}
+		var order: Array = ["minerals", "metals", "wood", "agro", "energy", "chemicals",
+			"materials", "components", "regulated", "finished", "otros"]
+		for cat in order:
+			if not groups.has(cat):
+				continue
+			box.add_child(UITheme.make_label(String(cat_names.get(cat, cat)), 12, UITheme.ACCENT2))
+			for id in groups[cat]:
+				var row := HBoxContainer.new()
+				var n := UITheme.make_label("  " + ItemDB.display_name(id), 12)
+				n.custom_minimum_size = Vector2(180, 0)
+				row.add_child(n)
+				var q := UITheme.make_label(str(int(items[id])), 12, UITheme.ACCENT2)
+				row.add_child(q)
+				box.add_child(row)
 
 # --- Victoria ---------------------------------------------------------------
 func _on_game_won() -> void:

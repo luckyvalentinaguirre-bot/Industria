@@ -86,9 +86,17 @@ func _rebuild() -> void:
 	_section("Receta")
 	_recipe_opt = OptionButton.new()
 	var recs: Array = machine.def.get("recipes", [])
+	var lvl: int = GameState.company_level
 	for i in recs.size():
-		_recipe_opt.add_item(GameManager.recipes.recipe_name(String(recs[i])), i)
-		if String(recs[i]) == machine.recipe_id:
+		var rid: String = String(recs[i])
+		var need: int = GameManager.recipes.recipe_min_level(rid)
+		var label: String = GameManager.recipes.recipe_name(rid)
+		if need > lvl:
+			label += "  🔒 Nivel %d" % need
+		_recipe_opt.add_item(label, i)
+		if need > lvl:
+			_recipe_opt.set_item_disabled(i, true)
+		if rid == machine.recipe_id:
 			_recipe_opt.select(i)
 	_recipe_opt.item_selected.connect(_on_recipe_selected)
 	_box.add_child(_recipe_opt)

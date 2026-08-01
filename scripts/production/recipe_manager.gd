@@ -34,6 +34,10 @@ func recipe_time(recipe_id: String) -> float:
 func recipe_name(recipe_id: String) -> String:
 	return String(get_recipe(recipe_id).get("name", recipe_id))
 
+## Nivel de empresa mínimo para desbloquear la receta (1 = disponible de entrada).
+func recipe_min_level(recipe_id: String) -> int:
+	return int(get_recipe(recipe_id).get("min_level", 1))
+
 # --- Máquinas ---------------------------------------------------------------
 func get_machine_def(machine_id: String) -> Dictionary:
 	return machine_defs.get(machine_id, {})

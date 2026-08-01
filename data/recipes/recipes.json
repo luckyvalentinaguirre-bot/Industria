@@ -112,6 +112,51 @@
       "time": 14.0,
       "inputs": { "industrial_comp": 1, "copper_part": 2, "fuel": 1 },
       "outputs": { "simple_motor": 1 }
+    },
+    "smelt_steel": {
+      "name": "Fundir acero",
+      "machine": "smelter",
+      "time": 8.0,
+      "min_level": 3,
+      "inputs": { "iron_ingot": 1, "coal": 1 },
+      "outputs": { "steel": 1 }
+    },
+    "melt_glass": {
+      "name": "Fundir vidrio",
+      "machine": "brick_kiln",
+      "time": 5.0,
+      "inputs": { "sand": 2 },
+      "outputs": { "glass": 1 }
+    },
+    "make_plastic": {
+      "name": "Producir plastico",
+      "machine": "refinery",
+      "time": 6.0,
+      "inputs": { "oil": 2 },
+      "outputs": { "plastic": 1 }
+    },
+    "draw_wire": {
+      "name": "Trefilar cable de cobre",
+      "machine": "press",
+      "time": 5.0,
+      "inputs": { "copper_ingot": 1 },
+      "outputs": { "copper_wire": 1 }
+    },
+    "assemble_electronic": {
+      "name": "Ensamblar componente electronico",
+      "machine": "assembler",
+      "time": 10.0,
+      "min_level": 4,
+      "inputs": { "copper_wire": 1, "plastic": 1 },
+      "outputs": { "electronic_component": 1 }
+    },
+    "assemble_machine_part": {
+      "name": "Ensamblar pieza de maquinaria",
+      "machine": "assembler",
+      "time": 14.0,
+      "min_level": 5,
+      "inputs": { "steel": 1, "electronic_component": 1 },
+      "outputs": { "machine_part": 1 }
     }
   }
 }

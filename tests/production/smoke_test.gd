@@ -40,6 +40,8 @@ func _ready() -> void:
 	_test_week_summary()
 	_test_automation_objective()
 	_test_balance()
+	_test_all_recipes_balance()
+	_test_new_chains()
 	_test_growth()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -554,6 +556,59 @@ func _test_balance() -> void:
 	# Ninguna rama debe rendir absurdamente más que otra por máquina (dominancia).
 	var ratio: float = best / maxf(1.0, worst)
 	_check("Balance: sin rama dominante (mejor/peor $/min < 3x, =%.1f)" % ratio, ratio < 3.0)
+
+func _test_all_recipes_balance() -> void:
+	# TODAS las recetas (no sólo la primera de cada máquina) deben agregar valor:
+	# el valor de salida supera al de entrada. Guarda de balance para las cadenas
+	# nuevas (acero, vidrio, plástico, cable, electrónico, pieza de maquinaria).
+	var all_va_ok := true
+	var no_dominance := true
+	var worst_id := ""
+	for rid in GameManager.recipes.recipes.keys():
+		if String(rid).begins_with("_"):
+			continue
+		var r: Dictionary = GameManager.recipes.get_recipe(String(rid))
+		var rev := 0.0
+		for id in r.get("outputs", {}).keys():
+			rev += ItemDB.base_price(id) * int(r["outputs"][id])
+		var incost := 0.0
+		for id in r.get("inputs", {}).keys():
+			incost += ItemDB.base_price(id) * int(r["inputs"][id])
+		var va: float = rev - incost
+		if va <= 0.0:
+			all_va_ok = false
+			worst_id = String(rid)
+		# Ningún paso debe multiplicar el valor de forma absurda (>4.5x salida/entrada).
+		if incost > 0.0 and rev / incost > 4.5:
+			no_dominance = false
+			worst_id = String(rid)
+	_check("Balance: toda receta agrega valor (peor=%s)" % worst_id, all_va_ok)
+	_check("Balance: ninguna receta multiplica valor >4.5x (peor=%s)" % worst_id, no_dominance)
+
+func _test_new_chains() -> void:
+	# Materias primas nuevas: deben existir en el catálogo y tener proveedor.
+	var mk: Node = GameManager.market
+	var raws_ok := true
+	for raw in ["coal", "sand", "stone"]:
+		if ItemDB.base_price(raw) <= 0.0 or mk.suppliers_for(raw).is_empty():
+			raws_ok = false
+	_check("Recursos: carbón/arena/piedra existen y tienen proveedor", raws_ok)
+	# Cadena nueva: acero = lingote de hierro + carbón (cruza minería y energía).
+	var m: Machine = GameManager.machines.create_machine("smelter", Vector2i(6, 6))
+	m.set_recipe("smelt_steel")
+	m.input_buffer.add("iron_ingot", 8)
+	m.input_buffer.add("coal", 8)
+	m.set_condition(100.0)
+	m.powered = true
+	m.staffed = true
+	_tick(30.0)
+	var steel: int = m.output_buffer.count("steel")
+	_check("Cadena: la fundición produce acero desde lingote+carbón (%d)" % steel, steel >= 1)
+	# Gating por nivel: smelt_steel requiere nivel 3, melt_glass es de entrada.
+	_check("Progresión: smelt_steel bloqueada a nivel bajo (min_level 3)",
+		GameManager.recipes.recipe_min_level("smelt_steel") == 3)
+	_check("Progresión: melt_glass disponible de entrada (min_level 1)",
+		GameManager.recipes.recipe_min_level("melt_glass") == 1)
 
 func _test_growth() -> void:
 	# Crecimiento visual por nivel: los builders de estructuras/clusters deben
