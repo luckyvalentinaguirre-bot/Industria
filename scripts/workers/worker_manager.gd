@@ -7,6 +7,10 @@ extends Node
 
 const WorkerScript := preload("res://scripts/workers/worker.gd")
 
+## Máximo de empleados por nivel de empresa (spec §9/§13). Índice = nivel-1.
+## El nivel de la fábrica representa su capacidad de gestión de personal.
+const MAX_BY_LEVEL := [1, 3, 6, 10, 16]
+
 var types: Dictionary = {}
 var workers: Array = []            # Array[Worker]
 var _container: Node3D
@@ -14,8 +18,16 @@ var _container: Node3D
 func _ready() -> void:
 	var cfg := _load()
 	types = cfg.get("types", {})
-	EventBus.day_passed.connect(_on_day)
+	EventBus.week_passed.connect(_on_week)
 	call_deferred("_hire_starting_staff", cfg.get("starting_staff", {}))
+
+## Máximo de empleados según el nivel actual de la empresa.
+func max_employees() -> int:
+	var idx: int = clampi(GameState.company_level - 1, 0, MAX_BY_LEVEL.size() - 1)
+	return MAX_BY_LEVEL[idx]
+
+func at_capacity() -> bool:
+	return workers.size() >= max_employees()
 
 func set_container(node: Node3D) -> void:
 	_container = node
@@ -36,10 +48,14 @@ func _hire_starting_staff(staff: Dictionary) -> void:
 func hire(type_id: String, charge: bool = true) -> Worker:
 	if not types.has(type_id):
 		return null
+	# Límite de empleados por nivel: subir de nivel amplía la plantilla (spec §13).
+	if charge and at_capacity():
+		EventBus.notify.emit("Límite de empleados (%d/%d). Subí el nivel de tu fábrica para contratar más." % [workers.size(), max_employees()], "warning")
+		return null
 	var def: Dictionary = types[type_id]
-	# Coste de contratación = medio mes de salario.
+	# Coste de contratación = media semana de salario (el gasto real es el sueldo).
 	if charge:
-		var fee := float(def.get("salary", 90.0)) * 15.0
+		var fee := float(def.get("salary", 400.0)) * 0.5
 		if not GameManager.economy.spend(fee, "salaries"):
 			return null
 	var w: Worker = WorkerScript.new()
@@ -82,17 +98,22 @@ func count_specialty(spec: String) -> int:
 			n += 1
 	return n
 
-# --- Salarios ---------------------------------------------------------------
-func daily_salary_total() -> float:
+# --- Salarios (semanales, spec §10/§15) -------------------------------------
+func weekly_salary_total() -> float:
 	var t := 0.0
 	for w in workers:
 		t += w.salary
 	return t
 
-func _on_day(_day: int) -> void:
-	var total := daily_salary_total()
+## Compatibilidad: algunos paneles piden el total; ahora es semanal.
+func daily_salary_total() -> float:
+	return weekly_salary_total()
+
+func _on_week(_week: int) -> void:
+	var total := weekly_salary_total()
 	if total > 0.0:
 		GameManager.economy.force_spend(total, "salaries")
+		EventBus.notify.emit("💸 Salarios semanales: %s (%d empleados)" % [Fmt.money(total), workers.size()], "info")
 
 # --- Bonificaciones globales ------------------------------------------------
 func operator_bonus() -> float:

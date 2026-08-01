@@ -40,6 +40,7 @@ var progression: Node
 var specialization: Node
 var tutorial: Node
 var objectives: Node
+var week: Node
 var upgrades: Node
 var audio: Node
 var save: Node
@@ -77,6 +78,7 @@ func _create_managers() -> void:
 	specialization = _add("res://scripts/core/specialization_manager.gd", "SpecializationManager")
 	tutorial = _add("res://scripts/core/tutorial_manager.gd", "TutorialManager")
 	objectives = _add("res://scripts/core/objective_manager.gd", "ObjectiveManager")
+	week = _add("res://scripts/core/week_manager.gd", "WeekManager")
 	upgrades = _add("res://scripts/core/upgrade_manager.gd", "UpgradeManager")
 	audio = _add("res://scripts/core/audio_manager.gd", "AudioManager")
 	save = _add("res://scripts/save/save_manager.gd", "SaveManager")

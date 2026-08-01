@@ -362,9 +362,6 @@ func _setup_props() -> void:
 
 	var mat_wall := _simple(Color(0.28, 0.29, 0.31), 0.9, 0.0)
 	var mat_metal := _simple(Color(0.2, 0.21, 0.23), 0.5, 0.8)
-	var mat_crate := _simple(Color(0.45, 0.33, 0.19), 0.8, 0.0)
-	var mat_barrel := _simple(Color(0.2, 0.45, 0.55), 0.5, 0.4)
-	var mat_barrel2 := _simple(Color(0.6, 0.4, 0.15), 0.5, 0.4)
 
 	# Muro perimetral (4 lados) con zócalo y remate metálico.
 	for side in range(4):
@@ -384,23 +381,9 @@ func _setup_props() -> void:
 	for p in lamp_positions:
 		_light_pole(props, p, mat_metal)
 
-	# Grupos de props (cajas y barriles) repartidos por el perímetro.
-	var clusters := [
-		Vector3(-ext + 6, 0, -6), Vector3(ext - 6, 0, 8),
-		Vector3(-8, 0, ext - 6), Vector3(10, 0, -ext + 6),
-	]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 1337
-	for c in clusters:
-		for i in range(4):
-			var off := Vector3(rng.randf_range(-2.5, 2.5), 0, rng.randf_range(-2.5, 2.5))
-			if rng.randf() < 0.5:
-				var s := rng.randf_range(0.8, 1.3)
-				var crate := _pbox(props, Vector3(s, s, s), c + off + Vector3(0, s * 0.5, 0), mat_crate)
-				crate.rotation.y = rng.randf_range(0, TAU)
-			else:
-				var bm := mat_barrel if rng.randf() < 0.5 else mat_barrel2
-				_pcyl(props, 0.35, 0.35, 1.1, c + off + Vector3(0, 0.55, 0), bm)
+	# (Se retiraron los grupos ALEATORIOS de cajas/barriles: relleno sin intención.
+	#  La ambientación con propósito la aportan _setup_ambient y el crecimiento
+	#  por nivel, spec §25/§47.)
 
 	# Sonda de reflejos para dar brillo realista al metal.
 	var probe := ReflectionProbe.new()
@@ -411,8 +394,8 @@ func _setup_props() -> void:
 	probe.ambient_mode = ReflectionProbe.AMBIENT_ENVIRONMENT
 	props.add_child(probe)
 
-	# Polvo ambiental muy sutil sobre la fábrica.
-	props.add_child(_make_dust(ext))
+	# (Se retiró el polvo ambiental de partículas esféricas — las "bolitas"
+	#  flotantes de relleno, spec §25.)
 
 	# Señalización y líneas de seguridad en el suelo.
 	_setup_floor_markings(props, ext)

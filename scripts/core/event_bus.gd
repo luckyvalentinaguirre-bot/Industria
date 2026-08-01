@@ -21,6 +21,10 @@ signal minute_passed(day: int, hour: int, minute: int)
 signal hour_passed(day: int, hour: int)
 ## Emitida cuando pasa un día completo.
 signal day_passed(day: int)
+## Emitida al completarse una semana de juego (7 días). Ciclo de gestión (spec §16).
+signal week_passed(week: int)
+## Emitida con el resumen de la semana para la pantalla de balance (spec §17).
+signal week_summary(data: Dictionary)
 ## Emitida cuando cambia la velocidad de simulación (0 = pausa).
 signal time_scale_changed(scale: float)
 

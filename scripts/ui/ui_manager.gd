@@ -460,6 +460,7 @@ func _connect_signals() -> void:
 	EventBus.worker_fired.connect(func(_w): _refresh_workers())
 	EventBus.objectives_updated.connect(_on_objectives_updated)
 	EventBus.game_won.connect(_on_game_won)
+	EventBus.week_summary.connect(_show_week_summary)
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
 	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.tutorial_finished.connect(_on_tutorial_finished)
@@ -724,16 +725,22 @@ func _refresh_workers() -> void:
 	for c in box.get_children():
 		c.queue_free()
 	box.add_child(UITheme.make_title("Personal"))
-	box.add_child(UITheme.make_label("Contratar:", 13, UITheme.ACCENT))
-	for type_id in GameManager.workers.types.keys():
-		var def: Dictionary = GameManager.workers.types[type_id]
+	var wm: Node = GameManager.workers
+	var full: bool = wm.at_capacity()
+	box.add_child(UITheme.make_label("Cupo: %d / %d empleados (según nivel de empresa)" % [wm.workers.size(), wm.max_employees()], 13, UITheme.WARN if full else UITheme.ACCENT2))
+	if full:
+		box.add_child(UITheme.make_label("Límite alcanzado. Subí el nivel de tu fábrica para contratar más.", 11, UITheme.WARN))
+	box.add_child(UITheme.make_label("Contratar (salario SEMANAL):", 13, UITheme.ACCENT))
+	for type_id in wm.types.keys():
+		var def: Dictionary = wm.types[type_id]
 		var eff := _worker_effect(String(def.get("specialty", "")))
-		var b := UITheme.make_button("%s — %s/día  ·  %s" % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff])
-		b.tooltip_text = "%s\nSalario diario: %s\nEfecto: %s\nContratación: medio mes de salario." % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff]
+		var b := UITheme.make_button("%s — %s/sem  ·  %s" % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff])
+		b.tooltip_text = "%s\nSalario semanal: %s\nEfecto: %s\nContratación: media semana de salario." % [String(def.get("name", type_id)), Fmt.money(def.get("salary", 0)), eff]
+		b.disabled = full
 		b.pressed.connect(GameManager.workers.hire.bind(String(type_id), true))
 		box.add_child(b)
 	box.add_child(UITheme.hsep())
-	box.add_child(UITheme.make_label("Plantilla (%d) — Salarios: %s/día" % [GameManager.workers.workers.size(), Fmt.money(GameManager.workers.daily_salary_total())], 12, UITheme.ACCENT2))
+	box.add_child(UITheme.make_label("Plantilla (%d) — Salarios: %s/semana" % [GameManager.workers.workers.size(), Fmt.money(GameManager.workers.weekly_salary_total())], 12, UITheme.ACCENT2))
 	for w in GameManager.workers.workers:
 		var row := HBoxContainer.new()
 		row.add_child(UITheme.make_label("%s (exp %d)" % [w.worker_name, int(w.experience)], 12))
@@ -1048,6 +1055,63 @@ func _show_intro() -> void:
 func _free_node(n: Node) -> void:
 	if is_instance_valid(n):
 		n.queue_free()
+
+# --- Resumen semanal (spec §16-§19) -----------------------------------------
+var _week_prev_scale: float = 1.0
+func _show_week_summary(d: Dictionary) -> void:
+	# Pausa el juego: el cierre de semana es un momento de planificación.
+	_week_prev_scale = TimeManager.time_scale
+	TimeManager.set_time_scale(0.0)
+	var panel := UITheme.make_panel(UITheme.BG)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -260; panel.offset_right = 260
+	panel.offset_top = -250; panel.offset_bottom = 250
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(500, 480)
+	panel.add_child(scroll)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 5)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(v)
+	var title := UITheme.make_label("SEMANA %d — RESUMEN INDUSTRIAL" % int(d["week"]), 22, UITheme.ACCENT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	v.add_child(UITheme.hsep())
+	var profit: float = d["profit"]
+	var pcol := UITheme.ACCENT2 if profit >= 0 else UITheme.DANGER
+	v.add_child(UITheme.make_label("💰 Caja: %s  →  %s" % [Fmt.money(d["money_start"]), Fmt.money(d["money_end"])], 15))
+	v.add_child(UITheme.make_label("📈 Beneficio neto: %s%s" % ["+" if profit >= 0 else "", Fmt.money(profit)], 17, pcol))
+	v.add_child(UITheme.hsep())
+	v.add_child(UITheme.make_label("📦 Producción: %d unidades   ·   🛒 Ventas: %s" % [int(d["produced"]), Fmt.money(d["sales_income"])], 13))
+	v.add_child(UITheme.make_label("📋 Contratos: %d completados · %d fallidos" % [int(d["contracts_done"]), int(d["contracts_failed"])], 13))
+	v.add_child(UITheme.hsep())
+	v.add_child(UITheme.make_label("💸 GASTOS DE LA SEMANA", 12, UITheme.ACCENT))
+	var exp: Dictionary = d["expense"]
+	var labels := {"purchases": "Materiales", "energy": "Energía", "maintenance": "Mantenimiento",
+		"salaries": "Salarios", "construction": "Construcción/Expansión", "contract_penalty": "Penalizaciones", "misc": "Otros"}
+	var any_exp := false
+	for cat in exp.keys():
+		if float(exp[cat]) > 0.0:
+			any_exp = true
+			v.add_child(UITheme.make_label("   %s: -%s" % [labels.get(cat, cat), Fmt.money(exp[cat])], 12))
+	if not any_exp:
+		v.add_child(UITheme.make_label("   (sin gastos)", 12, UITheme.MUTED))
+	v.add_child(UITheme.hsep())
+	v.add_child(UITheme.make_label("👥 Personal: %d / %d   ·   💰 Salarios: %s/sem" % [int(d["staff"]), int(d["staff_max"]), Fmt.money(d["salaries"])], 13))
+	var rd: int = int(d["reputation_delta"])
+	if rd != 0:
+		v.add_child(UITheme.make_label("⭐ Reputación: %s%d" % ["+" if rd > 0 else "", rd], 13, UITheme.ACCENT2 if rd > 0 else UITheme.WARN))
+	if String(d["achievement"]) != "":
+		v.add_child(UITheme.hsep())
+		v.add_child(UITheme.make_label("🏆 Mayor logro: %s" % d["achievement"], 13, UITheme.ACCENT2))
+	v.add_child(UITheme.hsep())
+	v.add_child(UITheme.make_label("🎯 Próxima meta: %s" % d["next_goal"], 13, UITheme.ACCENT))
+	var close := UITheme.make_primary_button("Planificar la próxima semana")
+	close.pressed.connect(func():
+		TimeManager.set_time_scale(_week_prev_scale if _week_prev_scale > 0.0 else 1.0)
+		_free_node(panel))
+	v.add_child(close)
+	root.add_child(panel)
 
 # --- Elección de rama industrial (spec §8, §9) ------------------------------
 func _show_branch_choice() -> void:

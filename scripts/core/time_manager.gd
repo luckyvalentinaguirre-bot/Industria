@@ -58,6 +58,9 @@ func _advance_one_minute() -> void:
 			GameState.hour = 0
 			GameState.day += 1
 			EventBus.day_passed.emit(GameState.day)
+			# Semana completada (días 8, 15, 22… cierran las semanas 1, 2, 3…).
+			if GameState.day > 1 and (GameState.day - 1) % 7 == 0:
+				EventBus.week_passed.emit((GameState.day - 1) / 7)
 	EventBus.minute_passed.emit(GameState.day, GameState.hour, GameState.minute)
 
 ## Fija la velocidad de simulación (0 = pausa). Emite señal.

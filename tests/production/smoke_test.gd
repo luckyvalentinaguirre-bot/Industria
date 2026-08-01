@@ -32,6 +32,8 @@ func _ready() -> void:
 	_test_machine_models()
 	_test_contract_capacity()
 	_test_client_program()
+	_test_workers_system()
+	_test_week_summary()
 	_test_automation_objective()
 	_test_balance()
 	_test_growth()
@@ -302,6 +304,48 @@ func _find_program_offer(cm) -> Contract:
 		if c.program_phase > 0:
 			return c
 	return null
+
+func _test_workers_system() -> void:
+	var wm := GameManager.workers
+	# Nueva partida: sin empleados en la plantilla (spec §8).
+	for w in wm.workers.duplicate():
+		wm.fire(w)
+	_check("Personal: la plantilla arranca vacía", wm.workers.size() == 0)
+	# Máximo por nivel (lectura directa; el nivel real es dinámico en el test).
+	GameState.company_level = 1
+	_check("Personal: máximo por nivel (N1 = 1)", wm.max_employees() == 1)
+	GameState.company_level = 5
+	_check("Personal: máximo por nivel (N5 = 16)", wm.max_employees() == 16)
+	# Cupo enforcement: se llena sin gasto (charge=false no dispara la subida de
+	# nivel) y luego una contratación real debe bloquearse por el cupo.
+	wm.hire("operator", false)   # llena el cupo sin gastar
+	# Un objetivo puede dar recompensa al contratar y recalcular el nivel; se
+	# re-fija a 1 para probar el cupo de forma determinista.
+	GameState.company_level = 1
+	_check("Personal: at_capacity al alcanzar el cupo", wm.at_capacity() and wm.workers.size() == 1)
+	var blocked = wm.hire("operator", true)   # bloquea ANTES de gastar
+	_check("Personal: se bloquea al superar el cupo", blocked == null and wm.workers.size() == 1)
+	# Salarios SEMANALES: al cerrar la semana se registra el gasto de salarios.
+	GameState.money = 100000.0
+	var expected: float = wm.weekly_salary_total()
+	_salary_paid = 0.0
+	var cb := func(cat, amt, inc): if cat == "salaries" and not inc: _salary_paid += amt
+	EventBus.transaction.connect(cb)
+	EventBus.week_passed.emit(1)
+	EventBus.transaction.disconnect(cb)
+	_check("Personal: los salarios se pagan por semana", expected > 0.0 and is_equal_approx(_salary_paid, expected))
+	# Limpieza para no afectar otros tests.
+	for w in wm.workers.duplicate():
+		wm.fire(w)
+
+var _salary_paid: float = 0.0
+
+var _week_data: Dictionary = {}
+func _test_week_summary() -> void:
+	EventBus.week_summary.connect(func(d): _week_data = d)
+	EventBus.week_passed.emit(2)
+	_check("Semana: se genera el resumen semanal", not _week_data.is_empty() and int(_week_data.get("week", 0)) == 2)
+	_check("Semana: el resumen incluye gastos y personal", _week_data.has("expense") and _week_data.has("staff") and _week_data.has("next_goal"))
 
 func _test_automation_objective() -> void:
 	EventBus.conveyor_placed.emit(null)
