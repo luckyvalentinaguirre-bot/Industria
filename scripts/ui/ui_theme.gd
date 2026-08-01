@@ -121,3 +121,110 @@ static func chip_panel(inner: Control) -> PanelContainer:
 
 static func hsep() -> HSeparator:
 	return HSeparator.new()
+
+# --- Theme GLOBAL -----------------------------------------------------------
+## Un Theme que estiliza TODOS los controles estándar (no sólo los que pasan por
+## las fábricas de arriba): barras de progreso, desplegables, scrollbars,
+## separadores, checkboxes, campos de texto y sus menús emergentes. Se aplica al
+## root de la UI para que nada quede con el look gris genérico de Godot.
+static func build_theme() -> Theme:
+	var t := Theme.new()
+	t.default_font_size = 14
+
+	# Paneles.
+	t.set_stylebox("panel", "PanelContainer", panel_style(BG))
+	t.set_stylebox("panel", "Panel", panel_style(BG))
+
+	# Botones estándar (los creados sin la fábrica también quedan bien).
+	_theme_button(t, "Button")
+	_theme_button(t, "OptionButton")
+	_theme_button(t, "MenuButton")
+
+	# Menú emergente de los OptionButton / MenuButton.
+	var popbg := _flat(BG_SOFT, 10, BORDER, 1)
+	popbg.content_margin_left = 6; popbg.content_margin_right = 6
+	popbg.content_margin_top = 6; popbg.content_margin_bottom = 6
+	t.set_stylebox("panel", "PopupMenu", popbg)
+	var hov := _flat(Color(0.22, 0.23, 0.28), 6, Color(0, 0, 0, 0), 0)
+	t.set_stylebox("hover", "PopupMenu", hov)
+	t.set_color("font_color", "PopupMenu", TEXT)
+	t.set_color("font_hover_color", "PopupMenu", Color(1, 1, 1))
+	t.set_color("font_accelerator_color", "PopupMenu", MUTED)
+	t.set_constant("v_separation", "PopupMenu", 4)
+
+	# Etiquetas.
+	t.set_color("font_color", "Label", TEXT)
+
+	# Barra de progreso: fondo hundido + relleno ámbar redondeado.
+	var pbbg := _flat(Color(0.06, 0.07, 0.09), 6, BORDER, 1)
+	var pbfill := _flat(ACCENT, 6, Color(0, 0, 0, 0), 0)
+	t.set_stylebox("background", "ProgressBar", pbbg)
+	t.set_stylebox("fill", "ProgressBar", pbfill)
+	t.set_color("font_color", "ProgressBar", TEXT)
+	t.set_font_size("font_size", "ProgressBar", 11)
+
+	# Campo de texto.
+	var le := _flat(Color(0.06, 0.07, 0.09), 7, BORDER, 1)
+	le.content_margin_left = 10; le.content_margin_right = 10
+	le.content_margin_top = 6; le.content_margin_bottom = 6
+	t.set_stylebox("normal", "LineEdit", le)
+	var lef := _flat(Color(0.06, 0.07, 0.09), 7, ACCENT, 1)
+	lef.content_margin_left = 10; lef.content_margin_right = 10
+	lef.content_margin_top = 6; lef.content_margin_bottom = 6
+	t.set_stylebox("focus", "LineEdit", lef)
+	t.set_color("font_color", "LineEdit", TEXT)
+	t.set_color("caret_color", "LineEdit", ACCENT)
+
+	# CheckBox / CheckButton.
+	for ct in ["CheckBox", "CheckButton"]:
+		t.set_color("font_color", ct, TEXT)
+		t.set_color("font_hover_color", ct, Color(1, 1, 1))
+		t.set_color("font_pressed_color", ct, ACCENT)
+
+	# Separadores: una línea fina y sutil (no el gris duro por defecto).
+	var line := StyleBoxLine.new()
+	line.color = Color(1, 1, 1, 0.10)
+	line.thickness = 1
+	t.set_stylebox("separator", "HSeparator", line)
+	t.set_stylebox("separator", "VSeparator", line)
+	t.set_constant("separation", "HSeparator", 8)
+
+	# Scrollbars finas y redondeadas (grabber ámbar al pasar el mouse).
+	for sb in ["VScrollBar", "HScrollBar"]:
+		var track := _flat(Color(0, 0, 0, 0.18), 5, Color(0, 0, 0, 0), 0)
+		var grab := _flat(Color(0.32, 0.33, 0.38), 5, Color(0, 0, 0, 0), 0)
+		var grab_hi := _flat(ACCENT.darkened(0.1), 5, Color(0, 0, 0, 0), 0)
+		t.set_stylebox("scroll", sb, track)
+		t.set_stylebox("grabber", sb, grab)
+		t.set_stylebox("grabber_highlight", sb, grab_hi)
+		t.set_stylebox("grabber_pressed", sb, grab_hi)
+
+	# Tooltips coherentes con el resto.
+	var tip := _flat(Color(0.06, 0.07, 0.09, 0.98), 8, BORDER, 1)
+	tip.content_margin_left = 10; tip.content_margin_right = 10
+	tip.content_margin_top = 6; tip.content_margin_bottom = 6
+	t.set_stylebox("panel", "TooltipPanel", tip)
+	t.set_color("font_color", "TooltipLabel", TEXT)
+
+	return t
+
+static func _theme_button(t: Theme, type: String) -> void:
+	var base := Color(0.18, 0.19, 0.23)
+	t.set_stylebox("normal", type, _btn_box(base, BORDER))
+	t.set_stylebox("hover", type, _btn_box(Color(0.24, 0.25, 0.30), ACCENT))
+	t.set_stylebox("pressed", type, _btn_box(Color(0.15, 0.16, 0.20), BORDER))
+	t.set_stylebox("focus", type, _btn_box(base, BORDER))
+	t.set_stylebox("disabled", type, _btn_box(Color(0.14, 0.14, 0.16), BORDER))
+	t.set_color("font_color", type, TEXT)
+	t.set_color("font_hover_color", type, Color(1, 1, 1))
+	t.set_color("font_pressed_color", type, ACCENT)
+	t.set_color("font_disabled_color", type, MUTED)
+
+static func _flat(bg: Color, radius: int, border_col: Color, border_w: int) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_corner_radius_all(radius)
+	if border_w > 0:
+		s.set_border_width_all(border_w)
+		s.border_color = border_col
+	return s

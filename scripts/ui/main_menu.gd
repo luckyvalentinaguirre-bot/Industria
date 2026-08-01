@@ -10,6 +10,7 @@ var _panel_slot: Control   # contenedor donde se intercambian intro/menu/formula
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	theme = UITheme.build_theme()
 	_build_background()
 	_panel_slot = Control.new()
 	_panel_slot.set_anchors_preset(Control.PRESET_FULL_RECT)

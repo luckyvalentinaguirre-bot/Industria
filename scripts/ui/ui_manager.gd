@@ -62,6 +62,9 @@ func _build_ui() -> void:
 	root = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Theme global: unifica el estilo de TODOS los controles (barras, desplegables,
+	# scrollbars, separadores…), no sólo los de las fábricas de UITheme.
+	root.theme = UITheme.build_theme()
 	layer.add_child(root)
 
 	_build_topbar()
