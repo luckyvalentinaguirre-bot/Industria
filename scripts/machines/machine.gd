@@ -32,6 +32,7 @@ var def: Dictionary = {}
 var grid_origin: Vector2i = Vector2i.ZERO
 var grid_size: Vector2i = Vector2i(2, 2)
 var uid: int = 0
+var produced_count: int = 0      # unidades fabricadas en toda la vida de la máquina
 
 # --- Configuración ----------------------------------------------------------
 var recipe_id: String = ""
@@ -291,6 +292,7 @@ func _produce_cycle(inputs: Dictionary, outputs: Dictionary) -> void:
 	for item_id in outputs.keys():
 		var n := int(outputs[item_id])
 		output_buffer.add(item_id, n)
+		produced_count += n
 		EventBus.item_produced.emit(item_id, n)
 	# Consume un ciclo del lote manual (si no hay operario/automatización).
 	if batch_remaining > 0 and not staffed:
@@ -372,6 +374,7 @@ func to_dict() -> Dictionary:
 		"progress": progress,
 		"staffed": staffed,
 		"batch": batch_remaining,
+		"produced_count": produced_count,
 		"input": input_buffer.to_dict(),
 		"output": output_buffer.to_dict(),
 	}
@@ -386,6 +389,7 @@ func apply_dict(data: Dictionary) -> void:
 	progress = float(data.get("progress", 0.0))
 	staffed = bool(data.get("staffed", false))
 	batch_remaining = int(data.get("batch", 0))
+	produced_count = int(data.get("produced_count", 0))
 	if data.has("input"):
 		input_buffer.from_dict(data["input"])
 	if data.has("output"):

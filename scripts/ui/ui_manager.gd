@@ -1202,7 +1202,8 @@ func _show_week_summary(d: Dictionary) -> void:
 	v.add_child(UITheme.make_label("💸 GASTOS DE LA SEMANA", 12, UITheme.ACCENT))
 	var exp: Dictionary = d["expense"]
 	var labels := {"purchases": "Materiales", "energy": "Energía", "maintenance": "Mantenimiento",
-		"salaries": "Salarios", "construction": "Construcción/Expansión", "contract_penalty": "Penalizaciones", "misc": "Otros"}
+		"salaries": "Salarios", "construction": "Construcción/Expansión", "contract_penalty": "Penalizaciones",
+		"debt_payment": "Deuda", "misc": "Otros"}
 	var any_exp := false
 	for cat in exp.keys():
 		if float(exp[cat]) > 0.0:
@@ -1212,10 +1213,26 @@ func _show_week_summary(d: Dictionary) -> void:
 		v.add_child(UITheme.make_label("   (sin gastos)", 12, UITheme.MUTED))
 	v.add_child(UITheme.hsep())
 	v.add_child(UITheme.make_label("👥 Personal: %d / %d   ·   💰 Salarios: %s/sem" % [int(d["staff"]), int(d["staff_max"]), Fmt.money(d["salaries"])], 13))
-	if String(d.get("top_product", "")) != "":
-		v.add_child(UITheme.make_label("🏭 Producto estrella: %s" % d["top_product"], 12, UITheme.ACCENT2))
+	# Destacados de la semana (spec §4): un vistazo rápido a lo que pasó.
+	var highlights: Array = []
+	if String(d.get("top_value_product", "")) != "":
+		highlights.append("📈 Producto más rentable: %s" % d["top_value_product"])
+	elif String(d.get("top_product", "")) != "":
+		highlights.append("🏭 Producto estrella: %s" % d["top_product"])
+	var te: Dictionary = d.get("top_expense", {})
+	if not te.is_empty():
+		highlights.append("📉 Mayor gasto: %s (%s)" % [te.get("name", ""), Fmt.money(te.get("amount", 0.0))])
+	if String(d.get("busiest_machine", "")) != "":
+		highlights.append("🏭 Máquina más usada: %s" % d["busiest_machine"])
 	if String(d.get("best_employee", "")) != "":
-		v.add_child(UITheme.make_label("👷 Mejor empleado: %s" % d["best_employee"], 12))
+		highlights.append("👷 Empleado destacado: %s" % d["best_employee"])
+	if String(d.get("top_supplied", "")) != "":
+		highlights.append("📦 Recurso más abastecido: %s" % d["top_supplied"])
+	if not highlights.is_empty():
+		v.add_child(UITheme.hsep())
+		v.add_child(UITheme.make_label("ESTA SEMANA…", 12, UITheme.ACCENT))
+		for h in highlights:
+			v.add_child(UITheme.make_label("   " + h, 12, UITheme.ACCENT2))
 	if int(d.get("problems", 0)) > 0:
 		v.add_child(UITheme.make_label("⚠ Problemas de la semana: %d (averías/contratos fallidos)" % int(d["problems"]), 12, UITheme.WARN))
 	var rd: int = int(d["reputation_delta"])

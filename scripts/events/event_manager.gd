@@ -35,6 +35,14 @@ func _applicable_events() -> Array:
 	out.append(_ev_subsidy)
 	if GameManager.contracts:
 		out.append(_ev_special_contract)
+	# Eventos económicos con DECISIÓN (spec §3): descuento de proveedor, cliente
+	# con adelanto y pico de demanda. Sólo cuando hay contexto para decidir.
+	if GameManager.market and GameManager.storage:
+		out.append(_ev_supplier_discount)
+	if GameManager.contracts and GameManager.economy:
+		out.append(_ev_rush_client)
+	if _a_produced_product() != "":
+		out.append(_ev_demand_decision)
 	return out
 
 # --- Evento con DECISIÓN: avería -------------------------------------------
@@ -108,6 +116,64 @@ func _ev_special_contract() -> void:
 	if GameManager.contracts and GameManager.contracts.has_method("add_special_offer"):
 		GameManager.contracts.add_special_offer()
 		EventBus.notify.emit("💎 Oportunidad: apareció un contrato especial en 📋 Contratos.", "info")
+
+# --- Eventos económicos con DECISIÓN (spec §3) ------------------------------
+## Un proveedor ofrece un lote con descuento: comprar ahora barato u omitir.
+func _ev_supplier_discount() -> void:
+	var raw: String = RAW_ITEMS[randi() % RAW_ITEMS.size()]
+	var qty := 40
+	var unit: float = GameManager.market.current_price(raw)
+	var full: float = unit * qty
+	var deal: float = full * 0.85    # 15% de descuento
+	var name := ItemDB.display_name(raw)
+	var opts: Array = [
+		{ "label": "📦 Comprar %d %s con -15%% (%s)" % [qty, name, Fmt.money(deal)],
+		  "action": func():
+			if GameManager.economy.spend(deal, "purchases"):
+				GameManager.storage.deposit(raw, qty)
+				EventBus.notify.emit("📦 Aprovechaste el descuento de %s." % name, "success")
+			else:
+				EventBus.notify.emit("Sin caja para el descuento de %s." % name, "error") },
+		{ "label": "Rechazar la oferta", "action": func(): pass },
+	]
+	EventBus.decision_requested.emit("📦 Descuento de proveedor",
+		"El proveedor de %s ofrece un 15%% de descuento por un lote de %d unidades." % [name, qty],
+		opts)
+
+## Un cliente ofrece un adelanto por sumar un contrato especial a tu cartera.
+func _ev_rush_client() -> void:
+	var advance := 1200.0 + GameState.company_level * 400.0
+	var opts: Array = [
+		{ "label": "🤝 Aceptar adelanto (+%s) y tomar el contrato" % Fmt.money(advance),
+		  "action": func():
+			GameManager.economy.earn(advance, "misc")
+			if GameManager.contracts.has_method("add_special_offer"):
+				GameManager.contracts.add_special_offer()
+			EventBus.notify.emit("🤝 Cliente asegurado: contrato especial en 📋 Contratos.", "success") },
+		{ "label": "Rechazar (mantené tu cartera actual)", "action": func(): pass },
+	]
+	EventBus.decision_requested.emit("🏭 Un cliente quiere tu producción",
+		"Una empresa te ofrece un adelanto de %s a cambio de comprometer parte de tu producción." % Fmt.money(advance),
+		opts)
+
+## Pico de demanda de un producto: decidir si apostar fuerte o mantener.
+func _ev_demand_decision() -> void:
+	var p := _a_produced_product()
+	if p == "" or GameManager.market == null:
+		return
+	var name := ItemDB.display_name(p)
+	var opts: Array = [
+		{ "label": "📈 Apostar a %s (demanda alta, más días)" % name,
+		  "action": func():
+			GameManager.market.apply_demand(p, 1.55, 6)
+			EventBus.notify.emit("📈 Apostaste a %s: precio alto por varios días." % name, "success") },
+		{ "label": "Mantener (subida moderada y corta)",
+		  "action": func(): GameManager.market.apply_demand(p, 1.2, 3) },
+		{ "label": "Ignorar", "action": func(): pass },
+	]
+	EventBus.decision_requested.emit("📈 Sube la demanda de %s" % name,
+		"La demanda de %s aumentó esta semana. ¿Cómo respondés?" % name,
+		opts)
 
 # --- Helpers ----------------------------------------------------------------
 func _a_produced_product() -> String:

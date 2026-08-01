@@ -8,7 +8,8 @@ const RAW_ITEMS := ["scrap", "iron_ore", "copper_ore", "wood_log", "clay", "nutr
 const SELL_ITEMS := ["hand_tool", "plank", "pallet", "brick", "block", "regulated_goods",
 	"fuel", "metal_plate", "copper_part", "industrial_part", "metal_piece",
 	"industrial_comp", "simple_motor", "iron_ingot", "copper_ingot", "recycled_metal",
-	"steel", "glass", "plastic", "copper_wire", "electronic_component", "machine_part"]
+	"steel", "glass", "plastic", "copper_wire", "electronic_component", "machine_part",
+	"processed_chem"]
 
 var _summary_lbl: Label
 var _debt_spin: SpinBox

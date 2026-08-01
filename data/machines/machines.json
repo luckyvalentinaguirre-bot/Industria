@@ -45,7 +45,7 @@
       "cost": 3000,
       "power": 35,
       "base_speed": 1.0,
-      "recipes": ["refine_fuel", "make_plastic"]
+      "recipes": ["refine_fuel", "make_plastic", "process_chem"]
     },
     "brick_kiln": {
       "name": "Horno de ladrillos",
@@ -63,7 +63,7 @@
       "cost": 2600,
       "power": 24,
       "base_speed": 1.1,
-      "recipes": ["make_block"]
+      "recipes": ["make_block", "cast_block"]
     },
     "grow_module": {
       "name": "Modulo de cultivo",

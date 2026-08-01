@@ -12,6 +12,7 @@ var _status: Label
 var _recipe_opt: OptionButton
 var _priority_opt: OptionButton
 var _cycle_bar: ProgressBar
+var _count_lbl: Label
 var _order_lbl: Label
 var _op_btn: Button
 var _flow_lbl: Label
@@ -108,6 +109,8 @@ func _rebuild() -> void:
 	_cycle_bar.show_percentage = false
 	_cycle_bar.custom_minimum_size = Vector2(0, 16)
 	_box.add_child(_cycle_bar)
+	_count_lbl = UITheme.make_label("", 12, UITheme.ACCENT2)
+	_box.add_child(_count_lbl)
 
 	# ORDEN DE PRODUCCIÓN: lote manual (vos trabajás) u operario (continuo).
 	_section("Orden de producción")
@@ -213,6 +216,8 @@ func _refresh() -> void:
 	_refresh_order()
 	if _cycle_bar:
 		_cycle_bar.value = 0.0 if machine.cycle_time() <= 0.0 else clampf(machine.progress / machine.cycle_time() * 100.0, 0, 100)
+	if _count_lbl:
+		_count_lbl.text = "✅ Fabricadas: %d unidades" % machine.produced_count
 	_in_lbl.text = _buffer_text(machine.input_buffer)
 	_out_lbl.text = _buffer_text(machine.output_buffer)
 	_power_lbl.text = "⚡ %d kW   ⏱ %.1fs   📈 %.1f/min" % [int(machine.effective_power_draw()), machine.cycle_time(), machine.production_per_min()]

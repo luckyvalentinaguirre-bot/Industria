@@ -42,6 +42,8 @@ func _ready() -> void:
 	_test_balance()
 	_test_all_recipes_balance()
 	_test_new_chains()
+	_test_resource_integrity()
+	_test_economic_events()
 	_test_growth()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -81,6 +83,13 @@ func _test_production() -> void:
 	var ingots: int = m.output_buffer.count("iron_ingot")
 	_check("Producción: la fundición fabricó lingotes de hierro (%d)" % ingots, ingots >= 2)
 	_check("Producción: consumió mineral de la entrada", m.input_buffer.count("iron_ore") < 10)
+	# §2: contador de producción de la máquina (feedback en el panel) y persistencia.
+	_check("Producción: la máquina lleva un contador propio (%d)" % m.produced_count, m.produced_count == ingots)
+	var saved: Dictionary = m.to_dict()
+	var count_before: int = m.produced_count
+	m.produced_count = 0
+	m.apply_dict(saved)
+	_check("Producción: el contador se guarda y restaura", m.produced_count == count_before)
 
 func _test_workbench_manual() -> void:
 	# Etapa manual: el banco de trabajo se auto-abastece del almacén central
@@ -499,6 +508,8 @@ func _test_week_summary() -> void:
 	EventBus.week_passed.emit(2)
 	_check("Semana: se genera el resumen semanal", not _week_data.is_empty() and int(_week_data.get("week", 0)) == 2)
 	_check("Semana: el resumen incluye gastos y personal", _week_data.has("expense") and _week_data.has("staff") and _week_data.has("next_goal"))
+	_check("Semana §4: el resumen incluye destacados (gasto/máquina/recurso)",
+		_week_data.has("top_expense") and _week_data.has("busiest_machine") and _week_data.has("top_supplied") and _week_data.has("top_value_product"))
 	# El informe queda guardado para reabrirlo desde el menú (Economía → Informe).
 	_check("Semana: el último informe queda guardado", int(GameManager.week.last_summary.get("week", 0)) == 2)
 
@@ -609,6 +620,58 @@ func _test_new_chains() -> void:
 		GameManager.recipes.recipe_min_level("smelt_steel") == 3)
 	_check("Progresión: melt_glass disponible de entrada (min_level 1)",
 		GameManager.recipes.recipe_min_level("melt_glass") == 1)
+
+func _test_resource_integrity() -> void:
+	# §13: ningún recurso puede existir sólo en una lista. Cada ítem debe ser
+	# OBTENIBLE (comprable a un proveedor o fabricable) y ÚTIL (se consume en una
+	# receta, se vende o va a contratos). Esto caza materias/productos huérfanos.
+	var recs: Dictionary = GameManager.recipes.recipes
+	var inputs := {}
+	var outputs := {}
+	for rid in recs.keys():
+		for id in GameManager.recipes.recipe_inputs(String(rid)).keys():
+			inputs[id] = true
+		for id in GameManager.recipes.recipe_outputs(String(rid)).keys():
+			outputs[id] = true
+	var sell: Array = load("res://scripts/ui/finance_ui.gd").SELL_ITEMS
+	var contract_products: Array = GameManager.contracts.PRODUCTS
+	var obtainable_ok := true
+	var useful_ok := true
+	var orphan_get := ""
+	var orphan_use := ""
+	for id in ItemDB.all_ids():
+		var obtainable: bool = outputs.has(id) or not GameManager.market.suppliers_for(id).is_empty()
+		var useful: bool = inputs.has(id) or sell.has(id) or contract_products.has(id)
+		if not obtainable:
+			obtainable_ok = false; orphan_get = String(id)
+		if not useful:
+			useful_ok = false; orphan_use = String(id)
+	_check("Recursos §13: todo ítem es obtenible (comprable o fabricable) (huérfano=%s)" % orphan_get, obtainable_ok)
+	_check("Recursos §13: todo ítem tiene uso (receta/venta/contrato) (huérfano=%s)" % orphan_use, useful_ok)
+
+func _test_economic_events() -> void:
+	# §3: los eventos económicos piden una DECISIÓN con opciones y sus efectos
+	# se aplican de verdad. Se disparan directamente (sin la aleatoriedad diaria).
+	GameState.money = 50000.0
+	_decision_seen = false
+	_decision_opts = []
+	var cb := func(_t, _d, opts): _decision_seen = true; _decision_opts = opts
+	EventBus.decision_requested.connect(cb)
+	GameManager.events._ev_supplier_discount()
+	_check("Eventos §3: el descuento de proveedor pide decisión con opciones", _decision_seen and _decision_opts.size() >= 2)
+	var money_before: float = GameState.money
+	(_decision_opts[0]["action"] as Callable).call()
+	_check("Eventos §3: aceptar el descuento gasta caja (compra el lote)", GameState.money < money_before)
+	# Cliente con adelanto: aceptar suma dinero y una oferta de contrato.
+	_decision_seen = false
+	var offers_before: int = GameManager.contracts.offers.size()
+	var cash_before: float = GameState.money
+	GameManager.events._ev_rush_client()
+	_check("Eventos §3: el cliente con adelanto pide decisión", _decision_seen and _decision_opts.size() >= 2)
+	(_decision_opts[0]["action"] as Callable).call()
+	_check("Eventos §3: aceptar el adelanto cobra y agrega un contrato",
+		GameState.money > cash_before and GameManager.contracts.offers.size() == offers_before + 1)
+	EventBus.decision_requested.disconnect(cb)
 
 func _test_growth() -> void:
 	# Crecimiento visual por nivel: los builders de estructuras/clusters deben

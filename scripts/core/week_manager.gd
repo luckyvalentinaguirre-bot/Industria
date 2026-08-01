@@ -22,10 +22,14 @@ var _contracts_failed: int = 0
 var _breakdowns: int = 0
 var _expense: Dictionary = {}       # categoría -> $
 var _last_achievement: String = ""
+var _supplied_by_item: Dictionary = {}  # item -> unidades recibidas (proxy de consumo)
+var _machine_hours: Dictionary = {}     # nombre de máquina -> horas en marcha
 
 func _ready() -> void:
 	EventBus.transaction.connect(_on_transaction)
 	EventBus.item_produced.connect(_on_produced)
+	EventBus.delivery_arrived.connect(_on_delivery)
+	EventBus.hour_passed.connect(_on_hour)
 	EventBus.contract_completed.connect(func(_c): _contracts_done += 1)
 	EventBus.contract_failed.connect(func(_c): _contracts_failed += 1)
 	EventBus.machine_breakdown.connect(func(_m): _breakdowns += 1)
@@ -33,6 +37,19 @@ func _ready() -> void:
 	EventBus.week_passed.connect(_on_week)
 	EventBus.game_started.connect(_snapshot)
 	EventBus.game_loaded.connect(_snapshot)
+
+## Proxy de "recurso más consumido": lo que la fábrica recibe cada semana.
+func _on_delivery(item_id: String, q: int) -> void:
+	_supplied_by_item[item_id] = int(_supplied_by_item.get(item_id, 0)) + q
+
+## Muestreo por hora (barato, 24/día) de qué máquinas están en marcha.
+func _on_hour(_day: int, _hour: int) -> void:
+	if GameManager.machines == null:
+		return
+	for m in GameManager.machines.machines:
+		if m.state == Machine.State.RUNNING:
+			var n: String = m.display_name()
+			_machine_hours[n] = int(_machine_hours.get(n, 0)) + 1
 
 func _on_produced(item_id: String, q: int) -> void:
 	_produced += q
@@ -52,6 +69,8 @@ func _reset() -> void:
 	_breakdowns = 0
 	_expense = {}
 	_last_achievement = ""
+	_supplied_by_item = {}
+	_machine_hours = {}
 
 func _on_transaction(category: String, amount: float, is_income: bool) -> void:
 	if is_income:
@@ -90,6 +109,10 @@ func _on_week(week: int) -> void:
 		"top_product": _top_product(),
 		"best_employee": _best_employee(),
 		"problems": _contracts_failed + _breakdowns,
+		"top_expense": _top_expense(),
+		"top_value_product": _top_value_product(),
+		"top_supplied": _top_supplied(),
+		"busiest_machine": _busiest_machine(),
 	}
 	last_summary = data
 	EventBus.week_summary.emit(data)
@@ -107,6 +130,54 @@ func _top_product() -> String:
 			best_n = int(_produced_by_item[id])
 			best = String(id)
 	return ItemDB.display_name(best) if best != "" else ""
+
+## Categoría de gasto más alta de la semana → {"name","amount"} legible.
+func _top_expense() -> Dictionary:
+	var labels := {
+		"purchases": "Compras", "salaries": "Salarios", "energy": "Energía",
+		"maintenance": "Mantenimiento", "construction": "Construcción",
+		"contract_penalty": "Penalizaciones", "debt_payment": "Deuda", "misc": "Varios",
+	}
+	var best := ""
+	var best_v := 0.0
+	for cat in _expense.keys():
+		if float(_expense[cat]) > best_v:
+			best_v = float(_expense[cat])
+			best = String(cat)
+	if best == "":
+		return {}
+	return { "name": String(labels.get(best, best)), "amount": best_v }
+
+## Producto de mayor valor fabricado (unidades × precio base) → proxy de rentabilidad.
+func _top_value_product() -> String:
+	var best := ""
+	var best_v := 0.0
+	for id in _produced_by_item.keys():
+		var v: float = float(int(_produced_by_item[id])) * ItemDB.base_price(id)
+		if v > best_v:
+			best_v = v
+			best = String(id)
+	return ItemDB.display_name(best) if best != "" else ""
+
+## Recurso más abastecido (proxy del más consumido por la producción).
+func _top_supplied() -> String:
+	var best := ""
+	var best_n := 0
+	for id in _supplied_by_item.keys():
+		if int(_supplied_by_item[id]) > best_n:
+			best_n = int(_supplied_by_item[id])
+			best = String(id)
+	return ItemDB.display_name(best) if best != "" else ""
+
+## Máquina con más horas en marcha durante la semana.
+func _busiest_machine() -> String:
+	var best := ""
+	var best_h := 0
+	for n in _machine_hours.keys():
+		if int(_machine_hours[n]) > best_h:
+			best_h = int(_machine_hours[n])
+			best = String(n)
+	return best
 
 ## Empleado más capaz de la plantilla (mayor suma de skills) o "" si no hay.
 func _best_employee() -> String:

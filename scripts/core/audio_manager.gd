@@ -75,6 +75,9 @@ func _connect_signals() -> void:
 	EventBus.branch_chosen.connect(func(_i, _n): play("success"))
 	EventBus.objective_completed.connect(func(_i, _t): play("confirm"))
 	EventBus.factory_expanded.connect(func(_s): play("confirm"))
+	EventBus.worker_hired.connect(func(_w): play("confirm"))
+	EventBus.contract_accepted.connect(func(_c): play("confirm"))
+	EventBus.purchase_ordered.connect(func(_i, _q, _c, _e): play("click"))
 	EventBus.notify.connect(_on_notify)
 	EventBus.minute_passed.connect(_on_minute)
 

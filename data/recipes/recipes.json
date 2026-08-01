@@ -157,6 +157,20 @@
       "min_level": 5,
       "inputs": { "steel": 1, "electronic_component": 1 },
       "outputs": { "machine_part": 1 }
+    },
+    "process_chem": {
+      "name": "Procesar quimicos",
+      "machine": "refinery",
+      "time": 6.0,
+      "inputs": { "chemicals": 2 },
+      "outputs": { "processed_chem": 1 }
+    },
+    "cast_block": {
+      "name": "Moldear bloque de piedra",
+      "machine": "block_press",
+      "time": 6.0,
+      "inputs": { "stone": 4 },
+      "outputs": { "block": 1 }
     }
   }
 }
