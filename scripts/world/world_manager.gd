@@ -284,6 +284,13 @@ func _update_day_night(_day: int, hour: int, minute: int) -> void:
 		if is_instance_valid(l):
 			l.light_energy = 2.6 if lamps_on else 0.0
 
+	# Ventanas de la ciudad: se encienden al caer la luz (vidrio de día → cálido
+	# de noche). Un solo parámetro por material compartido, sin coste por frame.
+	var night_amt: float = 1.0 - smoothstep(0.12, 0.5, day_amt)
+	for cm in _city_mats:
+		if cm is ShaderMaterial:
+			cm.set_shader_parameter("night", night_amt)
+
 # --- Iluminación ------------------------------------------------------------
 
 func _setup_lighting() -> void:
@@ -412,43 +419,173 @@ func _setup_props() -> void:
 	_setup_skyline(props, ext)
 
 # --- Ciudad circundante (barata: geometría estática, sin sombras, spec §1/§19) ---
+## Materiales de fachada compartidos: un shader dibuja la rejilla de ventanas en
+## TODAS las caras (vidrio de día, ventanas encendidas de noche). Variar el color
+## sale gratis en draw calls porque son pocos materiales reutilizados por decenas
+## de edificios. El factor noche lo actualiza _update_day_night.
+var _city_mats: Array = []
+
 func _setup_city(parent: Node3D, ext: float) -> void:
 	var node := Node3D.new()
 	node.name = "City"
 	parent.add_child(node)
-	# Calles: dos avenidas anchas que rodean/cruzan más allá del muro.
-	var asphalt := _simple(Color(0.1, 0.1, 0.11), 0.9, 0.0)
-	for axis in [0, 1]:
-		var road := MeshInstance3D.new()
-		var rbm := BoxMesh.new()
-		rbm.size = Vector3(ext * 5.0, 0.04, 6.0) if axis == 0 else Vector3(6.0, 0.04, ext * 5.0)
-		road.mesh = rbm
-		road.position = Vector3(0, -0.02, ext + 8.0) if axis == 0 else Vector3(ext + 8.0, -0.02, 0)
-		road.material_override = asphalt
-		road.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		node.add_child(road)
-	# Manzanas de edificios con bandas de ventanas emisivas (cálidas = ciudad viva).
-	var wall_mat := _simple(Color(0.34, 0.35, 0.4), 0.85, 0.1)
-	var wall_mat2 := _simple(Color(0.42, 0.4, 0.38), 0.85, 0.1)
-	var win_mat := IndKit.emissive(Color(1.0, 0.85, 0.55), 0.9)
+
+	# Suelo urbano: losa oscura que rodea la parcela y da base a las manzanas
+	# (evita el "vacío" entre el muro y los edificios). Una sola malla, sin sombra.
+	var city_ground := MeshInstance3D.new()
+	var cgm := PlaneMesh.new()
+	cgm.size = Vector2(ext * 6.0, ext * 6.0)
+	city_ground.mesh = cgm
+	city_ground.position = Vector3(0, -0.6, 0)
+	city_ground.material_override = _make_city_ground_material()
+	city_ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(city_ground)
+
+	# Avenidas perimetrales (marco de calles alrededor del muro).
+	var asphalt := _simple(Color(0.09, 0.09, 0.1), 0.92, 0.0)
+	var lane := IndKit.emissive(Color(0.85, 0.8, 0.35), 0.25)
+	for s in [-1.0, 1.0]:
+		var rh := MeshInstance3D.new(); var rhm := BoxMesh.new()
+		rhm.size = Vector3(ext * 3.2, 0.05, 7.0); rh.mesh = rhm
+		rh.position = Vector3(0, -0.03, s * (ext + 9.0)); rh.material_override = asphalt
+		rh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; node.add_child(rh)
+		var rv := MeshInstance3D.new(); var rvm := BoxMesh.new()
+		rvm.size = Vector3(7.0, 0.05, ext * 3.2); rv.mesh = rvm
+		rv.position = Vector3(s * (ext + 9.0), -0.03, 0); rv.material_override = asphalt
+		rv.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; node.add_child(rv)
+	# Línea discontinua central de las avenidas (da escala y vida).
+	for i in range(int(ext * 3.0 / 4.0)):
+		var x := -ext * 1.5 + i * 4.0
+		IndKit.box(node, Vector3(1.4, 0.02, 0.2), Vector3(x, 0.0, ext + 9.0), lane).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Paletas de fachada (hormigón, torre acristalada, ladrillo cálido).
+	_city_mats = [
+		_make_city_material(Color(0.36, 0.37, 0.42), Color(1.0, 0.86, 0.55)),
+		_make_city_material(Color(0.30, 0.36, 0.44), Color(0.75, 0.9, 1.0)),
+		_make_city_material(Color(0.44, 0.36, 0.32), Color(1.0, 0.78, 0.5)),
+	]
+
+	# Dos anillos de manzanas: uno cercano y denso, otro más alto detrás. Cada
+	# edificio puede tener retranqueos (silueta de torre) y remates de azotea.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	var count := 16
+	_city_ring(node, ext, rng, 14, 1.16, 1.34, 9.0, 20.0)   # anillo cercano
+	_city_ring(node, ext, rng, 12, 1.5, 1.75, 16.0, 34.0)   # torres de fondo
+
+func _city_ring(node: Node3D, ext: float, rng: RandomNumberGenerator, count: int,
+		r_min: float, r_max: float, h_min: float, h_max: float) -> void:
 	for i in range(count):
-		var ang := TAU * i / count + rng.randf_range(-0.1, 0.1)
-		var r := ext * rng.randf_range(1.18, 1.45)
+		var ang := TAU * i / count + rng.randf_range(-0.12, 0.12)
+		var r := ext * rng.randf_range(r_min, r_max)
 		var pos := Vector3(cos(ang) * r, 0, sin(ang) * r)
-		var w := rng.randf_range(6.0, 11.0)
-		var d := rng.randf_range(6.0, 11.0)
-		var h := rng.randf_range(9.0, 22.0)
-		var body := _pbox(node, Vector3(w, h, d), pos + Vector3(0, h * 0.5, 0), wall_mat if i % 2 == 0 else wall_mat2)
+		var mat: Material = _city_mats[rng.randi() % _city_mats.size()]
+		_city_building(node, pos, rng.randf_range(7.0, 12.0), rng.randf_range(7.0, 12.0),
+			rng.randf_range(h_min, h_max), mat, rng)
+
+## Un edificio con 1–3 cuerpos escalonados (retranqueos) y remate de azotea.
+func _city_building(node: Node3D, base: Vector3, w: float, d: float, h: float,
+		mat: Material, rng: RandomNumberGenerator) -> void:
+	var tiers := 1
+	if h > 16.0:
+		tiers = 2
+	if h > 26.0:
+		tiers = 3
+	var y := 0.0
+	var cw := w
+	var cd := d
+	var remaining := h
+	var top_y := 0.0
+	for t in range(tiers):
+		var th: float = remaining if t == tiers - 1 else remaining * rng.randf_range(0.45, 0.6)
+		var body := _pbox(node, Vector3(cw, th, cd), base + Vector3(0, y + th * 0.5, 0), mat)
 		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# Bandas horizontales de ventanas en la cara que mira a la parcela.
-		var face_z: float = -signf(sin(ang)) * (d * 0.5 + 0.05)
-		var floors := int(h / 3.0)
-		for f in range(1, floors):
-			var band := _pbox(node, Vector3(w * 0.82, 0.6, 0.08), pos + Vector3(0, f * 3.0, face_z), win_mat)
-			band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		y += th
+		top_y = y
+		remaining -= th
+		cw *= rng.randf_range(0.7, 0.85)
+		cd *= rng.randf_range(0.7, 0.85)
+	_rooftop(node, base + Vector3(0, top_y, 0), cw, cd, rng)
+
+## Remates de azotea: tanque de agua, casa de máquinas y antena con baliza roja.
+func _rooftop(node: Node3D, top: Vector3, w: float, d: float, rng: RandomNumberGenerator) -> void:
+	var dark := IndKit.dark_metal()
+	# Parapeto fino en el borde.
+	var para := IndKit.housing(Color(0.3, 0.31, 0.34))
+	_pbox(node, Vector3(w, 0.5, 0.2), top + Vector3(0, 0.25, d * 0.5), para).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_pbox(node, Vector3(w, 0.5, 0.2), top + Vector3(0, 0.25, -d * 0.5), para).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var choice := rng.randi() % 3
+	if choice == 0:
+		# Tanque de agua sobre patas.
+		var tank := _pcyl(node, 1.0, 1.0, 1.6, top + Vector3(w * 0.2, 2.4, 0), IndKit.steel())
+		tank.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for sx in [-1, 1]:
+			for sz in [-1, 1]:
+				_pcyl(node, 0.08, 0.08, 1.6, top + Vector3(w * 0.2 + sx * 0.7, 0.8, sz * 0.7), dark).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	elif choice == 1:
+		# Casa de máquinas / ascensores.
+		_pbox(node, Vector3(w * 0.4, 2.0, d * 0.4), top + Vector3(0, 1.0, 0), IndKit.housing(Color(0.28, 0.29, 0.32))).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Antena con baliza roja (silueta contra el cielo).
+	if rng.randf() < 0.6:
+		_pcyl(node, 0.05, 0.05, rng.randf_range(2.5, 5.0), top + Vector3(-w * 0.25, 2.0, -d * 0.2), dark).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var beacon := _pcyl(node, 0.14, 0.14, 0.28, top + Vector3(-w * 0.25, 4.2, -d * 0.2), IndKit.emissive(Color(0.95, 0.12, 0.1), 2.5))
+		beacon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+## Shader de fachada urbana: rejilla de ventanas en las caras verticales (vidrio
+## de día, encendidas de noche según `night`), techo plano en la cara superior.
+func _make_city_material(wall: Color, window: Color) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+uniform vec3 wall_color : source_color = vec3(0.36, 0.37, 0.42);
+uniform vec3 window_color : source_color = vec3(1.0, 0.86, 0.55);
+uniform float floor_h = 3.2;
+uniform float win_w = 2.2;
+uniform float night = 0.0;
+
+varying vec3 wpos;
+varying vec3 wnorm;
+void vertex() {
+	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+}
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void fragment() {
+	vec3 n = normalize(wnorm);
+	if (abs(n.y) > 0.5) {
+		ALBEDO = wall_color * 0.5;
+		ROUGHNESS = 0.9;
+		METALLIC = 0.0;
+	} else {
+		float horiz = (abs(n.x) > 0.5) ? wpos.z : wpos.x;
+		float ci = floor(horiz / win_w);
+		float ri = floor(wpos.y / floor_h);
+		float cx = fract(horiz / win_w);
+		float cy = fract(wpos.y / floor_h);
+		float win = step(0.16, cx) * step(cx, 0.84) * step(0.28, cy) * step(cy, 0.86);
+		float lit = step(0.42, hash(vec2(ci, ri)));
+		vec3 base = wall_color * (0.82 + 0.18 * hash(vec2(ci * 0.3, ri * 0.7)));
+		vec3 win_day = wall_color * 0.45;
+		vec3 wcol = mix(win_day, window_color, night * lit);
+		ALBEDO = mix(base, wcol, win);
+		ROUGHNESS = mix(0.85, 0.22, win);
+		METALLIC = mix(0.02, 0.25, win);
+		EMISSION = window_color * (win * lit * night * 0.9);
+	}
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("wall_color", wall)
+	mat.set_shader_parameter("window_color", window)
+	mat.set_shader_parameter("night", 0.0)
+	return mat
+
+func _make_city_ground_material() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.12, 0.12, 0.14)
+	m.roughness = 0.95
+	m.metallic = 0.0
+	return m
 
 # --- Ambientación industrial (Etapa 3): infraestructura con propósito --------
 func _setup_ambient(parent: Node3D, ext: float) -> void:
