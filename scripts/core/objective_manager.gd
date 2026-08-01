@@ -64,6 +64,7 @@ func _define_objectives() -> void:
 		{"id": "units10k", "title": "⚙️ Producí 10.000 unidades", "done": false, "reward": 20000, "long": true},
 		{"id": "contracts100", "title": "📦 Completá 100 contratos", "done": false, "reward": 30000, "long": true},
 		{"id": "rep100", "title": "⭐ Alcanzá reputación 100", "done": false, "reward": 20000, "long": true},
+		{"id": "market_leader", "title": "🏆 Sé el líder de tu rama industrial", "done": false, "reward": 35000, "long": true},
 	]
 
 func _find(id: String) -> Dictionary:
@@ -212,6 +213,11 @@ func _check_long_term() -> void:
 		_complete("contracts100")
 	if GameState.reputation >= 100:
 		_complete("rep100")
+	# Liderazgo de mercado: ser #1 de tu rama frente a los rivales (requiere haber
+	# elegido rama y tener capacidad productiva real).
+	if GameManager.rival and GameManager.specialization and GameManager.specialization.has_chosen():
+		if GameManager.rival.is_market_leader():
+			_complete("market_leader")
 
 func _units_produced() -> int:
 	var total := 0

@@ -45,6 +45,7 @@ var workers_panel: PanelContainer
 var objectives_panel: PanelContainer
 var upgrades_panel: PanelContainer
 var storage_panel: PanelContainer
+var competition_panel: PanelContainer
 var build_panel: Control          # catálogo de construcción (FactoryUI), cerrado por defecto
 var menu_panel: PanelContainer    # menú principal desplegable
 var _right_panels: Array = []
@@ -268,7 +269,8 @@ func _build_right_panels() -> void:
 	objectives_panel = _make_scroll_panel()
 	upgrades_panel = _make_scroll_panel()
 	storage_panel = _make_scroll_panel()
-	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel, upgrades_panel, storage_panel]:
+	competition_panel = _make_scroll_panel()
+	for p in [production_ui, finance_ui, automation_ui, contracts_panel, workers_panel, objectives_panel, upgrades_panel, storage_panel, competition_panel]:
 		p.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		p.offset_right = -8
 		p.offset_top = 64
@@ -324,6 +326,7 @@ func _render_menu_root() -> void:
 	_menu_cat("💰  Economía", "Economía", [
 		["💵  Finanzas", _on_finance],
 		["📈  Mercado", _on_finance],
+		["🏆  Competencia regional", _on_competition],
 		["📊  Informe semanal", _on_week_report],
 	])
 	_menu_act("🔬  Tecnología", _on_upgrades)
@@ -423,6 +426,7 @@ func _on_automation() -> void: _toggle_right(automation_ui)
 func _on_objectives() -> void: _toggle_right(objectives_panel); _refresh_objectives()
 func _on_upgrades() -> void: _toggle_right(upgrades_panel); _refresh_upgrades()
 func _on_storage() -> void: _toggle_right(storage_panel); _refresh_storage()
+func _on_competition() -> void: _toggle_right(competition_panel); _refresh_competition()
 
 # --- Toasts -----------------------------------------------------------------
 func _build_toasts() -> void:
@@ -473,6 +477,7 @@ func _connect_signals() -> void:
 	EventBus.week_summary.connect(_show_week_summary)
 	EventBus.decision_requested.connect(_show_decision)
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
+	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_competition())
 	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.tutorial_finished.connect(_on_tutorial_finished)
 	EventBus.company_level_changed.connect(_on_level_changed)
@@ -701,8 +706,22 @@ func _offer_row(c: Contract) -> VBoxContainer:
 	vl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vl.custom_minimum_size = Vector2(320, 0)
 	v.add_child(vl)
+	# Licitación: requisito de reputación para ganarle la puja al rival.
+	var acc_lock := false
+	if c.rival_bid > 0:
+		var chk: Dictionary = GameManager.contracts.can_accept(c)
+		var lcol := UITheme.ACCENT2 if bool(chk["ok"]) else UITheme.WARN
+		var ltxt := "🏆 Licitación · puja rival: reputación %d (tenés %d)" % [c.rival_bid, GameState.reputation]
+		if not bool(chk["ok"]):
+			ltxt += " — bloqueada"
+			acc_lock = true
+		var ll := UITheme.make_label(ltxt, 11, lcol)
+		ll.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ll.custom_minimum_size = Vector2(320, 0)
+		v.add_child(ll)
 	var row := HBoxContainer.new()
 	var acc := UITheme.make_button("Aceptar")
+	acc.disabled = acc_lock
 	acc.pressed.connect(GameManager.contracts.accept.bind(c))
 	var dec := UITheme.make_button("Rechazar")
 	dec.pressed.connect(GameManager.contracts.decline.bind(c))
@@ -1027,6 +1046,57 @@ func _expansion_block() -> VBoxContainer:
 	return v
 
 # --- Panel de almacén / inventario ------------------------------------------
+func _refresh_competition() -> void:
+	if competition_panel == null or not competition_panel.visible:
+		return
+	var box := _find_box(competition_panel)
+	if box == null:
+		return
+	for c in box.get_children():
+		c.queue_free()
+	box.add_child(UITheme.make_title("🏆 Competencia regional"))
+	var rv: Node = GameManager.rival
+	var spec: Node = GameManager.specialization
+	if rv == null:
+		box.add_child(UITheme.make_label("(sin datos)", 12))
+		return
+	if spec == null or not spec.has_chosen():
+		box.add_child(UITheme.make_label("Elegí tu rama industrial (🔬 Tecnología) para entrar a competir en un mercado.", 12, UITheme.MUTED))
+		return
+	var mp: Dictionary = rv.market_position()
+	var branch_nm: String = spec.branch_name(String(mp.get("branch", "")))
+	box.add_child(UITheme.make_label("Tu rama: %s" % branch_nm, 13, UITheme.ACCENT))
+	var rank_col := UITheme.ACCENT2 if int(mp["rank"]) == 1 else UITheme.TEXT
+	box.add_child(UITheme.make_label("Posición: #%d de %d   ·   Cuota: %d%%" % [
+		int(mp["rank"]), int(mp["total"]), int(round(float(mp["share"]) * 100.0))], 15, rank_col))
+	# Barra de cuota de mercado.
+	var bar := ProgressBar.new()
+	bar.max_value = 100
+	bar.value = int(round(float(mp["share"]) * 100.0))
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 16)
+	box.add_child(bar)
+	box.add_child(UITheme.make_label("Tu capacidad: %.1f u/min" % float(mp["player_cap"]), 12, UITheme.MUTED))
+	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("PRODUCTORES DE TU RAMA", 12, UITheme.ACCENT))
+	# Ranking combinado (vos + rivales) por capacidad.
+	var rows: Array = [{ "name": "▶ %s (vos)" % GameState.company_name, "cap": float(mp["player_cap"]), "rep": GameState.reputation, "you": true }]
+	for r in rv.rivals_in(String(mp.get("branch", ""))):
+		rows.append({ "name": String(r["name"]), "cap": float(r["capacity"]), "rep": int(r["reputation"]), "you": false })
+	rows.sort_custom(func(a, b): return float(a["cap"]) > float(b["cap"]))
+	var pos := 0
+	for row in rows:
+		pos += 1
+		var line := HBoxContainer.new()
+		var col: Color = UITheme.ACCENT2 if row["you"] else UITheme.TEXT
+		var nm := UITheme.make_label("%d. %s" % [pos, row["name"]], 12, col)
+		nm.custom_minimum_size = Vector2(190, 0)
+		line.add_child(nm)
+		line.add_child(UITheme.make_label("%.1f u/min · ⭐%d" % [float(row["cap"]), int(row["rep"])], 12, UITheme.MUTED))
+		box.add_child(line)
+	box.add_child(UITheme.hsep())
+	box.add_child(UITheme.make_label("💡 Escalá tu producción y subí reputación para liderar. Los rivales dominantes bajan tu precio de venta; una marca fuerte lo sostiene y desbloquea licitaciones.", 11, UITheme.MUTED))
+
 func _refresh_storage() -> void:
 	if storage_panel == null or not storage_panel.visible:
 		return
@@ -1233,6 +1303,9 @@ func _show_week_summary(d: Dictionary) -> void:
 		v.add_child(UITheme.make_label("ESTA SEMANA…", 12, UITheme.ACCENT))
 		for h in highlights:
 			v.add_child(UITheme.make_label("   " + h, 12, UITheme.ACCENT2))
+	if String(d.get("market", "")) != "":
+		v.add_child(UITheme.hsep())
+		v.add_child(UITheme.make_label("🏆 Posición de mercado: %s" % d["market"], 13, UITheme.ACCENT))
 	if int(d.get("problems", 0)) > 0:
 		v.add_child(UITheme.make_label("⚠ Problemas de la semana: %d (averías/contratos fallidos)" % int(d["problems"]), 12, UITheme.WARN))
 	var rd: int = int(d["reputation_delta"])

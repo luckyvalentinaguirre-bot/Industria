@@ -113,6 +113,7 @@ func _on_week(week: int) -> void:
 		"top_value_product": _top_value_product(),
 		"top_supplied": _top_supplied(),
 		"busiest_machine": _busiest_machine(),
+		"market": _market_line(),
 	}
 	last_summary = data
 	EventBus.week_summary.emit(data)
@@ -178,6 +179,17 @@ func _busiest_machine() -> String:
 			best_h = int(_machine_hours[n])
 			best = String(n)
 	return best
+
+## Posición competitiva en la rama del jugador → texto legible o "" si no aplica.
+func _market_line() -> String:
+	if GameManager.rival == null or GameManager.specialization == null:
+		return ""
+	if not GameManager.specialization.has_chosen():
+		return ""
+	var mp: Dictionary = GameManager.rival.market_position()
+	var branch: String = GameManager.specialization.branch_name(String(mp.get("branch", "")))
+	return "#%d de %d en %s · cuota %d%%" % [
+		int(mp["rank"]), int(mp["total"]), branch, int(round(float(mp["share"]) * 100.0))]
 
 ## Empleado más capaz de la plantilla (mayor suma de skills) o "" si no hay.
 func _best_employee() -> String:

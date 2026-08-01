@@ -18,6 +18,7 @@ var economy: Node
 var finance: Node
 var bank: Node
 var market: Node
+var rival: Node
 var recipes: Node
 var quality: Node
 var storage: Node
@@ -58,6 +59,7 @@ func _create_managers() -> void:
 	bank = _add("res://scripts/economy/bank_manager.gd", "BankManager")
 	storage = _add("res://scripts/logistics/storage_manager.gd", "StorageManager")
 	market = _add("res://scripts/economy/market_manager.gd", "MarketManager")
+	rival = _add("res://scripts/economy/rival_manager.gd", "RivalManager")
 	quality = _add("res://scripts/production/quality_manager.gd", "QualityManager")
 	machines = _add("res://scripts/machines/machine_manager.gd", "MachineManager")
 	maintenance = _add("res://scripts/machines/maintenance_manager.gd", "MaintenanceManager")

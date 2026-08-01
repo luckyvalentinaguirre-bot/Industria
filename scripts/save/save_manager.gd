@@ -53,6 +53,7 @@ func save_game(silent: bool = false) -> bool:
 		"contracts": GameManager.contracts.to_dict(),
 		"production": GameManager.production.to_dict(),
 		"market": GameManager.market.to_dict(),
+		"rivals": GameManager.rival.to_dict(),
 		"rules": GameManager.rules.to_dict(),
 		"objectives": GameManager.objectives.to_dict(),
 		"upgrades": GameManager.upgrades.to_dict(),
@@ -87,6 +88,7 @@ func load_game() -> bool:
 	GameManager.contracts.from_dict(data.get("contracts", {}))
 	GameManager.production.from_dict(data.get("production", {}))
 	GameManager.market.from_dict(data.get("market", {}))
+	GameManager.rival.from_dict(data.get("rivals", {}))
 	GameManager.rules.from_dict(data.get("rules", {}))
 	GameManager.objectives.from_dict(data.get("objectives", {}))
 	GameManager.upgrades.from_dict(data.get("upgrades", {}))

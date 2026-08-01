@@ -8,11 +8,11 @@ extends Node
 const OFFER_REFRESH_DAYS := 2
 const MAX_OFFERS := 5
 
-const TYPES := ["facil", "grande", "urgente", "rentable", "especial", "volumen"]
+const TYPES := ["facil", "grande", "urgente", "rentable", "especial", "volumen", "licitacion"]
 const TYPE_LABELS := {
 	"facil": "🟢 Fácil", "grande": "📦 Grande", "urgente": "⏱ Urgente",
 	"rentable": "💎 Rentable", "especial": "⭐ Especial", "volumen": "🏭 Volumen",
-	"programa": "🤝 Programa", "normal": "Contrato",
+	"programa": "🤝 Programa", "licitacion": "🏆 Licitación", "normal": "Contrato",
 }
 const CLIENTS := ["Construcciones Delta", "Metalúrgica Andes", "Ensambladora Rivas",
 	"Talleres Sur", "Industrias Kappa", "Logística Omega", "Fábrica Zeta"]
@@ -87,6 +87,14 @@ func _gen_typed(type: String) -> Contract:
 		"volumen":
 			# Gran pedido: obliga a ampliar capacidad (¿otra máquina? ¿automatizar?).
 			amount = randi_range(400, 800); pay_mult = 1.4; pen_mult = 0.45; deadline = randi_range(5, 8); rep = 10
+		"licitacion":
+			# Contrato DISPUTADO: muy rentable, pero sólo lo tomás si tu reputación
+			# supera la puja del mejor rival de la rama (RivalManager). Da una meta
+			# concreta a la reputación y te enfrenta a la competencia.
+			amount = randi_range(150, 320); pay_mult = 1.85; pen_mult = 0.5; deadline = randi_range(6, 10); rep = 9
+			var branch: String = GameManager.specialization.current() if GameManager.specialization else ""
+			var top: int = GameManager.rival.top_rival_reputation(branch) if GameManager.rival else 55
+			c.rival_bid = clampi(top + randi_range(3, 12), 20, 95)
 	c.product = product
 	c.amount = amount
 	# La reputación mejora las ofertas: mejores clientes pagan más (spec §8).
@@ -145,8 +153,20 @@ func _make_from_template(t: Dictionary) -> Contract:
 	return c
 
 # --- Aceptación / rechazo ---------------------------------------------------
+## ¿Se puede aceptar esta oferta? Las licitaciones exigen reputación suficiente
+## para ganarle la puja al mejor rival. Devuelve {ok, reason}.
+func can_accept(c: Contract) -> Dictionary:
+	if c.rival_bid > 0 and GameState.reputation < c.rival_bid:
+		return { "ok": false, "reason": "Necesitás reputación %d para ganar la licitación (tenés %d)." % [c.rival_bid, GameState.reputation] }
+	return { "ok": true, "reason": "" }
+
 func accept(c: Contract) -> void:
 	if not offers.has(c):
+		return
+	# Licitación: sin la reputación necesaria, el contrato se lo lleva un rival.
+	var chk := can_accept(c)
+	if not chk["ok"]:
+		EventBus.notify.emit("🏆 Licitación perdida: %s" % chk["reason"], "warning")
 		return
 	offers.erase(c)
 	c.accepted = true
@@ -232,7 +252,12 @@ func _on_day(day: int) -> void:
 	# Nuevas ofertas periódicas de tipo aleatorio.
 	if day - _last_refresh_day >= OFFER_REFRESH_DAYS and offers.size() < MAX_OFFERS:
 		_last_refresh_day = day
-		var c := _gen_typed(TYPES[randi() % TYPES.size()])
+		# Las licitaciones (disputa con rivales) sólo aparecen de Fabricante (N3) en
+		# adelante, cuando la reputación empieza a ser una palanca real.
+		var pool: Array = TYPES.duplicate()
+		if GameState.company_level < 3:
+			pool.erase("licitacion")
+		var c := _gen_typed(String(pool[randi() % pool.size()]))
 		offers.append(c)
 		EventBus.contract_offered.emit(c)
 	# Programa de cliente: se ofrece a partir de Fabricante (N3) si no hay uno.

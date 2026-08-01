@@ -20,6 +20,9 @@ class_name Contract
 ## Programa de cliente de varias fases (spec §6/§7). 0 = contrato suelto.
 @export var program_phase: int = 0
 @export var program_total: int = 0
+## Licitación (spec competencia): contrato disputado con rivales. Sólo se puede
+## aceptar si la reputación de la empresa alcanza `rival_bid`. 0 = no es licitación.
+@export var rival_bid: int = 0
 
 # Estado dinámico
 @export var accepted: bool = false
@@ -41,7 +44,7 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id, "type": type, "client": client, "product": product, "amount": amount,
 		"payment": payment, "deadline_days": deadline_days, "penalty": penalty,
-		"reputation": reputation, "bonus": bonus, "program_phase": program_phase, "program_total": program_total, "accepted": accepted, "deadline_day": deadline_day,
+		"reputation": reputation, "bonus": bonus, "program_phase": program_phase, "program_total": program_total, "rival_bid": rival_bid, "accepted": accepted, "deadline_day": deadline_day,
 		"delivered": delivered, "completed": completed, "failed": failed,
 	}
 
@@ -59,6 +62,7 @@ static func from_dict(d: Dictionary) -> Contract:
 	c.bonus = float(d.get("bonus", 0.0))
 	c.program_phase = int(d.get("program_phase", 0))
 	c.program_total = int(d.get("program_total", 0))
+	c.rival_bid = int(d.get("rival_bid", 0))
 	c.accepted = bool(d.get("accepted", false))
 	c.deadline_day = int(d.get("deadline_day", 0))
 	c.delivered = int(d.get("delivered", 0))

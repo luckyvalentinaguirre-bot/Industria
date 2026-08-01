@@ -44,6 +44,7 @@ func _ready() -> void:
 	_test_new_chains()
 	_test_resource_integrity()
 	_test_economic_events()
+	_test_competition()
 	_test_growth()
 	_test_save_load()
 	print("\n=== RESULTADO: %s (%d fallos) ===" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -672,6 +673,59 @@ func _test_economic_events() -> void:
 	_check("Eventos §3: aceptar el adelanto cobra y agrega un contrato",
 		GameState.money > cash_before and GameManager.contracts.offers.size() == offers_before + 1)
 	EventBus.decision_requested.disconnect(cb)
+
+func _test_competition() -> void:
+	# COMPETENCIA Y MERCADO REGIONAL: rivales, cuota, presión de precios y licitaciones.
+	var rv: Node = GameManager.rival
+	rv._seed()
+	_check("Competencia: se generan empresas rivales", rv.rivals.size() >= 3)
+	var r0: Dictionary = rv.rivals[0]
+	_check("Competencia: cada rival tiene rama, capacidad y reputación",
+		r0.has("branch") and r0.has("capacity") and r0.has("reputation"))
+	_check("Competencia: branch_of identifica la rama por producto insignia",
+		rv.branch_of("iron_ingot") == "metal" and rv.branch_of("plank") == "wood")
+	# Crecimiento semanal.
+	var cap_before: float = float(rv.rivals[0]["capacity"])
+	rv._on_week(2)
+	_check("Competencia: los rivales crecen al cerrar la semana", float(rv.rivals[0]["capacity"]) > cap_before)
+	# Presión de precios: rango sano y sostenida por la reputación.
+	GameState.industry_branch = "metal"
+	GameState.reputation = 0
+	var m_low: float = rv.sell_pressure_mult("iron_ingot")
+	GameState.reputation = 100
+	var m_high: float = rv.sell_pressure_mult("iron_ingot")
+	_check("Competencia: presión de precios en rango [0.82, 1.08]", m_low >= 0.82 and m_high <= 1.08)
+	_check("Competencia: mejor reputación sostiene el precio de venta (%.2f > %.2f)" % [m_high, m_low], m_high > m_low)
+	# Posición de mercado: con rivales dominantes no sos líder.
+	for r in rv.rivals:
+		if String(r["branch"]) == "metal":
+			r["capacity"] = 999.0
+	_check("Competencia: con rivales dominantes tu rank es peor que #1", int(rv.market_position()["rank"]) > 1)
+	# Liderazgo: con capacidad propia y sin rivales en la rama, sos líder.
+	var mac: Machine = GameManager.machines.create_machine("smelter", Vector2i(28, 28))
+	mac.set_recipe("smelt_iron")   # produce iron_ingot (firma de metal)
+	var kept: Array = []
+	for r in rv.rivals:
+		if String(r["branch"]) != "metal":
+			kept.append(r)
+	rv.rivals = kept
+	_check("Competencia: líder de tu rama con capacidad propia y sin rivales", rv.is_market_leader())
+	# Licitación: contrato disputado que exige reputación para aceptarse.
+	var lic: Contract = GameManager.contracts._gen_typed("licitacion")
+	_check("Competencia: la licitación fija una puja de rival (reputación)", lic.rival_bid > 0)
+	GameState.reputation = 0
+	lic.rival_bid = 80
+	_check("Competencia: licitación bloqueada sin reputación suficiente", not bool(GameManager.contracts.can_accept(lic)["ok"]))
+	GameState.reputation = 100
+	_check("Competencia: licitación disponible con reputación suficiente", bool(GameManager.contracts.can_accept(lic)["ok"]))
+	# Objetivo de liderazgo definido.
+	_check("Competencia: existe el objetivo de liderazgo de mercado", not GameManager.objectives._find("market_leader").is_empty())
+	# Guardado / carga de los rivales.
+	var snap: Dictionary = rv.to_dict()
+	var n: int = rv.rivals.size()
+	rv.rivals = []
+	rv.from_dict(snap)
+	_check("Competencia: los rivales se guardan y se restauran", rv.rivals.size() == n)
 
 func _test_growth() -> void:
 	# Crecimiento visual por nivel: los builders de estructuras/clusters deben

@@ -135,6 +135,10 @@ func sell(item_id: String, qty: int) -> float:
 	var margin := float(cfg.get("sell_margin", 1.0))
 	if GameManager.upgrades:
 		margin *= GameManager.upgrades.sell_mult()
+	# Presión de precios por competencia regional: rivales dominantes bajan el
+	# precio de mercado; una buena reputación lo sostiene (RivalManager).
+	if GameManager.rival:
+		margin *= GameManager.rival.sell_pressure_mult(item_id)
 	var revenue: float = current_price(item_id) * margin * sold
 	GameManager.economy.earn(revenue, "sales")
 	EventBus.notify.emit("Vendidas %d× %s por %s" % [sold, ItemDB.display_name(item_id), Fmt.money(revenue)], "success")

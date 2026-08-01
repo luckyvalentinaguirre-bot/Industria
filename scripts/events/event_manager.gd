@@ -43,6 +43,12 @@ func _applicable_events() -> Array:
 		out.append(_ev_rush_client)
 	if _a_produced_product() != "":
 		out.append(_ev_demand_decision)
+	# Jugadas de la competencia (nueva capa): sólo si hay rivales en juego.
+	if GameManager.rival and not GameManager.rival.rivals.is_empty():
+		out.append(_ev_rival_price_war)
+		out.append(_ev_rival_retires)
+		if GameState.company_level >= 3:
+			out.append(_ev_rival_tender)
 	return out
 
 # --- Evento con DECISIÓN: avería -------------------------------------------
@@ -174,6 +180,50 @@ func _ev_demand_decision() -> void:
 	EventBus.decision_requested.emit("📈 Sube la demanda de %s" % name,
 		"La demanda de %s aumentó esta semana. ¿Cómo respondés?" % name,
 		opts)
+
+# --- Jugadas de la competencia (spec competencia) ---------------------------
+## Un rival baja precios en tu rama: defendé tu cuota (bajás margen) o mantené
+## tu precio (el rival gana capacidad). Trade-off margen vs. cuota de mercado.
+func _ev_rival_price_war() -> void:
+	var branch: String = GameManager.specialization.current() if GameManager.specialization else ""
+	var r: Dictionary = GameManager.rival.random_rival(branch)
+	if r.is_empty():
+		return
+	var rname: String = String(r["name"])
+	var sig: Array = []
+	if GameManager.specialization and GameManager.specialization.has_chosen():
+		sig = GameManager.specialization.signature_products()
+	var opts: Array = [
+		{ "label": "⚔ Igualar precios (defendé tu cuota, -margen)",
+		  "action": func():
+			for p in sig:
+				GameManager.market.apply_demand(String(p), 0.9, 4)
+			GameState.reputation = clampi(GameState.reputation + 2, 0, 100)
+			EventBus.reputation_changed.emit(GameState.reputation)
+			EventBus.notify.emit("⚔ Defendiste tu cuota frente a %s." % rname, "info") },
+		{ "label": "Mantener precio (el rival crece)",
+		  "action": func():
+			GameManager.rival.rival_gains_capacity(branch, 1.06)
+			EventBus.notify.emit("%s ganó terreno en tu rama." % rname, "warning") },
+	]
+	EventBus.decision_requested.emit("⚔ Guerra de precios",
+		"%s bajó sus precios en tu rama. ¿Defendés tu cuota de mercado o protegés tu margen?" % rname,
+		opts)
+
+## Un rival se retira de la región: mejora tu posición relativa (positivo).
+func _ev_rival_retires() -> void:
+	var branch: String = GameManager.specialization.current() if GameManager.specialization else ""
+	var name: String = GameManager.rival.remove_random_rival(branch)
+	if name == "":
+		return
+	EventBus.notify.emit("📉 %s se retiró de la región: tu cuota de mercado sube." % name, "success")
+
+## Un rival te desafía por un contrato: aparece una licitación (requiere reputación).
+func _ev_rival_tender() -> void:
+	var c: Contract = GameManager.contracts._gen_typed("licitacion")
+	GameManager.contracts.offers.append(c)
+	EventBus.contract_offered.emit(c)
+	EventBus.notify.emit("🏆 Licitación disputada en 📋 Contratos: superá la puja del rival (reputación %d)." % c.rival_bid, "info")
 
 # --- Helpers ----------------------------------------------------------------
 func _a_produced_product() -> String:
