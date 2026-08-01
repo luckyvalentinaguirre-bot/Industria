@@ -35,6 +35,8 @@ func _ready() -> void:
 	_test_client_program()
 	_test_workers_system()
 	_test_personnel()
+	_test_events()
+	_test_reputation_weight()
 	_test_week_summary()
 	_test_automation_objective()
 	_test_balance()
@@ -389,6 +391,68 @@ func _test_workers_system() -> void:
 		wm.fire(w)
 
 var _salary_paid: float = 0.0
+
+var _decision_seen: bool = false
+var _decision_opts: Array = []
+func _test_events() -> void:
+	# La avería prefiere una máquina EN MARCHA: dejamos sólo a `m` funcionando.
+	for mm in GameManager.machines.machines:
+		mm.set_enabled(false)
+	var m: Machine = GameManager.machines.create_machine("press", Vector2i(2, 38))
+	m.set_recipe("press_plate")
+	m.set_condition(100.0)
+	m.powered = true
+	m.staffed = true
+	m.input_buffer.add("iron_ingot", 20)
+	_tick(8.0)   # ponerla en RUNNING
+	_decision_seen = false
+	_decision_opts = []
+	var cb := func(_t, _d, opts): _decision_seen = true; _decision_opts = opts
+	EventBus.decision_requested.connect(cb)
+	GameManager.events._ev_breakdown()
+	EventBus.decision_requested.disconnect(cb)
+	_check("Eventos: la avería pide una decisión con opciones", _decision_seen and _decision_opts.size() >= 2)
+	_check("Eventos: la máquina quedó dañada por el evento", m.condition <= 25.0)
+	# Reparar mediante la opción de la decisión.
+	GameState.money = 100000.0
+	(_decision_opts[0]["action"] as Callable).call()
+	_check("Eventos: la opción 'Reparar' arregla la máquina", m.condition >= 99.0)
+	# Contrato especial: aparece una oferta nueva.
+	var before: int = GameManager.contracts.offers.size()
+	GameManager.contracts.add_special_offer()
+	_check("Eventos: el contrato especial agrega una oferta", GameManager.contracts.offers.size() == before + 1)
+
+func _test_reputation_weight() -> void:
+	# Mejor reputación → mejores candidatos (mayor suma de skills en promedio).
+	GameState.reputation = 0
+	GameManager.workers.refresh_candidates()
+	var low := _avg_candidate_skill()
+	GameState.reputation = 100
+	GameManager.workers.refresh_candidates()
+	var high := _avg_candidate_skill()
+	_check("Reputación: mejor reputación mejora los candidatos (%.2f > %.2f)" % [high, low], high > low)
+	# Mejor reputación → contratos mejor pagados (promedio de varios, por la
+	# cantidad aleatoria).
+	GameState.reputation = 0
+	var pay_low := _avg_contract_pay()
+	GameState.reputation = 100
+	var pay_high := _avg_contract_pay()
+	_check("Reputación: mejora el pago promedio de los contratos", pay_high > pay_low)
+
+func _avg_contract_pay() -> float:
+	var t := 0.0
+	for _i in range(10):
+		t += GameManager.contracts._gen_typed("grande").payment
+	return t / 10.0
+
+func _avg_candidate_skill() -> float:
+	var total := 0.0
+	var n := 0
+	for c in GameManager.workers.candidates:
+		for k in (c.get("skills", {}) as Dictionary).values():
+			total += float(k)
+			n += 1
+	return total / maxf(1.0, n)
 
 func _test_personnel() -> void:
 	var wm := GameManager.workers

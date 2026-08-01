@@ -471,6 +471,7 @@ func _connect_signals() -> void:
 	EventBus.objectives_updated.connect(_on_objectives_updated)
 	EventBus.game_won.connect(_on_game_won)
 	EventBus.week_summary.connect(_show_week_summary)
+	EventBus.decision_requested.connect(_show_decision)
 	EventBus.minute_passed.connect(func(_a, _b, _c): _refresh_storage())
 	EventBus.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.tutorial_finished.connect(_on_tutorial_finished)
@@ -1122,6 +1123,32 @@ func _free_node(n: Node) -> void:
 	if is_instance_valid(n):
 		n.queue_free()
 
+# --- Evento con decisión (spec §1/§2) ---------------------------------------
+func _show_decision(title: String, description: String, options: Array) -> void:
+	var panel := UITheme.make_panel(UITheme.BG)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -240; panel.offset_right = 240
+	panel.offset_top = -150; panel.offset_bottom = 150
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	panel.add_child(v)
+	v.add_child(UITheme.make_label(title, 18, UITheme.ACCENT))
+	var d := UITheme.make_label(description, 13, UITheme.TEXT)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.custom_minimum_size = Vector2(440, 0)
+	v.add_child(d)
+	v.add_child(UITheme.hsep())
+	for opt in options:
+		var b := UITheme.make_button(String(opt.get("label", "OK")))
+		b.custom_minimum_size = Vector2(0, 38)
+		var action: Callable = opt.get("action", Callable())
+		b.pressed.connect(func():
+			if action.is_valid():
+				action.call()
+			_free_node(panel))
+		v.add_child(b)
+	root.add_child(panel)
+
 # --- Resumen semanal (spec §16-§19) -----------------------------------------
 var _week_prev_scale: float = 1.0
 func _show_week_summary(d: Dictionary) -> void:
@@ -1164,6 +1191,12 @@ func _show_week_summary(d: Dictionary) -> void:
 		v.add_child(UITheme.make_label("   (sin gastos)", 12, UITheme.MUTED))
 	v.add_child(UITheme.hsep())
 	v.add_child(UITheme.make_label("👥 Personal: %d / %d   ·   💰 Salarios: %s/sem" % [int(d["staff"]), int(d["staff_max"]), Fmt.money(d["salaries"])], 13))
+	if String(d.get("top_product", "")) != "":
+		v.add_child(UITheme.make_label("🏭 Producto estrella: %s" % d["top_product"], 12, UITheme.ACCENT2))
+	if String(d.get("best_employee", "")) != "":
+		v.add_child(UITheme.make_label("👷 Mejor empleado: %s" % d["best_employee"], 12))
+	if int(d.get("problems", 0)) > 0:
+		v.add_child(UITheme.make_label("⚠ Problemas de la semana: %d (averías/contratos fallidos)" % int(d["problems"]), 12, UITheme.WARN))
 	var rd: int = int(d["reputation_delta"])
 	if rd != 0:
 		v.add_child(UITheme.make_label("⭐ Reputación: %s%d" % ["+" if rd > 0 else "", rd], 13, UITheme.ACCENT2 if rd > 0 else UITheme.WARN))

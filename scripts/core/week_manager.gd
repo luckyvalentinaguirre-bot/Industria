@@ -15,21 +15,28 @@ var last_summary: Dictionary = {}
 var _money_start: float = 0.0
 var _rep_start: int = 0
 var _produced: int = 0
+var _produced_by_item: Dictionary = {} # item -> unidades
 var _sales_income: float = 0.0
 var _contracts_done: int = 0
 var _contracts_failed: int = 0
+var _breakdowns: int = 0
 var _expense: Dictionary = {}       # categoría -> $
 var _last_achievement: String = ""
 
 func _ready() -> void:
 	EventBus.transaction.connect(_on_transaction)
-	EventBus.item_produced.connect(func(_i, q): _produced += q)
+	EventBus.item_produced.connect(_on_produced)
 	EventBus.contract_completed.connect(func(_c): _contracts_done += 1)
 	EventBus.contract_failed.connect(func(_c): _contracts_failed += 1)
+	EventBus.machine_breakdown.connect(func(_m): _breakdowns += 1)
 	EventBus.objective_completed.connect(func(_id, title): _last_achievement = title)
 	EventBus.week_passed.connect(_on_week)
 	EventBus.game_started.connect(_snapshot)
 	EventBus.game_loaded.connect(_snapshot)
+
+func _on_produced(item_id: String, q: int) -> void:
+	_produced += q
+	_produced_by_item[item_id] = int(_produced_by_item.get(item_id, 0)) + q
 
 func _snapshot() -> void:
 	_money_start = GameState.money
@@ -38,9 +45,11 @@ func _snapshot() -> void:
 
 func _reset() -> void:
 	_produced = 0
+	_produced_by_item = {}
 	_sales_income = 0.0
 	_contracts_done = 0
 	_contracts_failed = 0
+	_breakdowns = 0
 	_expense = {}
 	_last_achievement = ""
 
@@ -78,6 +87,9 @@ func _on_week(week: int) -> void:
 		"reputation_delta": GameState.reputation - _rep_start,
 		"achievement": _last_achievement,
 		"next_goal": next_goal,
+		"top_product": _top_product(),
+		"best_employee": _best_employee(),
+		"problems": _contracts_failed + _breakdowns,
 	}
 	last_summary = data
 	EventBus.week_summary.emit(data)
@@ -85,3 +97,28 @@ func _on_week(week: int) -> void:
 	_money_start = money_end
 	_rep_start = GameState.reputation
 	_reset()
+
+## Producto más fabricado de la semana (nombre) o "" si no hubo.
+func _top_product() -> String:
+	var best := ""
+	var best_n := 0
+	for id in _produced_by_item.keys():
+		if int(_produced_by_item[id]) > best_n:
+			best_n = int(_produced_by_item[id])
+			best = String(id)
+	return ItemDB.display_name(best) if best != "" else ""
+
+## Empleado más capaz de la plantilla (mayor suma de skills) o "" si no hay.
+func _best_employee() -> String:
+	if GameManager.workers == null:
+		return ""
+	var best := ""
+	var best_v := -1.0
+	for w in GameManager.workers.workers:
+		var s := 0.0
+		for k in w.SKILL_KEYS:
+			s += float(w.skills.get(k, 0.5))
+		if s > best_v:
+			best_v = s
+			best = w.worker_name
+	return best

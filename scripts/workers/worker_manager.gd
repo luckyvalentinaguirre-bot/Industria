@@ -109,9 +109,11 @@ func _generate_candidate() -> Dictionary:
 	var type_id: String = String(role_keys[randi() % role_keys.size()])
 	var spec: String = String(types.get(type_id, {}).get("specialty", "production"))
 	var primary: String = String(ROLE_PRIMARY.get(type_id, "production"))
+	# Buena reputación atrae mejores candidatos (spec §8): sube el piso de skills.
+	var rep_bonus: float = clampf(GameState.reputation / 100.0, 0.0, 1.0) * 0.18
 	var skills: Dictionary = {}
 	for k in Worker.SKILL_KEYS:
-		skills[k] = randf_range(0.25, 0.72)
+		skills[k] = clampf(randf_range(0.25, 0.72) + rep_bonus, 0.2, 1.0)
 	skills[primary] = clampf(skills[primary] + randf_range(0.2, 0.35), 0.2, 1.0)
 	var trait_name := ""
 	var sal_bonus := 0.0

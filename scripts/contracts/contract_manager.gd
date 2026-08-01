@@ -87,7 +87,9 @@ func _gen_typed(type: String) -> Contract:
 			amount = randi_range(400, 800); pay_mult = 1.4; pen_mult = 0.45; deadline = randi_range(5, 8); rep = 10
 	c.product = product
 	c.amount = amount
-	c.payment = round(unit * amount * pay_mult / 100.0) * 100.0
+	# La reputación mejora las ofertas: mejores clientes pagan más (spec §8).
+	var rep_mult: float = 0.9 + clampf(GameState.reputation / 100.0, 0.0, 1.0) * 0.3   # 0.9 .. 1.2
+	c.payment = round(unit * amount * pay_mult * rep_mult / 100.0) * 100.0
 	c.penalty = round(unit * amount * pen_mult / 100.0) * 100.0
 	c.deadline_days = deadline
 	c.reputation = rep
@@ -150,6 +152,16 @@ func accept(c: Contract) -> void:
 	active.append(c)
 	EventBus.contract_accepted.emit(c)
 	EventBus.notify.emit("Contrato aceptado: %d× %s para %s" % [c.amount, ItemDB.display_name(c.product), c.client], "info")
+
+## Oferta especial temporal (la dispara un evento): muy rentable, plazo corto.
+func add_special_offer() -> Contract:
+	var c := _gen_typed("rentable")
+	c.payment = round(c.payment * 1.3 / 100.0) * 100.0
+	c.bonus = round(c.payment * 0.35 / 100.0) * 100.0
+	c.reputation += 4
+	offers.append(c)
+	EventBus.contract_offered.emit(c)
+	return c
 
 func decline(c: Contract) -> void:
 	offers.erase(c)

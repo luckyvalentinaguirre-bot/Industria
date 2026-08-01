@@ -119,3 +119,8 @@ signal company_level_changed(level: int, name: String)
 # --- UI / notificaciones ----------------------------------------------------
 ## level: "info" | "success" | "warning" | "error"
 signal notify(message: String, level: String)
+
+# --- Eventos con decisión ---------------------------------------------------
+## Pide al jugador una decisión (spec §1/§2). options: Array de
+## { "label": String, "action": Callable }. La UI muestra un modal.
+signal decision_requested(title: String, description: String, options: Array)
