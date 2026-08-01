@@ -38,6 +38,9 @@ func _on_selected(obj: Node) -> void:
 		machine = obj
 		_rebuild()
 		visible = true
+	else:
+		# Clic en vacío u otro objeto: el panel de máquina desaparece (spec §16).
+		close()
 
 func _on_state_changed(m: Node) -> void:
 	if m == machine:

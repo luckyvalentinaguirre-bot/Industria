@@ -9,6 +9,9 @@ extends Node
 ##
 ## Nota de estructura: ciclo de la partida → vive en scripts/core/.
 
+## Último resumen generado, para reabrirlo desde el menú (Economía → Informe).
+var last_summary: Dictionary = {}
+
 var _money_start: float = 0.0
 var _rep_start: int = 0
 var _produced: int = 0
@@ -76,6 +79,7 @@ func _on_week(week: int) -> void:
 		"achievement": _last_achievement,
 		"next_goal": next_goal,
 	}
+	last_summary = data
 	EventBus.week_summary.emit(data)
 	# Reinicia para la semana siguiente.
 	_money_start = money_end

@@ -316,14 +316,15 @@ func _render_menu_root() -> void:
 		["ℹ  Información de la empresa", _on_factory_info],
 	])
 	_menu_cat("⚙  Producción", "Producción", [
-		["📦  Almacén / Materiales", _on_storage],
 		["🏭  Máquinas (seleccioná una)", _on_machines_help],
+		["📦  Almacén", _on_storage],
 		["🚚  Logística / Reglas", _on_automation],
 	])
 	_menu_act("👷  Personal", _on_workers)
 	_menu_cat("💰  Economía", "Economía", [
 		["💵  Finanzas", _on_finance],
 		["📈  Mercado", _on_finance],
+		["📊  Informe semanal", _on_week_report],
 	])
 	_menu_act("🔬  Tecnología", _on_upgrades)
 	_menu_cat("📋  Contratos", "Contratos", [
@@ -387,6 +388,13 @@ func _on_factory_info() -> void:
 
 func _on_machines_help() -> void:
 	EventBus.notify.emit("Seleccioná una máquina en el mundo para ver y ajustar su panel.", "info")
+
+func _on_week_report() -> void:
+	var last: Dictionary = GameManager.week.last_summary if GameManager.week else {}
+	if last.is_empty():
+		EventBus.notify.emit("Aún no cerró la primera semana. El informe aparecerá al completarla.", "info")
+	else:
+		_show_week_summary(last)
 
 func _toggle_menu() -> void:
 	if menu_panel:

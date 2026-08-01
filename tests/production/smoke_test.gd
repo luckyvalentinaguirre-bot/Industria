@@ -346,6 +346,8 @@ func _test_week_summary() -> void:
 	EventBus.week_passed.emit(2)
 	_check("Semana: se genera el resumen semanal", not _week_data.is_empty() and int(_week_data.get("week", 0)) == 2)
 	_check("Semana: el resumen incluye gastos y personal", _week_data.has("expense") and _week_data.has("staff") and _week_data.has("next_goal"))
+	# El informe queda guardado para reabrirlo desde el menú (Economía → Informe).
+	_check("Semana: el último informe queda guardado", int(GameManager.week.last_summary.get("week", 0)) == 2)
 
 func _test_automation_objective() -> void:
 	EventBus.conveyor_placed.emit(null)

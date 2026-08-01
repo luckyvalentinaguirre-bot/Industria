@@ -205,7 +205,10 @@ func _on_click() -> void:
 				_highlight_selected(obj)
 				EventBus.machine_selected.emit(obj)
 			else:
+				# Clic en vacío: deselecciona y cierra el panel contextual (spec §16).
 				_clear_highlight()
+				_selected = null
+				EventBus.machine_selected.emit(null)
 		Mode.MACHINE, Mode.BUILDING:
 			_try_place()
 		Mode.CONVEYOR:

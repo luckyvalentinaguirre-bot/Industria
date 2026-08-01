@@ -293,7 +293,8 @@ func _setup_lighting() -> void:
 	_sun.light_color = Color(1.0, 0.95, 0.85)
 	_sun.shadow_enabled = true
 	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	_sun.directional_shadow_max_distance = 180.0
+	# Distancia de sombras acotada a la escala de la fábrica (rendimiento, §20).
+	_sun.directional_shadow_max_distance = 120.0
 	_sun.shadow_blur = 1.2
 	_sun.light_bake_mode = Light3D.BAKE_DISABLED
 
