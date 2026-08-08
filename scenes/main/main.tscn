@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3 uid="uid://industria_main"]
+
+[ext_resource type="Script" path="res://scripts/world/world_manager.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/world/build_grid.gd" id="2_grid"]
+[ext_resource type="Script" path="res://scripts/world/camera_rig.gd" id="3_cam"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_world")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.694658, -0.545845, 0.468842, 0, 0.651372, 0.75859, -0.719339, -0.527034, 0.452659, 0, 24, 0)
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.766044, -0.469846, 0.438371, 0, 0.681998, 0.731354, -0.642788, 0.560232, -0.522554, 0, 20, 0)
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+
+[node name="BuildGrid" type="Node3D" parent="."]
+script = ExtResource("2_grid")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("3_cam")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig"]
+transform = Transform3D(1, 0, 0, 0, 0.642788, 0.766044, 0, -0.766044, 0.642788, 0, 0, 0)
+spring_length = 34.0
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D"]
+fov = 55.0

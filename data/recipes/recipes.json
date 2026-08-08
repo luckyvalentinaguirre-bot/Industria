@@ -1,0 +1,176 @@
+{
+  "_comment": "Industria V1 - recetas. inputs/outputs en {id: cantidad}. time = segundos de juego por ciclo.",
+  "recipes": {
+    "craft_handtool": {
+      "name": "Fabricar herramienta manual",
+      "machine": "workbench",
+      "time": 7.0,
+      "inputs": { "scrap": 4 },
+      "outputs": { "hand_tool": 1 }
+    },
+    "cut_planks": {
+      "name": "Aserrar tablas",
+      "machine": "sawmill",
+      "time": 5.0,
+      "inputs": { "wood_log": 2 },
+      "outputs": { "plank": 3 }
+    },
+    "make_pallet": {
+      "name": "Armar pallet",
+      "machine": "planer",
+      "time": 7.0,
+      "inputs": { "plank": 4 },
+      "outputs": { "pallet": 1 }
+    },
+    "refine_fuel": {
+      "name": "Refinar combustible",
+      "machine": "refinery",
+      "time": 6.0,
+      "inputs": { "oil": 3 },
+      "outputs": { "fuel": 2 }
+    },
+    "fire_brick": {
+      "name": "Cocer ladrillos",
+      "machine": "brick_kiln",
+      "time": 5.0,
+      "inputs": { "clay": 2 },
+      "outputs": { "brick": 5 }
+    },
+    "make_block": {
+      "name": "Fabricar bloque",
+      "machine": "block_press",
+      "time": 6.0,
+      "inputs": { "brick": 4 },
+      "outputs": { "block": 1 }
+    },
+    "grow_regulated": {
+      "name": "Cultivo regulado",
+      "machine": "grow_module",
+      "time": 9.0,
+      "inputs": { "nutrients": 3 },
+      "outputs": { "regulated_goods": 1 }
+    },
+    "smelt_iron": {
+      "name": "Fundir hierro",
+      "machine": "smelter",
+      "time": 6.0,
+      "inputs": { "iron_ore": 2 },
+      "outputs": { "iron_ingot": 1 }
+    },
+    "smelt_copper": {
+      "name": "Fundir cobre",
+      "machine": "smelter",
+      "time": 6.0,
+      "inputs": { "copper_ore": 2 },
+      "outputs": { "copper_ingot": 1 }
+    },
+    "recycle_scrap": {
+      "name": "Reciclar chatarra",
+      "machine": "smelter",
+      "time": 5.0,
+      "inputs": { "scrap": 3 },
+      "outputs": { "recycled_metal": 1 }
+    },
+    "press_plate": {
+      "name": "Prensar placa metalica",
+      "machine": "press",
+      "time": 5.0,
+      "inputs": { "iron_ingot": 1 },
+      "outputs": { "metal_plate": 1 }
+    },
+    "make_copper_part": {
+      "name": "Fabricar componente de cobre",
+      "machine": "press",
+      "time": 6.0,
+      "inputs": { "copper_ingot": 1 },
+      "outputs": { "copper_part": 1 }
+    },
+    "make_industrial_part": {
+      "name": "Fabricar pieza industrial",
+      "machine": "assembler",
+      "time": 8.0,
+      "inputs": { "metal_plate": 1, "recycled_metal": 1 },
+      "outputs": { "industrial_part": 1 }
+    },
+    "assemble_metal_piece": {
+      "name": "Ensamblar pieza metalica",
+      "machine": "assembler",
+      "time": 8.0,
+      "inputs": { "metal_plate": 2 },
+      "outputs": { "metal_piece": 1 }
+    },
+    "assemble_industrial_comp": {
+      "name": "Ensamblar componente industrial",
+      "machine": "assembler",
+      "time": 10.0,
+      "inputs": { "industrial_part": 1, "copper_part": 1 },
+      "outputs": { "industrial_comp": 1 }
+    },
+    "assemble_motor": {
+      "name": "Ensamblar motor simple",
+      "machine": "assembler",
+      "time": 14.0,
+      "inputs": { "industrial_comp": 1, "copper_part": 2, "fuel": 1 },
+      "outputs": { "simple_motor": 1 }
+    },
+    "smelt_steel": {
+      "name": "Fundir acero",
+      "machine": "smelter",
+      "time": 8.0,
+      "min_level": 3,
+      "inputs": { "iron_ingot": 1, "coal": 1 },
+      "outputs": { "steel": 1 }
+    },
+    "melt_glass": {
+      "name": "Fundir vidrio",
+      "machine": "brick_kiln",
+      "time": 5.0,
+      "inputs": { "sand": 2 },
+      "outputs": { "glass": 1 }
+    },
+    "make_plastic": {
+      "name": "Producir plastico",
+      "machine": "refinery",
+      "time": 6.0,
+      "inputs": { "oil": 2 },
+      "outputs": { "plastic": 1 }
+    },
+    "draw_wire": {
+      "name": "Trefilar cable de cobre",
+      "machine": "press",
+      "time": 5.0,
+      "inputs": { "copper_ingot": 1 },
+      "outputs": { "copper_wire": 1 }
+    },
+    "assemble_electronic": {
+      "name": "Ensamblar componente electronico",
+      "machine": "assembler",
+      "time": 10.0,
+      "min_level": 4,
+      "inputs": { "copper_wire": 1, "plastic": 1 },
+      "outputs": { "electronic_component": 1 }
+    },
+    "assemble_machine_part": {
+      "name": "Ensamblar pieza de maquinaria",
+      "machine": "assembler",
+      "time": 14.0,
+      "min_level": 5,
+      "inputs": { "steel": 1, "electronic_component": 1 },
+      "outputs": { "machine_part": 1 }
+    },
+    "process_chem": {
+      "name": "Procesar quimicos",
+      "machine": "refinery",
+      "time": 6.0,
+      "inputs": { "chemicals": 2 },
+      "outputs": { "processed_chem": 1 }
+    },
+    "cast_block": {
+      "name": "Moldear bloque de piedra",
+      "machine": "block_press",
+      "time": 6.0,
+      "inputs": { "stone": 4 },
+      "outputs": { "block": 1 }
+    }
+  }
+}

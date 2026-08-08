@@ -1,0 +1,96 @@
+{
+  "_comment": "Industria V1 - definicion de maquinas. size en celdas de grid. power en kW.",
+  "machines": {
+    "workbench": {
+      "name": "Banco de trabajo",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 800,
+      "power": 0,
+      "base_speed": 1.0,
+      "auto_supply": true,
+      "recipes": ["craft_handtool"]
+    },
+    "smelter": {
+      "name": "Fundicion",
+      "category": "processing",
+      "size": [3, 3],
+      "cost": 4500,
+      "power": 40,
+      "base_speed": 1.0,
+      "recipes": ["smelt_iron", "smelt_copper", "recycle_scrap", "smelt_steel"]
+    },
+    "sawmill": {
+      "name": "Aserradero",
+      "category": "processing",
+      "size": [3, 3],
+      "cost": 2500,
+      "power": 25,
+      "base_speed": 1.35,
+      "recipes": ["cut_planks"]
+    },
+    "planer": {
+      "name": "Cepilladora",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 2600,
+      "power": 22,
+      "base_speed": 1.35,
+      "recipes": ["make_pallet"]
+    },
+    "refinery": {
+      "name": "Refineria",
+      "category": "processing",
+      "size": [3, 2],
+      "cost": 3000,
+      "power": 35,
+      "base_speed": 1.0,
+      "recipes": ["refine_fuel", "make_plastic", "process_chem"]
+    },
+    "brick_kiln": {
+      "name": "Horno de ladrillos",
+      "category": "processing",
+      "size": [3, 2],
+      "cost": 2400,
+      "power": 28,
+      "base_speed": 1.1,
+      "recipes": ["fire_brick", "melt_glass"]
+    },
+    "block_press": {
+      "name": "Prensa de bloques",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 2600,
+      "power": 24,
+      "base_speed": 1.1,
+      "recipes": ["make_block", "cast_block"]
+    },
+    "grow_module": {
+      "name": "Modulo de cultivo",
+      "category": "manufacturing",
+      "size": [3, 3],
+      "cost": 3500,
+      "power": 30,
+      "base_speed": 1.0,
+      "recipes": ["grow_regulated"]
+    },
+    "press": {
+      "name": "Prensa",
+      "category": "manufacturing",
+      "size": [2, 2],
+      "cost": 4200,
+      "power": 30,
+      "base_speed": 1.0,
+      "recipes": ["press_plate", "make_copper_part", "draw_wire"]
+    },
+    "assembler": {
+      "name": "Ensambladora",
+      "category": "manufacturing",
+      "size": [4, 3],
+      "cost": 7500,
+      "power": 55,
+      "base_speed": 1.0,
+      "recipes": ["make_industrial_part", "assemble_metal_piece", "assemble_industrial_comp", "assemble_motor", "assemble_electronic", "assemble_machine_part"]
+    }
+  }
+}

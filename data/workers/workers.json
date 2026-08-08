@@ -1,0 +1,10 @@
+{
+  "_comment": "Industria - tipos de trabajadores. salary = por SEMANA (7 dias de juego). starting_staff vacio: la partida empieza SIN empleados (spec §8).",
+  "types": {
+    "operator": { "name": "Operario",   "salary": 400, "specialty": "production",  "base_productivity": 1.0 },
+    "manager":  { "name": "Logística",   "salary": 550, "specialty": "logistics",   "base_productivity": 1.0 },
+    "mechanic": { "name": "Técnico",     "salary": 650, "specialty": "maintenance", "base_productivity": 1.0 },
+    "engineer": { "name": "Especialista","salary": 900, "specialty": "quality",     "base_productivity": 1.0 }
+  },
+  "starting_staff": {}
+}

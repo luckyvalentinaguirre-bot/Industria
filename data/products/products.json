@@ -1,0 +1,22 @@
+{
+  "_comment": "Industria V1 - componentes intermedios y productos finales.",
+  "components": {
+    "hand_tool":       { "name": "Herramienta manual",    "category": "components", "unit": "u", "base_price": 22.0 },
+    "plank":           { "name": "Tabla de madera",       "category": "components", "unit": "u", "base_price": 6.0 },
+    "pallet":          { "name": "Pallet",                "category": "components", "unit": "u", "base_price": 34.0 },
+    "brick":           { "name": "Ladrillo",              "category": "components", "unit": "u", "base_price": 4.0 },
+    "block":           { "name": "Bloque estructural",    "category": "components", "unit": "u", "base_price": 30.0 },
+    "regulated_goods": { "name": "Producto regulado",     "category": "regulated",  "unit": "u", "base_price": 54.0 },
+    "metal_plate":     { "name": "Placa metalica",        "category": "components", "unit": "u", "base_price": 30.0 },
+    "copper_part":     { "name": "Componente de cobre",   "category": "components", "unit": "u", "base_price": 40.0 },
+    "copper_wire":     { "name": "Cable de cobre",        "category": "components", "unit": "u", "base_price": 26.0 },
+    "industrial_part": { "name": "Pieza industrial",      "category": "components", "unit": "u", "base_price": 55.0 },
+    "electronic_component": { "name": "Componente electronico", "category": "components", "unit": "u", "base_price": 60.0 }
+  },
+  "finished": {
+    "metal_piece":       { "name": "Pieza metalica",        "category": "finished", "unit": "u", "base_price": 70.0 },
+    "industrial_comp":   { "name": "Componente industrial", "category": "finished", "unit": "u", "base_price": 120.0 },
+    "machine_part":      { "name": "Pieza de maquinaria",   "category": "finished", "unit": "u", "base_price": 130.0 },
+    "simple_motor":      { "name": "Motor simple",          "category": "finished", "unit": "u", "base_price": 260.0 }
+  }
+}

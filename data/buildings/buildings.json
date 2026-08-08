@@ -1,0 +1,63 @@
+{
+  "_comment": "Industria V1 - edificios/estructuras colocables (energia, almacen, mantenimiento).",
+  "buildings": {
+    "generator": {
+      "name": "Generador diesel",
+      "category": "energy",
+      "size": [3, 2],
+      "cost": 8000,
+      "power_output": 150,
+      "fuel_per_min": 2.0
+    },
+    "substation": {
+      "name": "Subestacion",
+      "category": "energy",
+      "size": [2, 2],
+      "cost": 4000,
+      "power_capacity": 300
+    },
+    "small_storage": {
+      "name": "Almacen pequeno",
+      "category": "storage",
+      "size": [2, 2],
+      "cost": 2500,
+      "capacity": 500
+    },
+    "large_storage": {
+      "name": "Almacen grande",
+      "category": "storage",
+      "size": [5, 5],
+      "cost": 7500,
+      "capacity": 2500
+    },
+    "workshop": {
+      "name": "Taller de mantenimiento",
+      "category": "maintenance",
+      "size": [3, 2],
+      "cost": 5000,
+      "repair_rate": 1.0
+    },
+    "splitter": {
+      "name": "Divisor",
+      "category": "logistics",
+      "size": [1, 1],
+      "cost": 600,
+      "buffer": 12
+    },
+    "merger": {
+      "name": "Unificador",
+      "category": "logistics",
+      "size": [1, 1],
+      "cost": 600,
+      "buffer": 12
+    },
+    "filter": {
+      "name": "Filtro",
+      "category": "logistics",
+      "size": [1, 1],
+      "cost": 900,
+      "buffer": 12,
+      "is_filter": true
+    }
+  }
+}
